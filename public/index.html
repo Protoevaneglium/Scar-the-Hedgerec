@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sonic Retro Physics — Green Hill Test Stage</title>
+    <link rel="icon" href="data:,">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+        html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Courier New', monospace; color: #fff; }
+        #canvas-container { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #050b14; }
+        canvas { display: block; box-shadow: 0 0 40px rgba(0, 0, 0, 0.8); }
+        #top-bar { position: absolute; top: 12px; right: 16px; display: flex; gap: 8px; z-index: 10; }
+        .chip { background: rgba(10, 20, 40, 0.85); border: 1px solid rgba(80, 160, 255, 0.5); color: #9cdcfe; padding: 6px 12px;
+                border-radius: 6px; font: 12px 'Courier New', monospace; cursor: pointer; }
+        .chip:hover { background: rgba(30, 60, 120, 0.9); color: #fff; }
+        .chip.on { background: #1976d2; color: #fff; border-color: #90caf9; }
+        #touch { position: absolute; bottom: 20px; left: 0; right: 0; display: none; justify-content: space-between; padding: 0 30px; pointer-events: none; z-index: 10; }
+        @media (pointer: coarse) { #touch { display: flex; } }
+        .tgroup { display: flex; gap: 12px; pointer-events: auto; }
+        .tbtn { width: 62px; height: 62px; border-radius: 31px; background: rgba(20, 40, 80, 0.6); border: 2px solid rgba(100, 180, 255, 0.6);
+                color: #fff; font-size: 20px; font-weight: bold; touch-action: none; }
+        .tbtn.active { background: rgba(40, 120, 240, 0.85); border-color: #fff; }
+        .tbtn.jump { width: 76px; height: 76px; border-radius: 38px; background: rgba(220, 40, 40, 0.65); border-color: rgba(255, 140, 140, 0.8); font-size: 16px; }
+    </style>
+</head>
+<body>
+<div id="canvas-container">
+    <canvas id="game"></canvas>
+    <div id="top-bar">
+        <button class="chip on" id="btn-hud" title="Tab / G">HUD: ON</button>
+        <button class="chip on" id="btn-audio">Audio: ON</button>
+        <button class="chip" id="btn-cp" title="Keys 1–7">Checkpoint: Runway (1)</button>
+        <button class="chip" id="btn-reset" title="R">Reset (R)</button>
+    </div>
+    <div id="touch">
+        <div class="tgroup">
+            <button class="tbtn" data-key="left">◀</button>
+            <button class="tbtn" data-key="down">▼</button>
+            <button class="tbtn" data-key="right">▶</button>
+        </div>
+        <div class="tgroup"><button class="tbtn jump" data-key="jump">JUMP</button></div>
+    </div>
+</div>
+
+<script src="sonic-engine.js"></script>
+<script>
+'use strict';
+const { PHYS, HITBOX, STATE, Terrain, Player, MODE_FRAMES, toDeg, TAU } = window.SonicEngine;
+
+/* ==========================================================================
+   AUDIO — tiny Web Audio synth (unlocked on first input)
+   ========================================================================== */
+class RetroAudio {
+    constructor() { this.ctx = null; this.enabled = true; this.lastSkid = 0; }
+    unlock() {
+        if (!this.ctx) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) this.ctx = new AC(); }
+        if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+    }
+    tone(type, f0, f1, dur, vol = 0.15) {
+        if (!this.enabled || !this.ctx) return;
+        const t = this.ctx.currentTime, o = this.ctx.createOscillator(), g = this.ctx.createGain();
+        o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+        g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+        o.connect(g); g.connect(this.ctx.destination); o.start(t); o.stop(t + dur);
+    }
+    noise(dur, freq, vol = 0.12) {
+        if (!this.enabled || !this.ctx) return;
+        const t = this.ctx.currentTime, n = Math.floor(this.ctx.sampleRate * dur);
+        const buf = this.ctx.createBuffer(1, n, this.ctx.sampleRate), d = buf.getChannelData(0);
+        for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+        const src = this.ctx.createBufferSource(), f = this.ctx.createBiquadFilter(), g = this.ctx.createGain();
+        src.buffer = buf; f.type = 'bandpass'; f.frequency.value = freq; g.gain.value = vol;
+        src.connect(f); f.connect(g); g.connect(this.ctx.destination); src.start(t);
+    }
+    jump() { this.tone('square', 320, 760, 0.16, 0.12); }
+    roll() { this.noise(0.12, 900, 0.1); }
+    rev(r) { this.tone('sawtooth', 240 + r * 50, 380 + r * 60, 0.1, 0.12); }
+    release() { this.tone('triangle', 700, 200, 0.25, 0.2); this.noise(0.2, 600, 0.12); }
+    land() { this.tone('sine', 150, 50, 0.08, 0.15); }
+    bonk() { this.tone('square', 180, 90, 0.08, 0.1); }
+    skid(now) { if (now - this.lastSkid > 90) { this.lastSkid = now; this.noise(0.09, 1500, 0.1); } }
+}
+const audio = new RetroAudio();
+
+/* ==========================================================================
+   INPUT — Left, Right, Down, Jump, Debug toggle (+ reset / checkpoints)
+   ========================================================================== */
+class InputHandler {
+    constructor() {
+        this.left = this.right = this.down = this.jumpHeld = false;
+        this.jumpPressed = false;
+        this.debugToggle = false;
+        this.actions = [];
+        const KEY = {
+            ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowDown: 'down', KeyS: 'down',
+            Space: 'jump', KeyZ: 'jump', KeyX: 'jump', KeyC: 'jump',
+        };
+        const SWALLOW = new Set([...Object.keys(KEY), 'ArrowUp', 'Tab']);
+        window.addEventListener('keydown', (e) => {
+            audio.unlock();
+            if (SWALLOW.has(e.code)) e.preventDefault();
+            const k = KEY[e.code];
+            if (k) this.press(k, true);
+            if (e.repeat) return;
+            if (e.code === 'Tab' || e.code === 'KeyG') this.debugToggle = true;
+            if (e.code === 'KeyR') this.actions.push({ type: 'reset' });
+            const m = /^Digit([1-7])$/.exec(e.code);
+            if (m) this.actions.push({ type: 'checkpoint', index: +m[1] - 1 });
+        });
+        window.addEventListener('keyup', (e) => {
+            if (SWALLOW.has(e.code)) e.preventDefault();
+            const k = KEY[e.code];
+            if (k) this.press(k, false);
+        });
+        window.addEventListener('blur', () => { this.left = this.right = this.down = this.jumpHeld = false; });
+        document.querySelectorAll('.tbtn').forEach((el) => {
+            const k = el.dataset.key;
+            const on = (e) => { e.preventDefault(); audio.unlock(); el.classList.add('active'); this.press(k, true); };
+            const off = (e) => { e.preventDefault(); el.classList.remove('active'); this.press(k, false); };
+            el.addEventListener('pointerdown', on);
+            ['pointerup', 'pointercancel', 'pointerleave'].forEach((t) => el.addEventListener(t, off));
+        });
+    }
+    press(k, down) {
+        if (k === 'jump') { if (down && !this.jumpHeld) this.jumpPressed = true; this.jumpHeld = down; }
+        else this[k] = down;
+    }
+    snapshot() { return { left: this.left, right: this.right, down: this.down, jumpHeld: this.jumpHeld, jumpPressed: this.jumpPressed }; }
+    endFrame() { this.jumpPressed = false; this.debugToggle = false; this.actions.length = 0; }
+}
+
+/* ==========================================================================
+   GAME — loop, camera, rendering, debug overlay
+   ========================================================================== */
+const SENSOR_COLORS = { A: '#00ff6a', B: '#d4ff00', C: '#00d0ff', D: '#5b7cff', E: '#ff66cc', F: '#ff4040' };
+const MODE_NAMES = ['Floor', 'Right Wall', 'Ceiling', 'Left Wall'];
+const BLUE = '#1f4fe0', BLUE_D = '#12329a', PEACH = '#f6c08e', RED = '#e02424';
+
+class Game {
+    constructor() {
+        this.canvas = document.getElementById('game');
+        this.ctx = this.canvas.getContext('2d');
+        this.W = 960; this.H = 540;
+        this.canvas.width = this.W; this.canvas.height = this.H;
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+
+        this.input = new InputHandler();
+        this.terrain = new Terrain();
+        this.particles = [];
+        this.showDebug = true;
+        this.cpIndex = 0;
+
+        this.player = new Player(this.terrain, {
+            jump: () => audio.jump(),
+            roll: () => audio.roll(),
+            bonk: () => audio.bonk(),
+            spindashRev: (rev, p) => { audio.rev(rev); this.dust(p, 5, -p.facing, 2.5); },
+            spindashRelease: (v, p) => { audio.release(); this.dust(p, 8, -p.facing, 3.5); },
+            land: (d, p) => { audio.land(); if (d.ysp > 4) { this.dust(p, 3, 1, 1.5); this.dust(p, 3, -1, 1.5); } },
+            respawn: (cp) => { this.cpIndex = this.terrain.checkpoints.indexOf(cp); this.updateCpButton(); this.snapCamera(); },
+        });
+
+        this.camX = 0; this.camY = 0; this.look = 0;
+        this.snapCamera();
+
+        this.fps = 60; this.fpsFrames = 0; this.fpsTime = 0; this.dt60 = 1;
+        this.checker = this.makeChecker('#b0601e', '#8a4614', 16);
+        this.loopChecker = this.makeChecker('#c46b22', '#94501a', 12);
+        this.rock = this.makeChecker('#6b3a17', '#5a3013', 20);
+        this.setupUI();
+
+        this.last = performance.now();
+        requestAnimationFrame((t) => this.frame(t));
+    }
+
+    resize() {
+        const c = document.getElementById('canvas-container');
+        const s = Math.min(c.clientWidth / this.W, c.clientHeight / this.H);
+        this.canvas.style.width = Math.floor(this.W * s) + 'px';
+        this.canvas.style.height = Math.floor(this.H * s) + 'px';
+    }
+
+    makeChecker(a, b, size) {
+        const cv = document.createElement('canvas');
+        cv.width = cv.height = size * 2;
+        const g = cv.getContext('2d');
+        g.fillStyle = a; g.fillRect(0, 0, size * 2, size * 2);
+        g.fillStyle = b; g.fillRect(0, 0, size, size); g.fillRect(size, size, size, size);
+        return this.ctx.createPattern(cv, 'repeat');
+    }
+
+    setupUI() {
+        const hud = document.getElementById('btn-hud');
+        const aud = document.getElementById('btn-audio');
+        const cp = document.getElementById('btn-cp');
+        const rst = document.getElementById('btn-reset');
+        const blurAfter = (el, fn) => el.addEventListener('click', () => { audio.unlock(); fn(); el.blur(); });
+        blurAfter(hud, () => this.toggleDebug());
+        blurAfter(aud, () => { audio.enabled = !audio.enabled; aud.textContent = `Audio: ${audio.enabled ? 'ON' : 'OFF'}`; aud.classList.toggle('on', audio.enabled); });
+        blurAfter(cp, () => this.gotoCheckpoint((this.cpIndex + 1) % this.terrain.checkpoints.length));
+        blurAfter(rst, () => this.gotoCheckpoint(0));
+    }
+    toggleDebug() {
+        this.showDebug = !this.showDebug;
+        const b = document.getElementById('btn-hud');
+        b.textContent = `HUD: ${this.showDebug ? 'ON' : 'OFF'}`;
+        b.classList.toggle('on', this.showDebug);
+    }
+    gotoCheckpoint(i) {
+        this.cpIndex = i;
+        this.player.place(this.terrain.checkpoints[i].x);
+        this.particles.length = 0;
+        this.updateCpButton();
+        this.snapCamera();
+    }
+    updateCpButton() {
+        const c = this.terrain.checkpoints[this.cpIndex];
+        document.getElementById('btn-cp').textContent = `Checkpoint: ${c.name} (${this.cpIndex + 1})`;
+    }
+
+    /* ---------------- main loop: real dt -> engine (engine scales by dt*60 and sub-steps) ---------------- */
+    frame(now) {
+        const dt = Math.min((now - this.last) / 1000, 0.05);
+        this.last = now;
+        this.dt60 = dt * 60;
+        this.fpsFrames++; this.fpsTime += dt;
+        if (this.fpsTime >= 0.5) { this.fps = Math.round(this.fpsFrames / this.fpsTime); this.fpsFrames = 0; this.fpsTime = 0; }
+
+        if (this.input.debugToggle) this.toggleDebug();
+        for (const a of this.input.actions) {
+            if (a.type === 'reset') this.gotoCheckpoint(0);
+            if (a.type === 'checkpoint') this.gotoCheckpoint(a.index);
+        }
+
+        this.player.update(this.input.snapshot(), dt);
+        this.input.endFrame();
+
+        const p = this.player;
+        if (p.skidding) { audio.skid(now); if (Math.random() < 0.5 * this.dt60) this.dust(p, 1, p.facing, 1.5); }
+        if (p.state === STATE.SPINDASH && Math.random() < 0.4 * this.dt60) this.dust(p, 1, -p.facing, 2);
+        this.updateParticles(this.dt60);
+        this.updateCamera(dt);
+        this.render();
+        requestAnimationFrame((t) => this.frame(t));
+    }
+
+    /* ---------------- particles ---------------- */
+    dust(p, n, dir, speed) {
+        const fr = MODE_FRAMES[p.mode], h = p.radii.height;
+        const fx = p.x + fr.dx * (h - 2), fy = p.y + fr.dy * (h - 2);
+        for (let i = 0; i < n; i++) {
+            const s = speed * (0.5 + Math.random());
+            this.particles.push({
+                x: fx, y: fy,
+                vx: fr.rx * dir * s - fr.dx * Math.random(), vy: fr.ry * dir * s - fr.dy * Math.random(),
+                life: 14 + Math.random() * 10, max: 24, size: 2 + Math.random() * 3,
+            });
+        }
+    }
+    updateParticles(d) {
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const q = this.particles[i];
+            q.x += q.vx * d; q.y += q.vy * d; q.vx *= Math.pow(0.92, d); q.vy *= Math.pow(0.92, d);
+            q.life -= d;
+            if (q.life <= 0) this.particles.splice(i, 1);
+        }
+    }
+
+    /* ---------------- smooth look-ahead camera ---------------- */
+    snapCamera() {
+        this.look = 0;
+        this.camX = this.player.x - this.W / 2;
+        this.camY = this.player.y - this.H / 2 + 40;
+    }
+    updateCamera(dt) {
+        const p = this.player;
+        const vx = p.grounded ? p.gsp * Math.cos(p.angle) : p.xsp;
+        const targetLook = Math.max(-150, Math.min(150, vx * 18));
+        this.look += (targetLook - this.look) * (1 - Math.exp(-2.5 * dt));
+        const tx = p.x + this.look - this.W / 2;
+        const ty = p.y - this.H / 2 + 40;
+        this.camX += (tx - this.camX) * (1 - Math.exp(-9 * dt));
+        this.camY += (ty - this.camY) * (1 - Math.exp(-6 * dt));
+    }
+
+    /* ======================================================================
+       RENDER
+       ====================================================================== */
+    render() {
+        const ctx = this.ctx;
+        this.drawBackground(ctx);
+        ctx.save();
+        ctx.translate(-Math.round(this.camX), -Math.round(this.camY));
+        this.view = { x0: this.camX - 40, x1: this.camX + this.W + 40, y0: this.camY - 40, y1: this.camY + this.H + 40 };
+
+        this.drawPit(ctx);
+        this.drawTunnelBack(ctx);
+        this.drawProps(ctx);
+        this.drawLoop(ctx);
+        for (const f of this.terrain.floors) this.drawFloor(ctx, f);
+        this.drawTunnelRock(ctx);
+        this.drawSigns(ctx);
+        if (this.showDebug) this.drawLoopDebug(ctx);
+        this.drawParticles(ctx);
+        this.drawPlayer(ctx);
+        if (this.showDebug) this.drawSensors(ctx);
+        ctx.restore();
+
+        if (this.showDebug) this.drawHUD(ctx);
+        else this.drawMiniHUD(ctx);
+    }
+
+    drawBackground(ctx) {
+        const W = this.W, H = this.H;
+        const sky = ctx.createLinearGradient(0, 0, 0, H);
+        sky.addColorStop(0, '#1c58c7'); sky.addColorStop(0.5, '#3a8ff7'); sky.addColorStop(1, '#bfe4ff');
+        ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+
+        const t = performance.now();
+        ctx.fillStyle = '#fff';
+        const co = -((this.camX * 0.05 + t * 0.008) % 480);
+        for (let x = co - 480; x < W + 480; x += 240) {
+            ctx.beginPath(); ctx.arc(x, 80, 24, 0, TAU); ctx.arc(x + 24, 70, 32, 0, TAU); ctx.arc(x + 54, 78, 24, 0, TAU); ctx.fill();
+        }
+        const horizon = 300 - (this.camY - 300) * 0.05;
+        ctx.fillStyle = '#2f8a50';
+        const mo = -((this.camX * 0.12) % 220);
+        for (let x = mo - 220; x < W + 220; x += 220) { ctx.beginPath(); ctx.arc(x + 110, horizon + 30, 120, Math.PI, 0); ctx.fill(); }
+        ctx.fillStyle = '#226b3e';
+        const mo2 = -((this.camX * 0.2) % 160);
+        for (let x = mo2 - 160; x < W + 160; x += 160) { ctx.beginPath(); ctx.arc(x + 80, horizon + 40, 70, Math.PI, 0); ctx.fill(); }
+        const water = ctx.createLinearGradient(0, horizon + 40, 0, H);
+        water.addColorStop(0, '#1a63c0'); water.addColorStop(1, '#0d3f86');
+        ctx.fillStyle = water; ctx.fillRect(0, horizon + 40, W, H);
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        for (let y = horizon + 50, i = 0; y < H; y += 14, i++) {
+            const o = Math.sin(i * 1.7 + t * 0.002) * 30 - ((this.camX * (0.25 + i * 0.03)) % 120);
+            for (let x = o - 120; x < W; x += 120) ctx.fillRect(x, y, 50, 2);
+        }
+    }
+
+    /** Trace y = f(x) across the visible part of a height field. Returns the drawn [a, b] or null. */
+    traceField(ctx, s, start = true) {
+        const a = Math.max(s.x0, this.view.x0), b = Math.min(s.x1, this.view.x1);
+        if (a >= b) return null;
+        if (start) ctx.moveTo(a, s.f(a)); else ctx.lineTo(a, s.f(a));
+        for (let x = a + 4; x < b; x += 4) ctx.lineTo(x, s.f(x));
+        ctx.lineTo(b, s.f(b));
+        return [a, b];
+    }
+
+    drawFloor(ctx, s) {
+        const bottom = this.view.y1 + 50;
+        ctx.beginPath();
+        const r = this.traceField(ctx, s);
+        if (!r) return;
+        const [a, b] = r;
+        ctx.lineTo(b, bottom); ctx.lineTo(a, bottom); ctx.closePath();
+        ctx.fillStyle = this.checker; ctx.fill();
+        // grass band below the surface line (feet sit exactly on its top edge)
+        ctx.beginPath();
+        this.traceField(ctx, s);
+        for (let x = b; x > a; x -= 4) ctx.lineTo(x, s.f(x) + 11);
+        ctx.lineTo(a, s.f(a) + 11); ctx.closePath();
+        ctx.fillStyle = '#25b52a'; ctx.fill();
+        ctx.beginPath(); this.traceField(ctx, s);
+        ctx.strokeStyle = '#7dff6a'; ctx.lineWidth = 2; ctx.stroke();
+        // ramp lip / plateau faces
+        ctx.fillStyle = '#5b2f10';
+        const lip = this.terrain.lip;
+        if (s === this.terrain.mainFloor && b >= lip.x - 1) ctx.fillRect(lip.x - 6, lip.y, 6, bottom - lip.y);
+        if (s === this.terrain.plateau && a <= s.x0 + 1) ctx.fillRect(s.x0, s.f(s.x0), 6, bottom - s.f(s.x0));
+    }
+
+    drawPit(ctx) {
+        const g = this.terrain.gap;
+        if (g.x1 < this.view.x0 || g.x0 > this.view.x1) return;
+        const y = this.terrain.deathY - 80;
+        ctx.fillStyle = '#0d3f86'; ctx.fillRect(g.x0, y, g.x1 - g.x0, this.view.y1 - y + 60);
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        for (let i = 0; i < 6; i++) ctx.fillRect(g.x0 + ((i * 47 + performance.now() * 0.02) % (g.x1 - g.x0)), y + 6 + (i % 3) * 10, 24, 2);
+    }
+
+    drawTunnelBack(ctx) {
+        const t = this.terrain.tunnel, c = this.terrain.tunnelCeiling, f = this.terrain.mainFloor;
+        if (t.x1 < this.view.x0 || t.x0 > this.view.x1) return;
+        ctx.beginPath();
+        const r = this.traceField(ctx, c);
+        if (!r) return;
+        for (let x = r[1]; x > r[0]; x -= 4) ctx.lineTo(x, f.f(x));
+        ctx.lineTo(r[0], f.f(r[0])); ctx.closePath();
+        ctx.fillStyle = '#2b170a'; ctx.fill();
+    }
+
+    drawTunnelRock(ctx) {
+        const t = this.terrain.tunnel, c = this.terrain.tunnelCeiling;
+        if (t.x1 < this.view.x0 || t.x0 > this.view.x1) return;
+        ctx.beginPath();
+        const r = this.traceField(ctx, c);
+        if (!r) return;
+        ctx.lineTo(r[1], t.roofY); ctx.lineTo(r[0], t.roofY); ctx.closePath();
+        ctx.fillStyle = this.rock; ctx.fill();
+        ctx.beginPath(); this.traceField(ctx, c);
+        ctx.strokeStyle = '#2a1405'; ctx.lineWidth = 3; ctx.stroke();
+        ctx.fillStyle = '#25b52a'; ctx.fillRect(t.x0, t.roofY, t.x1 - t.x0, 11);
+        ctx.fillStyle = '#7dff6a'; ctx.fillRect(t.x0, t.roofY, t.x1 - t.x0, 2);
+    }
+
+    drawLoop(ctx) {
+        const L = this.terrain.loop;
+        if (L.cx + L.r + 40 < this.view.x0 || L.cx - L.r - 40 > this.view.x1) return;
+        ctx.beginPath(); ctx.arc(L.cx, L.cy, L.r + 26, 0, TAU); ctx.arc(L.cx, L.cy, L.r, 0, TAU, true);
+        ctx.fillStyle = this.loopChecker; ctx.fill();
+        ctx.beginPath(); ctx.arc(L.cx, L.cy, L.r + 9, 0, TAU); ctx.arc(L.cx, L.cy, L.r, 0, TAU, true);
+        ctx.fillStyle = '#25b52a'; ctx.fill();
+        ctx.beginPath(); ctx.arc(L.cx, L.cy, L.r + 1, 0, TAU);
+        ctx.strokeStyle = '#7dff6a'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.beginPath(); ctx.arc(L.cx, L.cy, L.r + 26, 0, TAU);
+        ctx.strokeStyle = '#5b2f10'; ctx.lineWidth = 2; ctx.stroke();
+    }
+
+    drawProps(ctx) {
+        const f = this.terrain.mainFloor;
+        const palms = [340, 760, 1200, 1990, 2790, 3250, 4250, 5200];
+        for (const x of palms) if (x > this.view.x0 - 80 && x < this.view.x1 + 80) this.palm(ctx, x, f.f(x));
+        if (this.terrain.plateau) for (const x of [5900, 6250]) if (x > this.view.x0 - 80 && x < this.view.x1 + 80) this.palm(ctx, x, this.terrain.plateau.f(x));
+        const flowers = [120, 260, 480, 620, 900, 1500, 2400, 3110, 3700, 5150, 5950];
+        for (let i = 0; i < flowers.length; i++) {
+            const x = flowers[i];
+            if (x < this.view.x0 || x > this.view.x1) continue;
+            const s = x > this.terrain.gap.x1 ? this.terrain.plateau : f;
+            this.flower(ctx, x, s.f(x), i % 2 ? '#ffe028' : '#ff3a6a');
+        }
+    }
+    palm(ctx, x, y) {
+        ctx.strokeStyle = '#9a5a1c'; ctx.lineWidth = 7;
+        ctx.beginPath(); ctx.moveTo(x, y + 4); ctx.quadraticCurveTo(x - 14, y - 50, x - 6, y - 92); ctx.stroke();
+        ctx.fillStyle = '#17a51c';
+        for (let a = -1.0; a <= 1.01; a += 0.5) {
+            ctx.beginPath(); ctx.ellipse(x - 6 + Math.sin(a) * 26, y - 94 + Math.abs(a) * 8, 26, 7, a * 0.8, 0, TAU); ctx.fill();
+        }
+    }
+    flower(ctx, x, y, color) {
+        ctx.strokeStyle = '#1f7f22'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(x, y + 2); ctx.lineTo(x, y - 16); ctx.stroke();
+        const sway = Math.sin(performance.now() * 0.004 + x) * 1.5;
+        ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x + sway, y - 19, 6, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x + sway, y - 19, 2.4, 0, TAU); ctx.fill();
+    }
+    drawSigns(ctx) {
+        ctx.font = 'bold 11px Courier New';
+        for (const s of this.terrain.sections) {
+            if (s.x < this.view.x0 - 200 || s.x > this.view.x1 + 50) continue;
+            const surf = this.terrain.getSurfaceAt(s.x + 24, this.terrain.probeY, 0);
+            if (!surf) continue;
+            const x = s.x + 24, y = surf.y;
+            const w = ctx.measureText(s.name).width + 14;
+            ctx.fillStyle = '#6b4320'; ctx.fillRect(x - 2, y - 46, 4, 46);
+            ctx.fillStyle = 'rgba(15,25,50,0.85)'; ctx.fillRect(x - w / 2, y - 66, w, 20);
+            ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 1; ctx.strokeRect(x - w / 2 + 0.5, y - 65.5, w - 1, 19);
+            ctx.fillStyle = '#ffd34d'; ctx.textAlign = 'center'; ctx.fillText(s.name, x, y - 52);
+            ctx.textAlign = 'left';
+        }
+    }
+
+    drawLoopDebug(ctx) {
+        const T = this.terrain, L = T.loop, G = T.gates, layer = this.player.layer;
+        if (L.cx + L.r + 200 < this.view.x0 || L.cx - L.r - 200 > this.view.x1) return;
+        // collision layers: surface angle a -> canvas angle (π/2 - a)
+        const arc = (s, color, active) => {
+            ctx.save();
+            ctx.strokeStyle = color; ctx.lineWidth = active ? 3 : 2; ctx.globalAlpha = active ? 1 : 0.35;
+            if (!active) ctx.setLineDash([6, 6]);
+            ctx.beginPath();
+            ctx.arc(L.cx, L.cy, L.r - 2, Math.PI / 2 - s.fromDeg * Math.PI / 180, Math.PI / 2 - s.toDeg * Math.PI / 180, true);
+            ctx.stroke(); ctx.restore();
+        };
+        arc(T.loopArc0, '#00e5ff', layer === 0);
+        arc(T.loopArc1, '#ff3dd0', layer === 1);
+        ctx.save();
+        ctx.setLineDash([4, 4]); ctx.lineWidth = 2; ctx.font = '10px Courier New';
+        const gate = (x, y0, y1, color, label) => {
+            ctx.strokeStyle = color; ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x, y1); ctx.stroke();
+            ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.fillText(label, x, y0 - 6);
+        };
+        gate(G.entryX, L.cy - 60, L.cy + L.r, '#00e5ff', 'ENTRY → L0');
+        gate(G.exitX, L.cy - 60, L.cy + L.r, '#ff3dd0', 'EXIT → L1');
+        gate(G.apexX, L.cy - L.r - 4, L.cy - L.r + 44, '#ffe14d', 'APEX gsp>0→L1 / gsp<0→L0');
+        ctx.restore();
+        ctx.textAlign = 'left';
+    }
+
+    drawParticles(ctx) {
+        for (const q of this.particles) {
+            const a = Math.max(0, q.life / q.max);
+            ctx.fillStyle = `rgba(245,245,255,${a.toFixed(2)})`;
+            ctx.beginPath(); ctx.arc(q.x, q.y, q.size * (0.4 + 0.6 * a), 0, TAU); ctx.fill();
+        }
+    }
+
+    /* ---------------- player sprite ---------------- */
+    drawPlayer(ctx) {
+        const p = this.player;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        if (p.curled) this.drawBall(ctx, p);
+        else {
+            // Canvas rotation is clockwise-positive with +Y down, while surface angles are
+            // counter-clockwise (90° = right wall, head pointing left) — hence the minus sign.
+            ctx.rotate(-p.visualAngle);
+            ctx.scale(p.facing, 1);
+            this.drawBody(ctx, p);
+        }
+        ctx.restore();
+    }
+
+    drawBall(ctx, p) {
+        const R = HITBOX.ROLL.height;
+        if (p.state === STATE.SPINDASH) {
+            ctx.fillStyle = 'rgba(255,255,255,0.35)';
+            for (let i = 1; i <= 3; i++) { ctx.beginPath(); ctx.arc(-p.facing * i * 4, 0, R - i, 0, TAU); ctx.fill(); }
+        }
+        ctx.rotate(p.ballSpin);
+        ctx.fillStyle = BLUE_D; ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.fill();
+        ctx.fillStyle = BLUE;
+        for (let i = 0; i < 5; i++) {
+            const a = i * TAU / 5;
+            ctx.beginPath();
+            ctx.moveTo(Math.cos(a - 0.5) * 7, Math.sin(a - 0.5) * 7);
+            ctx.lineTo(Math.cos(a) * R, Math.sin(a) * R);
+            ctx.lineTo(Math.cos(a + 0.5) * 7, Math.sin(a + 0.5) * 7);
+            ctx.fill();
+        }
+        ctx.beginPath(); ctx.arc(0, 0, 9, 0, TAU); ctx.fill();
+        ctx.fillStyle = PEACH; ctx.beginPath(); ctx.ellipse(3, 3, 5, 3.5, 0.6, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(-3, -4, 3, 2, -0.6, 0, TAU); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(0, 0, R - 1, -0.3, 0.9); ctx.stroke();
+    }
+
+    /** Local frame: facing right, origin = centre, feet at y = +19 (standing height radius). */
+    drawBody(ctx, p) {
+        const speed = Math.abs(p.grounded ? p.gsp : p.xsp);
+        const crouch = p.crouching ? 6 : 0;
+        ctx.translate(0, crouch);
+        const lean = p.skidding ? -0.25 : Math.min(speed / PHYS.TOP, 1.2) * 0.12;
+        ctx.rotate(lean);
+
+        // legs + shoes
+        if (speed >= PHYS.TOP && p.grounded) {
+            const r = p.runPhase * 2.2;
+            ctx.strokeStyle = RED; ctx.lineWidth = 5;
+            ctx.beginPath(); ctx.ellipse(1, 13, 9, 5, r, 0, TAU); ctx.stroke();
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.ellipse(1, 13, 9, 5, r, 0, TAU); ctx.stroke();
+        } else {
+            const moving = speed > 0.05 || !p.grounded;
+            const sw = moving ? Math.sin(p.runPhase * 1.6 + (p.grounded ? 0 : performance.now() * 0.02)) * 0.7 : 0;
+            for (const [x0, s] of [[-2, sw], [3, -sw]]) {
+                ctx.save(); ctx.translate(x0, 8); ctx.rotate(s);
+                ctx.fillStyle = BLUE; ctx.fillRect(-1.6, 0, 3.2, 7 - crouch * 0.6);
+                ctx.fillStyle = RED; ctx.beginPath(); ctx.ellipse(2, 9.2 - crough(crouch), 5.2, 2.6, 0, 0, TAU); ctx.fill();
+                ctx.fillStyle = '#fff'; ctx.fillRect(0, 7.2 - crough(crouch), 2, 3.6);
+                ctx.restore();
+            }
+        }
+        // quills
+        ctx.fillStyle = BLUE;
+        ctx.beginPath();
+        ctx.moveTo(-3, -16); ctx.lineTo(-18, -13); ctx.lineTo(-9, -8); ctx.lineTo(-20, -3);
+        ctx.lineTo(-9, 0); ctx.lineTo(-15, 7); ctx.lineTo(-3, 4); ctx.closePath(); ctx.fill();
+        // body + belly
+        ctx.beginPath(); ctx.ellipse(0, 3, 6.5, 7, 0, 0, TAU); ctx.fill();
+        ctx.fillStyle = PEACH; ctx.beginPath(); ctx.ellipse(2, 4, 4, 5, 0, 0, TAU); ctx.fill();
+        // head
+        ctx.fillStyle = BLUE; ctx.beginPath(); ctx.arc(1, -8, 9, 0, TAU); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(-4, -14); ctx.lineTo(-1, -21); ctx.lineTo(3, -15); ctx.fill();
+        ctx.fillStyle = PEACH; ctx.beginPath(); ctx.ellipse(6.5, -5, 5, 3.6, 0, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(11.3, -6.4, 1.6, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(4.5, -10.5, 3.4, 4.4, 0.1, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#0a5a12'; ctx.fillRect(5.6, -11.5, 1.8, 3);
+        // arm + glove
+        ctx.fillStyle = PEACH; ctx.fillRect(0, 1, 6, 2);
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(7, 2, 3, 0, TAU); ctx.fill();
+    }
+
+    /* ---------------- debug: hitbox + colour-coded sensors A–F ---------------- */
+    drawSensors(ctx) {
+        const p = this.player, r = p.radii;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(-p.mode * Math.PI / 2);   // hitbox rotates with the quadrant mode
+        ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 1;
+        ctx.strokeRect(-r.width, -r.height, r.width * 2, r.height * 2);
+        ctx.restore();
+
+        ctx.strokeStyle = '#ffee33'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + p.xsp * 4, p.y + p.ysp * 4); ctx.stroke();
+
+        ctx.font = 'bold 9px Courier New';
+        for (const k of ['A', 'B', 'C', 'D', 'E', 'F']) {
+            const s = p.sensors[k];
+            if (!s) continue;
+            const col = SENSOR_COLORS[k];
+            ctx.save();
+            ctx.globalAlpha = s.active ? 1 : 0.3;
+            if (!s.active) ctx.setLineDash([3, 3]);
+            ctx.strokeStyle = col; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(s.ox, s.oy); ctx.lineTo(s.ox + s.dx * s.len, s.oy + s.dy * s.len); ctx.stroke();
+            if (s.hit) {
+                ctx.setLineDash([]);
+                ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(s.hit.x, s.hit.y, 2.5, 0, TAU); ctx.fill();
+                ctx.strokeStyle = col; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(s.hit.x, s.hit.y); ctx.lineTo(s.hit.x + s.hit.nx * 8, s.hit.y + s.hit.ny * 8); ctx.stroke();
+            }
+            ctx.fillStyle = col;
+            ctx.fillText(k, s.ox + s.dx * s.len + 2, s.oy + s.dy * s.len + 3);
+            ctx.restore();
+        }
+        ctx.fillStyle = '#ff2266'; ctx.fillRect(p.x - 1.5, p.y - 1.5, 3, 3);
+    }
+
+    panel(ctx, x, y, w, h) {
+        ctx.fillStyle = 'rgba(5,12,24,0.86)'; ctx.strokeStyle = 'rgba(64,160,255,0.5)'; ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(x, y, w, h, 8); else ctx.rect(x, y, w, h);
+        ctx.fill(); ctx.stroke();
+    }
+
+    drawHUD(ctx) {
+        const p = this.player;
+        const deg = toDeg(p.angle);
+        this.panel(ctx, 12, 12, 292, 262);
+        ctx.font = 'bold 12px Courier New'; ctx.fillStyle = '#ffd700';
+        ctx.fillText('SONIC RETRO PHYSICS — DEBUG', 24, 31);
+        ctx.font = '12px Courier New';
+        const absG = Math.abs(p.gsp);
+        const rows = [
+            ['STATE', p.state + (p.curled ? ' (ball)' : ''), p.state === STATE.SPINDASH ? '#ff7a33' : p.state === STATE.ROLLING ? '#00e5ff' : '#fff'],
+            ['GSP', p.gsp.toFixed(3), absG >= PHYS.TOP ? '#ffcc00' : absG >= PHYS.FALL_THRESHOLD ? '#5dff5d' : '#ff6b6b'],
+            ['XSP', p.xsp.toFixed(3), '#fff'],
+            ['YSP', p.ysp.toFixed(3), '#fff'],
+            ['ANGLE', deg.toFixed(1) + '°', '#5dff5d'],
+            ['QUAD MODE', `${p.mode} (${MODE_NAMES[p.mode]})`, '#ffa53d'],
+            ['LOOP LAYER', String(p.layer), p.layer === 0 ? '#00e5ff' : '#ff3dd0'],
+            ['CTRL LOCK', p.controlLock > 0 ? `${Math.ceil(p.controlLock)} frames` : '0', p.controlLock > 0 ? '#ff4d4d' : '#5dff5d'],
+            ['SPIN REV', `${p.spindashRev.toFixed(2)} / 8`, p.spindashRev > 0 ? '#ff7a33' : '#888'],
+            ['AIR MOTION', p.grounded ? '—' : p.airMotion, '#bbb'],
+        ];
+        let y = 52;
+        for (const [k, v, c] of rows) {
+            ctx.fillStyle = '#9cdcfe'; ctx.fillText(k, 24, y);
+            ctx.fillStyle = c; ctx.fillText(v, 136, y);
+            y += 18;
+        }
+        // sensor legend
+        let x = 24; y += 4;
+        ctx.font = 'bold 11px Courier New';
+        for (const k of ['A', 'B', 'C', 'D', 'E', 'F']) {
+            ctx.fillStyle = SENSOR_COLORS[k]; ctx.fillRect(x, y - 9, 10, 10);
+            ctx.fillText(k, x + 13, y); x += 40;
+        }
+        ctx.font = '10px Courier New'; ctx.fillStyle = '#8a9bb0';
+        ctx.fillText(`FPS ${this.fps}  ·  dt×60 = ${this.dt60.toFixed(2)}  ·  x ${p.x.toFixed(0)} y ${p.y.toFixed(0)}`, 24, y + 20);
+
+        this.drawControlsHint(ctx);
+    }
+    drawMiniHUD(ctx) {
+        const p = this.player;
+        this.panel(ctx, 12, 12, 170, 30);
+        ctx.font = 'bold 12px Courier New'; ctx.fillStyle = '#ffd700';
+        ctx.fillText(`SPEED ${Math.abs(p.grounded ? p.gsp : Math.hypot(p.xsp, p.ysp)).toFixed(2)}`, 24, 32);
+        this.drawControlsHint(ctx);
+    }
+    drawControlsHint(ctx) {
+        const txt = '←/→ run   ↓ roll/crouch   Space/Z jump   ↓ + Jump spin dash (tap to rev, release ↓)   Tab HUD   1–7 checkpoints   R reset';
+        ctx.font = '11px Courier New';
+        const w = ctx.measureText(txt).width + 20;
+        this.panel(ctx, (this.W - w) / 2, this.H - 30, w, 22);
+        ctx.fillStyle = '#cfe6ff'; ctx.fillText(txt, (this.W - w) / 2 + 10, this.H - 15);
+    }
+}
+
+function crough(c) { return c * 0.6; }
+
+window.addEventListener('DOMContentLoaded', () => { window.sonicGame = new Game(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+ go to directory:
+cd "C:\Users\mycal\Desktop\Gavins Game"
+
+start the server:
+node server.js
+
+
+
+server addres:
+ http://localhost:3000
+

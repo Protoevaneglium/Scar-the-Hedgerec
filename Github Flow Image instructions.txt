@@ -1,0 +1,20 @@
+If you're asking about adding an image to your GitHub README, here is the basic markdown:
+
+```markdown
+![Image Description](link/to/your/image.jpg)
+
+```
+
+You can put the image in your repository (for example, in an `images` folder) and link to it like this:
+
+```markdown
+![System Architecture Diagram](./images/architecture.png)
+
+```
+
+Or you can use a link to an image hosted online:
+
+```markdown
+![Company Logo](https://example.com/logo.png)
+
+```
