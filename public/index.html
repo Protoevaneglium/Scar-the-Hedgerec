@@ -516,8 +516,18 @@ class Game {
         this.drawControlsHint(ctx);
     }
 
-    drawBackground(ctx) {
+    drawBackground(mainCtx) {
         const W = this.W, H = this.H;
+        const PIXEL_SCALE = 3; // 320x180 classic Sega Genesis / Sega CD / 32X horizontal resolution
+        const lowW = Math.floor(W / PIXEL_SCALE);
+        const lowH = Math.floor(H / PIXEL_SCALE);
+        if (!this._skyBuffer || this._skyBuffer.width !== lowW || this._skyBuffer.height !== lowH) {
+            this._skyBuffer = document.createElement('canvas');
+            this._skyBuffer.width = lowW;
+            this._skyBuffer.height = lowH;
+            this._skyCtx = this._skyBuffer.getContext('2d', { willReadFrequently: true });
+        }
+        const ctx = this._skyCtx;
         const era = this.terrain.timeEra || 'good_future';
         const t = performance.now();
         const horizon = Math.round(290 - (this.camY - 300) * 0.06);
@@ -556,6 +566,7 @@ class Game {
         const pal = palettes[era] || palettes.good_future;
 
         ctx.save();
+        ctx.scale(lowW / W, lowH / H);
         // Draw stepped 16-bit sky color bands with classic Sega CD scanline dithering at transitions
         const bandCount = pal.bands.length;
         const skyH = Math.max(80, waterY);
@@ -871,6 +882,43 @@ class Game {
             }
         }
         ctx.restore();
+
+        // 7. SEGA GENESIS / 32X VDP FILTER (SKY BACKGROUND ONLY — DOES NOT AFFECT MAP)
+        // Ordered 2x2 Bayer dithering + Sega VDP hardware DAC color quantization on the 320x180 sky buffer
+        const img = ctx.getImageData(0, 0, lowW, lowH);
+        const data = img.data;
+        const bayer2x2 = [-9, 3, 9, -3];
+        for (let py = 0; py < lowH; py++) {
+            const rowOff = py * lowW * 4;
+            const byOff = (py & 1) << 1;
+            for (let px = 0; px < lowW; px++) {
+                const idx = rowOff + (px << 2);
+                const dither = bayer2x2[byOff + (px & 1)];
+                // Quantize RGB to discrete Sega Genesis / 32X VDP DAC steps with ordered dither
+                let r = data[idx] + dither;
+                let g = data[idx + 1] + dither;
+                let b = data[idx + 2] + dither;
+                r = r < 0 ? 0 : r > 255 ? 255 : (r & 0xE0) | ((r & 0xE0) >> 3);
+                g = g < 0 ? 0 : g > 255 ? 255 : (g & 0xE0) | ((g & 0xE0) >> 3);
+                b = b < 0 ? 0 : b > 255 ? 255 : (b & 0xE0) | ((b & 0xE0) >> 3);
+                data[idx] = r;
+                data[idx + 1] = g;
+                data[idx + 2] = b;
+            }
+        }
+        ctx.putImageData(img, 0, 0);
+
+        // Upscale 320x180 sky buffer to 960x540 main canvas using crisp nearest-neighbor pixel blocks
+        mainCtx.save();
+        mainCtx.imageSmoothingEnabled = false;
+        mainCtx.drawImage(this._skyBuffer, 0, 0, lowW, lowH, 0, 0, W, H);
+
+        // Subtle Sega CRT scanlines & phosphor grille strictly over the sky background
+        mainCtx.fillStyle = 'rgba(0, 0, 0, 0.16)';
+        for (let sy = PIXEL_SCALE - 1; sy < H; sy += PIXEL_SCALE) {
+            mainCtx.fillRect(0, sy, W, 1);
+        }
+        mainCtx.restore();
     }
 
     traceField(ctx, s, start = true) {
