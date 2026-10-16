@@ -519,52 +519,358 @@ class Game {
     drawBackground(ctx) {
         const W = this.W, H = this.H;
         const era = this.terrain.timeEra || 'good_future';
-        const sky = ctx.createLinearGradient(0, 0, 0, H);
-        if (era === 'good_future') {
-            sky.addColorStop(0, '#1044b8'); sky.addColorStop(0.48, '#2890fc'); sky.addColorStop(1, '#ace8ff');
-        } else if (era === 'past') {
-            sky.addColorStop(0, '#441868'); sky.addColorStop(0.5, '#b84868'); sky.addColorStop(1, '#fca860');
-        } else {
-            sky.addColorStop(0, '#002898'); sky.addColorStop(0.5, '#2068dc'); sky.addColorStop(1, '#88d0fc');
-        }
-        ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
-
         const t = performance.now();
-        // Clouds
-        ctx.fillStyle = era === 'past' ? 'rgba(255,220,200,0.85)' : '#fff';
-        const co = -((this.camX * 0.06 + t * 0.01) % 480);
-        for (let x = co - 480; x < W + 480; x += 240) {
-            ctx.beginPath(); ctx.arc(x, 68, 22, 0, TAU); ctx.arc(x + 24, 58, 30, 0, TAU); ctx.arc(x + 52, 66, 22, 0, TAU); ctx.fill();
+        const horizon = Math.round(290 - (this.camY - 300) * 0.06);
+        const waterY = horizon + 40;
+
+        // 1. RETRO 16-BIT BANDED & DITHERED CYBER SKY
+        const palettes = {
+            good_future: {
+                bands: ['#070b28', '#0e1d52', '#163888', '#1d5ec4', '#268ef0', '#48b8ff', '#8cf0ff'],
+                neonA: '#00f6ff', neonB: '#ff2a9d', neonC: '#ffe640',
+                sunCore: '#fff8c8', sunMid: '#ff48b0', sunBot: '#00f0ff',
+                mtnFar: '#16466c', mtnFarHi: '#2478a0', mtnMid: '#187c64', mtnMidHi: '#34c890',
+                cliffDark: '#4a2c48', cliffLight: '#884c78',
+                waterBands: ['#1898f8', '#1278d8', '#0c58b4', '#083c8c', '#052464'],
+                gridColor: 'rgba(0, 246, 255, 0.24)'
+            },
+            past: {
+                bands: ['#18082c', '#32104c', '#581c68', '#882c70', '#bc4868', '#e87058', '#fcb060'],
+                neonA: '#ff9040', neonB: '#ff2878', neonC: '#ffe070',
+                sunCore: '#fff0b8', sunMid: '#ff6830', sunBot: '#c81868',
+                mtnFar: '#3c1e4c', mtnFarHi: '#683468', mtnMid: '#385838', mtnMidHi: '#609048',
+                cliffDark: '#48242c', cliffLight: '#7c4438',
+                waterBands: ['#783488', '#5c2470', '#421858', '#2c0e40', '#1a0828'],
+                gridColor: 'rgba(255, 120, 80, 0.22)'
+            },
+            present: {
+                bands: ['#050820', '#0b1848', '#14307c', '#1c50b8', '#2474e4', '#4ca0fc', '#90dcff'],
+                neonA: '#00e8ff', neonB: '#ff3898', neonC: '#ffd838',
+                sunCore: '#ffffff', sunMid: '#ff3898', sunBot: '#00d8ff',
+                mtnFar: '#183c68', mtnFarHi: '#286498', mtnMid: '#1c6c4c', mtnMidHi: '#30a868',
+                cliffDark: '#4c2c38', cliffLight: '#804c54',
+                waterBands: ['#1878e0', '#125cb8', '#0c4494', '#082e70', '#051c4c'],
+                gridColor: 'rgba(0, 232, 255, 0.20)'
+            }
+        };
+        const pal = palettes[era] || palettes.good_future;
+
+        ctx.save();
+        // Draw stepped 16-bit sky color bands with classic Sega CD scanline dithering at transitions
+        const bandCount = pal.bands.length;
+        const skyH = Math.max(80, waterY);
+        const bandH = Math.ceil(skyH / bandCount);
+        for (let i = 0; i < bandCount; i++) {
+            const by = i * bandH;
+            ctx.fillStyle = pal.bands[i];
+            ctx.fillRect(0, by, W, bandH + 2);
+            // Retro 2px scanline dither between adjacent bands
+            if (i > 0) {
+                ctx.fillStyle = pal.bands[i - 1];
+                ctx.fillRect(0, by, W, 2);
+                ctx.fillRect(0, by + 4, W, 2);
+                ctx.fillRect(0, by + 8, W, 1);
+            }
         }
 
-        // Distant Sonic CD Palmtree Panic tropical islands & mountains
-        const horizon = 290 - (this.camY - 300) * 0.06;
-        ctx.fillStyle = era === 'good_future' ? '#20a068' : era === 'past' ? '#486838' : '#288848';
-        const mo = -((this.camX * 0.11) % 260);
-        for (let x = mo - 260; x < W + 260; x += 260) {
-            ctx.beginPath(); ctx.arc(x + 130, horizon + 35, 130, Math.PI, 0); ctx.fill();
-        }
-        ctx.fillStyle = era === 'good_future' ? '#147850' : '#1c6434';
-        const mo2 = -((this.camX * 0.18) % 180);
-        for (let x = mo2 - 180; x < W + 180; x += 180) {
-            ctx.beginPath(); ctx.arc(x + 90, horizon + 42, 75, Math.PI, 0); ctx.fill();
+        // Upper-sky retro pixel stars & glowing cyber data nodes
+        const starScroll = -(this.camX * 0.015);
+        for (let i = 0; i < 36; i++) {
+            const sx = ((i * 97 + Math.floor(starScroll)) % W + W) % W;
+            const sy = 10 + ((i * 53) % Math.max(40, Math.floor(skyH * 0.48)));
+            const blink = Math.sin(t * 0.004 + i * 1.9);
+            if (blink > -0.3) {
+                ctx.fillStyle = (i % 5 === 0) ? pal.neonA : (i % 7 === 0) ? pal.neonB : '#ffffff';
+                const sz = (i % 4 === 0 && blink > 0.5) ? 3 : 2;
+                ctx.fillRect(sx, sy, sz, sz);
+                if (i % 9 === 0 && blink > 0.4) {
+                    ctx.fillRect(sx - 2, sy + 1, 6, 1);
+                    ctx.fillRect(sx + 1, sy - 2, 1, 6);
+                }
+            }
         }
 
-        // Shimmering Palmtree Panic tropical bay
-        const water = ctx.createLinearGradient(0, horizon + 40, 0, H);
-        if (era === 'good_future') {
-            water.addColorStop(0, '#1888e8'); water.addColorStop(1, '#083898');
-        } else if (era === 'past') {
-            water.addColorStop(0, '#683890'); water.addColorStop(1, '#281450');
-        } else {
-            water.addColorStop(0, '#1860c8'); water.addColorStop(1, '#082c78');
+        // Subtle upper-sky cyber wireframe dome arcs
+        ctx.strokeStyle = pal.gridColor;
+        ctx.lineWidth = 1;
+        const gridScroll = -((this.camX * 0.02 + t * 0.008) % 80);
+        for (let gx = gridScroll - 80; gx < W + 80; gx += 80) {
+            ctx.beginPath();
+            ctx.moveTo(gx, 0);
+            ctx.lineTo(gx + (gx - W * 0.5) * 0.35, Math.floor(skyH * 0.42));
+            ctx.stroke();
         }
-        ctx.fillStyle = water; ctx.fillRect(0, horizon + 40, W, H);
-        ctx.fillStyle = 'rgba(255,255,255,0.38)';
-        for (let y = horizon + 50, i = 0; y < H; y += 14, i++) {
-            const o = Math.sin(i * 1.7 + t * 0.0025) * 30 - ((this.camX * (0.22 + i * 0.03)) % 120);
-            for (let x = o - 120; x < W; x += 120) ctx.fillRect(x, y, 52, 2);
+        for (let gy = 22; gy < skyH * 0.42; gy += 22) {
+            ctx.fillStyle = pal.gridColor;
+            ctx.fillRect(0, gy, W, 1);
         }
+
+        // 2. SYNTH-CYBER HOLOGRAPHIC PLANET / RETRO SUN IN SKY
+        const sunX = Math.round(W * 0.76 - ((this.camX * 0.012) % 300));
+        const sunY = Math.round(horizon - 135);
+        const sunR = 46;
+        const sunGrad = ctx.createLinearGradient(sunX, sunY - sunR, sunX, sunY + sunR);
+        sunGrad.addColorStop(0, pal.sunCore);
+        sunGrad.addColorStop(0.55, pal.sunMid);
+        sunGrad.addColorStop(1, pal.sunBot);
+        ctx.fillStyle = sunGrad;
+        ctx.beginPath();
+        ctx.arc(sunX, sunY, sunR, 0, TAU);
+        ctx.fill();
+        // Retro horizontal scanline cutouts on lower half of sun
+        ctx.fillStyle = pal.bands[Math.min(bandCount - 1, 3)];
+        for (let sy = sunY + 4, step = 1; sy < sunY + sunR; sy += 6, step++) {
+            ctx.fillRect(sunX - sunR - 2, sy, (sunR + 2) * 2, Math.min(4, step));
+        }
+        // Glowing orbital cyber ring around the planet/sun
+        ctx.strokeStyle = pal.neonA;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(sunX, sunY + 4, sunR + 26, 9, -0.18, 0, TAU);
+        ctx.stroke();
+        ctx.strokeStyle = pal.neonB;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.ellipse(sunX, sunY + 4, sunR + 32, 12, -0.18, 0.2, Math.PI - 0.2);
+        ctx.stroke();
+
+        // 3. MULTI-PARALLAX STEPPED 16-BIT PIXEL CLOUDS WITH NEON RIMS
+        const drawCyberCloud = (cx, cy, scale, neonRim) => {
+            const u = Math.round(4 * scale);
+            // Neon cyber under-glow rim
+            ctx.fillStyle = neonRim;
+            ctx.fillRect(cx - u * 7, cy + u * 2, u * 14, u);
+            // 16-bit lavender/blue shadow underside
+            ctx.fillStyle = era === 'past' ? '#b86888' : '#78a8e8';
+            ctx.fillRect(cx - u * 7, cy + u, u * 14, u);
+            ctx.fillRect(cx - u * 5, cy, u * 10, u);
+            // Crisp white stepped pixel cloud body
+            ctx.fillStyle = era === 'past' ? '#ffe4d0' : '#ffffff';
+            ctx.fillRect(cx - u * 6, cy, u * 12, u);
+            ctx.fillRect(cx - u * 5, cy - u, u * 10, u);
+            ctx.fillRect(cx - u * 3, cy - u * 2, u * 6, u);
+            ctx.fillRect(cx - u * 1, cy - u * 3, u * 3, u);
+        };
+
+        // High fast cloud strip
+        const coFast = -((this.camX * 0.07 + t * 0.018) % 320);
+        for (let x = coFast - 320; x < W + 320; x += 160) {
+            drawCyberCloud(Math.round(x), Math.round(horizon - 195), 1.15, pal.neonA);
+        }
+        // Mid cloud strip
+        const coMid = -((this.camX * 0.045 + t * 0.011) % 260);
+        for (let x = coMid - 260; x < W + 260; x += 130) {
+            drawCyberCloud(Math.round(x + 40), Math.round(horizon - 140), 0.9, pal.neonB);
+        }
+        // Low distant horizon cloud strip
+        const coSlow = -((this.camX * 0.025 + t * 0.006) % 200);
+        for (let x = coSlow - 200; x < W + 200; x += 100) {
+            drawCyberCloud(Math.round(x + 20), Math.round(horizon - 95), 0.65, pal.neonA);
+        }
+
+        // 4. FAR SKYLINE: PALMTREE PANIC JAGGED PEAKS + CYBER-CITADEL SPIRES & MONORAIL
+        const farSpan = 360;
+        const farOff = -((this.camX * 0.08) % farSpan);
+        for (let base = farOff - farSpan; base < W + farSpan; base += farSpan) {
+            const bx = Math.round(base);
+
+            // Elevated neon cyber-monorail bridge spanning between island peaks
+            ctx.fillStyle = '#182448';
+            ctx.fillRect(bx, horizon - 22, farSpan, 4);
+            ctx.fillStyle = pal.neonA;
+            ctx.fillRect(bx, horizon - 23, farSpan, 1);
+            // Moving light pulse along the monorail
+            const trainX = bx + Math.floor(((t * 0.14) % farSpan));
+            ctx.fillStyle = pal.neonC;
+            ctx.fillRect(trainX, horizon - 25, 18, 2);
+
+            // Stepped Palmtree Panic tropical mountain peak #1
+            ctx.fillStyle = pal.mtnFar;
+            ctx.beginPath();
+            ctx.moveTo(bx + 10, waterY);
+            ctx.lineTo(bx + 55, horizon - 78);
+            ctx.lineTo(bx + 95, horizon - 78);
+            ctx.lineTo(bx + 145, waterY);
+            ctx.closePath();
+            ctx.fill();
+            // 16-bit sunlit right slope highlight
+            ctx.fillStyle = pal.mtnFarHi;
+            ctx.beginPath();
+            ctx.moveTo(bx + 85, horizon - 78);
+            ctx.lineTo(bx + 95, horizon - 78);
+            ctx.lineTo(bx + 145, waterY);
+            ctx.lineTo(bx + 115, waterY);
+            ctx.closePath();
+            ctx.fill();
+
+            // Cyber-Citadel Spire rising behind the tropical mesa
+            const tx = bx + 165;
+            ctx.fillStyle = '#141e3c';
+            ctx.fillRect(tx, horizon - 112, 34, 112 + 40);
+            ctx.fillRect(tx + 6, horizon - 136, 22, 24);
+            ctx.fillRect(tx + 15, horizon - 162, 4, 26);
+            // Vertical neon circuit strips on the tower
+            ctx.fillStyle = pal.neonA;
+            ctx.fillRect(tx + 4, horizon - 106, 2, 110);
+            ctx.fillRect(tx + 28, horizon - 106, 2, 110);
+            ctx.fillStyle = pal.neonB;
+            for (let wy = horizon - 100; wy < waterY - 10; wy += 10) {
+                ctx.fillRect(tx + 10, wy, 14, 3);
+            }
+            // Pulsing holographic ring & beacon at spire top
+            const beaconPulse = 0.55 + 0.45 * Math.sin(t * 0.006 + base);
+            ctx.strokeStyle = pal.neonA;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.ellipse(tx + 17, horizon - 132, 22, 5, 0, 0, TAU);
+            ctx.stroke();
+            ctx.fillStyle = beaconPulse > 0.7 ? pal.neonC : pal.neonB;
+            ctx.fillRect(tx + 14, horizon - 166, 6, 6);
+
+            // Second stepped tropical peak + cyber pyramid
+            ctx.fillStyle = pal.mtnFar;
+            ctx.beginPath();
+            ctx.moveTo(bx + 210, waterY);
+            ctx.lineTo(bx + 265, horizon - 64);
+            ctx.lineTo(bx + 335, waterY);
+            ctx.closePath();
+            ctx.fill();
+            // Neon wireframe edge on peak
+            ctx.strokeStyle = pal.neonB;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(bx + 210, waterY);
+            ctx.lineTo(bx + 265, horizon - 64);
+            ctx.lineTo(bx + 335, waterY);
+            ctx.stroke();
+        }
+
+        // 5. MID SKYLINE: PALMTREE PANIC TERRACED EMERALD ISLANDS, BIO-DOMES & CYBER PALMS
+        const midSpan = 260;
+        const midOff = -((this.camX * 0.15) % midSpan);
+        for (let base = midOff - midSpan; base < W + midSpan; base += midSpan) {
+            const ix = Math.round(base);
+
+            // Classic Palmtree Panic rounded emerald hill + stepped cliff terrace
+            ctx.fillStyle = pal.mtnMid;
+            ctx.beginPath();
+            ctx.arc(ix + 115, waterY, 92, Math.PI, 0);
+            ctx.fill();
+
+            // 16-bit horizontal sunlit emerald bands on the island dome
+            ctx.fillStyle = pal.mtnMidHi;
+            for (let band = 12; band < 76; band += 14) {
+                const halfW = Math.sqrt(Math.max(0, 92 * 92 - band * band));
+                ctx.fillRect(Math.round(ix + 115 - halfW + 8), waterY - band, Math.round(halfW * 1.45), 5);
+            }
+
+            // Terraced Palmtree Panic checkered cliff band along island base
+            ctx.fillStyle = pal.cliffDark;
+            ctx.fillRect(ix + 24, waterY - 22, 182, 22);
+            ctx.fillStyle = pal.cliffLight;
+            for (let cx = ix + 24; cx < ix + 202; cx += 16) {
+                ctx.fillRect(cx, waterY - 22, 8, 11);
+                ctx.fillRect(cx + 8, waterY - 11, 8, 11);
+            }
+            // Neon trim line along terrace ledge
+            ctx.fillStyle = pal.neonA;
+            ctx.fillRect(ix + 23, waterY - 23, 184, 2);
+
+            // Geodesic Cyber Bio-Dome nestled on the right ridge of the island
+            const domeX = ix + 195, domeY = waterY;
+            ctx.fillStyle = 'rgba(0, 240, 255, 0.22)';
+            ctx.beginPath();
+            ctx.arc(domeX, domeY, 44, Math.PI, 0);
+            ctx.fill();
+            ctx.strokeStyle = pal.neonA;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(domeX, domeY, 44, Math.PI, 0);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.ellipse(domeX, domeY, 22, 44, 0, Math.PI, 0);
+            ctx.stroke();
+            ctx.fillStyle = pal.neonB;
+            ctx.fillRect(domeX - 44, domeY - 12, 88, 2);
+            ctx.fillRect(domeX - 36, domeY - 26, 72, 2);
+
+            // Distant Neon Waterfall cascading down the island cliff
+            const wfX = ix + 108;
+            ctx.fillStyle = pal.neonA;
+            ctx.fillRect(wfX, waterY - 52, 12, 52);
+            ctx.fillStyle = '#ffffff';
+            const wfOffset = Math.floor((t * 0.06) % 10);
+            for (let wy = waterY - 50 + wfOffset; wy < waterY - 4; wy += 10) {
+                ctx.fillRect(wfX + 2, wy, 8, 4);
+            }
+
+            // Silhouette Retro Cyber-Palms on the island crest
+            const drawCyberPalm = (px, py) => {
+                ctx.fillStyle = '#181030';
+                for (let seg = 0; seg < 6; seg++) {
+                    ctx.fillRect(px + Math.round(Math.sin(seg * 0.4) * 2), py - seg * 5, 4, 4);
+                }
+                const topX = px + 2, topY = py - 28;
+                ctx.strokeStyle = pal.neonC;
+                ctx.lineWidth = 2;
+                const angles = [-2.6, -2.1, -1.5, -0.9, -0.4];
+                for (const a of angles) {
+                    ctx.beginPath();
+                    ctx.moveTo(topX, topY);
+                    ctx.quadraticCurveTo(topX + Math.cos(a) * 12, topY + Math.sin(a) * 10 - 4, topX + Math.cos(a) * 20, topY + Math.sin(a) * 6 + 6);
+                    ctx.stroke();
+                }
+            };
+            drawCyberPalm(ix + 68, waterY - 76);
+            drawCyberPalm(ix + 148, waterY - 72);
+        }
+
+        // 6. SHIMMERING PALMTREE PANIC BAY + RETRO CYBER-GRID HORIZON REFLECTION
+        const waterH = Math.max(20, H - waterY);
+        const wBandCount = pal.waterBands.length;
+        const wBandH = Math.ceil(waterH / wBandCount);
+        for (let i = 0; i < wBandCount; i++) {
+            const wy = waterY + i * wBandH;
+            ctx.fillStyle = pal.waterBands[i];
+            ctx.fillRect(0, wy, W, wBandH + 2);
+            // 16-bit scanline dither at water band boundary
+            if (i > 0) {
+                ctx.fillStyle = pal.waterBands[i - 1];
+                ctx.fillRect(0, wy, W, 2);
+                ctx.fillRect(0, wy + 4, W, 1);
+            }
+        }
+
+        // Glowing neon horizon waterline bar
+        ctx.fillStyle = pal.neonA;
+        ctx.fillRect(0, waterY, W, 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, waterY, W, 1);
+
+        // Perspective cyber-grid lines shimmering over the tropical bay
+        ctx.strokeStyle = pal.gridColor;
+        ctx.lineWidth = 1;
+        const wGridOff = -((this.camX * 0.22) % 64);
+        for (let gx = wGridOff - 64; gx < W + 64; gx += 64) {
+            ctx.beginPath();
+            ctx.moveTo(gx, waterY + 2);
+            ctx.lineTo(gx + (gx - W * 0.5) * 2.2, H);
+            ctx.stroke();
+        }
+
+        // Multi-speed Sonic CD horizontal water shimmer strips + neon reflections
+        for (let y = waterY + 6, i = 0; y < H; y += 10, i++) {
+            const speed = 0.18 + i * 0.035;
+            const wave = Math.sin(i * 1.5 + t * 0.0035) * 26;
+            const o = wave - ((this.camX * speed) % 140);
+            const barW = Math.min(76, 26 + i * 4);
+            ctx.fillStyle = (i % 3 === 0) ? pal.neonA : (i % 4 === 0) ? pal.neonB : 'rgba(255,255,255,0.55)';
+            for (let x = o - 140; x < W + 140; x += 140) {
+                ctx.fillRect(Math.round(x), y, barW, 2);
+                ctx.fillRect(Math.round(x + barW + 10), y, 8, 2);
+            }
+        }
+        ctx.restore();
     }
 
     traceField(ctx, s, start = true) {
