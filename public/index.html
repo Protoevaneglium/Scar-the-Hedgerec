@@ -175,9 +175,16 @@ class InputHandler {
    ========================================================================== */
 const SENSOR_COLORS = { A: '#00ff6a', B: '#d4ff00', C: '#00d0ff', D: '#5b7cff', E: '#ff66cc', F: '#ff4040' };
 const MODE_NAMES = ['Floor', 'Right Wall', 'Ceiling', 'Left Wall'];
-const BLUE = '#1f4fe0', BLUE_D = '#12329a', PEACH = '#f6c08e', RED = '#e02424';
+const BLUE = '#5c44e8', BLUE_D = '#341ca8', PEACH = '#f0a878', RED = '#d81020', CYAN_SHOE = '#00a8ff';
 const ERAS = ['good_future', 'present', 'past'];
 const ERA_LABELS = { good_future: 'Good Future', present: 'Present', past: 'Past' };
+const SCAR_FRAMES = [
+    { name: 'idle',  sx: 0,   anchorX: 23, anchorY: 47 },
+    { name: 'walk1', sx: 48,  anchorX: 26, anchorY: 47 },
+    { name: 'walk2', sx: 96,  anchorX: 26, anchorY: 47 },
+    { name: 'run1',  sx: 144, anchorX: 27, anchorY: 47 },
+    { name: 'run2',  sx: 192, anchorX: 27, anchorY: 47 },
+];
 
 class Game {
     constructor() {
@@ -187,6 +194,12 @@ class Game {
         this.canvas.width = this.W; this.canvas.height = this.H;
         this.resize();
         window.addEventListener('resize', () => this.resize());
+
+        // Load Scar the Hedgerec sprite sheet (transparent 48x48 frames)
+        this.scarSheet = new Image();
+        this.scarSheetLoaded = false;
+        this.scarSheet.onload = () => { this.scarSheetLoaded = true; };
+        this.scarSheet.src = 'assets/scar_sheet.png';
 
         // Load Sonic CD Palmtree Panic Good Future sprite sheet & full zone map
         this.objSheet = new Image();
@@ -1430,12 +1443,12 @@ class Game {
         }
     }
 
-    /* ---------------- player sprite ---------------- */
+    /* ---------------- Scar the Hedgerec sprite & animation machine ---------------- */
     drawPlayer(ctx) {
         const p = this.player;
         if (p.invulnTimer > 0 && Math.floor(p.invulnTimer / 3) % 2 === 1) return;
         ctx.save();
-        ctx.translate(p.x, p.y);
+        ctx.translate(Math.round(p.x), Math.round(p.y));
         if (p.curled) this.drawBall(ctx, p);
         else {
             ctx.rotate(-p.visualAngle);
@@ -1448,7 +1461,7 @@ class Game {
     drawBall(ctx, p) {
         const R = HITBOX.ROLL.height;
         if (p.state === STATE.SPINDASH) {
-            ctx.fillStyle = 'rgba(255,255,255,0.35)';
+            ctx.fillStyle = 'rgba(136, 128, 255, 0.38)';
             for (let i = 1; i <= 3; i++) { ctx.beginPath(); ctx.arc(-p.facing * i * 4, 0, R - i, 0, TAU); ctx.fill(); }
         }
         ctx.rotate(p.ballSpin);
@@ -1463,50 +1476,111 @@ class Game {
             ctx.fill();
         }
         ctx.beginPath(); ctx.arc(0, 0, 9, 0, TAU); ctx.fill();
-        ctx.fillStyle = PEACH; ctx.beginPath(); ctx.ellipse(3, 3, 5, 3.5, 0.6, 0, TAU); ctx.fill();
-        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(-3, -4, 3, 2, -0.6, 0, TAU); ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1.5;
+        // Scar's crimson cape/glove & electric cyan shoe streaks while spinning
+        ctx.strokeStyle = RED; ctx.lineWidth = 2.2;
+        ctx.beginPath(); ctx.arc(0, 0, R - 2.5, 0.4, 2.1); ctx.stroke();
+        ctx.strokeStyle = CYAN_SHOE; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(0, 0, R - 2.5, 3.5, 5.1); ctx.stroke();
+        ctx.fillStyle = PEACH; ctx.beginPath(); ctx.ellipse(3, 3, 4.5, 3, 0.6, 0, TAU); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.arc(0, 0, R - 1, -0.3, 0.9); ctx.stroke();
+    }
+
+    /**
+     * Resolves which Scar sprite frame (0=idle, 1=walk1, 2=walk2, 3=run1, 4=run2)
+     * and transition cadence to use based on player state and ground/air speed.
+     */
+    selectScarFrame(p, speed) {
+        if (!p.grounded) {
+            this._scarAirPhase = (this._scarAirPhase || 0) + Math.max(0.12, speed * 0.08) * (this.dt60 || 1);
+            if (speed >= 5.2) {
+                return (Math.floor(this._scarAirPhase * 1.8) % 2 === 0) ? 3 : 4;
+            }
+            return (Math.floor(this._scarAirPhase) % 2 === 0) ? 2 : 1;
+        }
+        this._scarAirPhase = 0;
+
+        // 1. Standing / Idle
+        if (speed <= 0.06 && !p.skidding) {
+            this._scarStepPhase = 0;
+            return 0; // idle
+        }
+
+        // Advance continuous stride phase proportional to ground speed
+        const dt = this.dt60 || 1;
+        const rate = 0.09 + Math.min(speed, 10) * 0.055;
+        this._scarStepPhase = (this._scarStepPhase || 0) + rate * dt;
+
+        if (p.skidding) {
+            return 1; // compact bracing pose during skid
+        }
+
+        // 2. Step-In / Slow Walk Transition (0.06 < speed < 0.95):
+        // Smooth 4-beat cycle: idle -> walk1 (passing) -> walk2 (stride) -> walk1 (passing)
+        if (speed < 0.95) {
+            const seq = [0, 1, 2, 1];
+            return seq[Math.floor(this._scarStepPhase * 1.35) % 4];
+        }
+
+        // 3. Classic Walk / Jog Cycle (0.95 <= speed < 4.2):
+        // Alternates between walk1 (passing pose) and walk2 (full stride extension)
+        if (speed < 4.2) {
+            return (Math.floor(this._scarStepPhase * 1.65) % 2 === 0) ? 1 : 2;
+        }
+
+        // 4. Walk-to-Run Transition Blend (4.2 <= speed < 5.3):
+        // Bridges full-extension stride (walk2) into the figure-8 peel-out run (run1/run2)
+        if (speed < 5.3) {
+            const bridge = speed < 4.75 ? [1, 2, 3, 2] : [2, 3, 4, 3];
+            return bridge[Math.floor(this._scarStepPhase * 2.1) % 4];
+        }
+
+        // 5. Full-Speed Figure-8 Peel-Out Run (speed >= 5.3):
+        // Rapidly alternates between run1 and run2
+        return (Math.floor(this._scarStepPhase * 2.5) % 2 === 0) ? 3 : 4;
     }
 
     drawBody(ctx, p) {
         const speed = Math.abs(p.grounded ? p.gsp : p.xsp);
-        const crouch = p.crouching ? 6 : 0;
-        ctx.translate(0, crouch);
-        const lean = p.skidding ? -0.25 : Math.min(speed / PHYS.TOP, 1.2) * 0.12;
-        ctx.rotate(lean);
+        const frameIdx = this.selectScarFrame(p, speed);
+        const frame = SCAR_FRAMES[frameIdx] || SCAR_FRAMES[0];
 
-        if (speed >= PHYS.TOP && p.grounded) {
-            const r = p.runPhase * 2.2;
-            ctx.strokeStyle = RED; ctx.lineWidth = 5;
-            ctx.beginPath(); ctx.ellipse(1, 13, 9, 5, r, 0, TAU); ctx.stroke();
-            ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5;
-            ctx.beginPath(); ctx.ellipse(1, 13, 9, 5, r, 0, TAU); ctx.stroke();
-        } else {
-            const moving = speed > 0.05 || !p.grounded;
-            const sw = moving ? Math.sin(p.runPhase * 1.6 + (p.grounded ? 0 : performance.now() * 0.02)) * 0.7 : 0;
-            for (const [x0, s] of [[-2, sw], [3, -sw]]) {
-                ctx.save(); ctx.translate(x0, 8); ctx.rotate(s);
-                ctx.fillStyle = BLUE; ctx.fillRect(-1.6, 0, 3.2, 7 - crouch * 0.6);
-                ctx.fillStyle = RED; ctx.beginPath(); ctx.ellipse(2, 9.2 - crough(crouch), 5.2, 2.6, 0, 0, TAU); ctx.fill();
-                ctx.fillStyle = '#fff'; ctx.fillRect(0, 7.2 - crough(crouch), 2, 3.6);
+        if (this.scarSheetLoaded && this.scarSheet.complete && this.scarSheet.naturalWidth > 0) {
+            ctx.save();
+            ctx.imageSmoothingEnabled = false;
+
+            // Crouch feedback when holding Down while standing
+            if (p.crouching) {
+                ctx.translate(0, 3);
+                ctx.scale(1.06, 0.86);
+            } else if (frameIdx === 0 && p.grounded) {
+                // Subtle 1px retro idle breathing bob
+                const bob = Math.floor(performance.now() / 420) % 2;
+                ctx.translate(0, bob);
+            }
+
+            // Slight skid lean-back or high-speed forward tilt
+            if (p.skidding) {
+                ctx.rotate(-0.18);
+            }
+
+            const footBottomY = HITBOX.STAND.height; // +19px from player center
+            const dx = -frame.anchorX;
+            const dy = footBottomY - frame.anchorY;  // aligns sprite foot y=47 to local y=+19
+
+            // High-speed Scar afterimage echo when running at or above TOP speed
+            if (speed >= PHYS.TOP) {
+                ctx.save();
+                ctx.globalAlpha = 0.28;
+                const altFrame = SCAR_FRAMES[frameIdx === 3 ? 4 : 3];
+                ctx.drawImage(this.scarSheet, altFrame.sx, 0, 48, 48, dx - 6, dy, 48, 48);
                 ctx.restore();
             }
+
+            ctx.drawImage(this.scarSheet, frame.sx, 0, 48, 48, dx, dy, 48, 48);
+            ctx.restore();
+            return;
         }
-        ctx.fillStyle = BLUE;
-        ctx.beginPath();
-        ctx.moveTo(-3, -16); ctx.lineTo(-18, -13); ctx.lineTo(-9, -8); ctx.lineTo(-20, -3);
-        ctx.lineTo(-9, 0); ctx.lineTo(-15, 7); ctx.lineTo(-3, 4); ctx.closePath(); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(0, 3, 6.5, 7, 0, 0, TAU); ctx.fill();
-        ctx.fillStyle = PEACH; ctx.beginPath(); ctx.ellipse(2, 4, 4, 5, 0, 0, TAU); ctx.fill();
-        ctx.fillStyle = BLUE; ctx.beginPath(); ctx.arc(1, -8, 9, 0, TAU); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(-4, -14); ctx.lineTo(-1, -21); ctx.lineTo(3, -15); ctx.fill();
-        ctx.fillStyle = PEACH; ctx.beginPath(); ctx.ellipse(6.5, -5, 5, 3.6, 0, 0, TAU); ctx.fill();
-        ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(11.3, -6.4, 1.6, 0, TAU); ctx.fill();
-        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(4.5, -10.5, 3.4, 4.4, 0.1, 0, TAU); ctx.fill();
-        ctx.fillStyle = '#0a5a12'; ctx.fillRect(5.6, -11.5, 1.8, 3);
-        ctx.fillStyle = PEACH; ctx.fillRect(0, 1, 6, 2);
-        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(7, 2, 3, 0, TAU); ctx.fill();
     }
 
     /* ---------------- debug: hitbox + colour-coded sensors A–F ---------------- */
