@@ -1,6 +1,6 @@
 # 16-Bit Sonic Retro Physics Engine & Test Stage 🦔⚡
 
-An authentic 16-bit Sonic the Hedgehog physics engine and playable Green Hill test stage built from the **Sonic Retro Physics Guide** specification. Designed as a clean, zero-approximation foundation for building Sonic fan games in HTML5 Canvas & JavaScript.
+An authentic 16-bit Sonic the Hedgehog physics engine and playable Green Hill test stage built from the **Sonic Retro Physics Guide** specification. Designed as a clean, cross-platform (**Linux, macOS, and Windows**), zero-approximation foundation for building Sonic fan games in HTML5 Canvas & JavaScript.
 
 📄 **[Read the Full Physics Specification (`SONIC_PHYSICS_SPEC.md`)](SONIC_PHYSICS_SPEC.md)**
 
@@ -31,31 +31,51 @@ An authentic 16-bit Sonic the Hedgehog physics engine and playable Green Hill te
 | :--- | :--- |
 | **Left / Right Arrows** or **A / D** | Run / Steer / Decelerate |
 | **Down Arrow** or **S** | Crouch (when stopped) or Roll (when `\|gsp\| >= 1.0`) |
-| **Down** + **Space / Z** (Tap repeatedly) | Charge Spin Dash (Release **Down** to launch) |
-| **Space / Z / W / Up Arrow** | Jump (Release early for short hop) |
-| **G** | Toggle Debug HUD & Sensor Raycast Overlay |
+| **Down** + **Space / Z / X / C** (Tap repeatedly) | Charge Spin Dash (Release **Down** to launch) |
+| **Space / Z / X / C** | Jump (Release early for short hop) |
+| **Tab** or **G** | Toggle Debug HUD & Sensor Raycast Overlay |
+| **1 – 7** | Warp to Stage Checkpoints (Runway, Hills, Valley, Loop, Tunnel, Ramp) |
 | **R** | Reset Player to Stage Start |
-| **M** | Toggle Retro Synthesizer Audio |
 
 ---
 
-## 🚀 Quick Start
+## 🖥️ Cross-Platform Setup (Linux, macOS, & Windows)
 
-1. **Install dependencies**:
-   ```bash
-   npm install
-   ```
+This repository is 100% OS-independent and verified automatically via GitHub Actions across **Ubuntu Linux**, **macOS**, and **Windows**.
 
-2. **Run the automated 21-test physics verification suite**:
-   ```bash
-   npm test
-   ```
+### Option A: Zero-Install Instant Play (No Node.js Required)
+Because [`public/index.html`](public/index.html) and [`public/sonic-engine.js`](public/sonic-engine.js) are self-contained with procedural graphics and Web Audio synthesis (no CORS-restricted external fetches), you can clone or download the ZIP and open `public/index.html` directly in any modern browser:
 
-3. **Start the local server**:
-   ```bash
-   npm start
-   ```
-   Then open **[http://localhost:3000](http://localhost:3000)** in your browser.
+```bash
+git clone https://github.com/Protoevaneglium/sonic-retro-physics-engine.git
+cd sonic-retro-physics-engine
+
+# macOS:
+open public/index.html
+
+# Linux:
+xdg-open public/index.html
+
+# Windows (PowerShell / CMD):
+start public/index.html
+```
+
+### Option B: Run with Node.js Server & Automated Test Suite
+If you have [Node.js](https://nodejs.org/) (v18+ recommended) installed on Linux, macOS, or Windows:
+
+```bash
+git clone https://github.com/Protoevaneglium/sonic-retro-physics-engine.git
+cd sonic-retro-physics-engine
+
+# 1. Install dependencies
+npm install
+
+# 2. Run the 21-test headless physics verification suite
+npm test
+
+# 3. Start the local Express server (defaults to http://localhost:3000, or set PORT=8080)
+npm start
+```
 
 ---
 
@@ -71,7 +91,8 @@ An authentic 16-bit Sonic the Hedgehog physics engine and playable Green Hill te
 │   └── js/                      # Legacy prototype scripts
 ├── tests/
 │   └── sonic_engine_test.js     # 21-test headless physics verification suite
-├── server.js                    # Express static server (port 3000)
+├── server.js                    # Cross-platform Express static server (port 3000)
+├── .gitattributes               # LF line-ending normalization for Linux/macOS/Windows
 └── package.json                 # Scripts and dependencies
 ```
 
@@ -79,25 +100,23 @@ An authentic 16-bit Sonic the Hedgehog physics engine and playable Green Hill te
 
 ## 🛠️ Using This Base for Future Sonic Fan Games
 
-[`public/sonic-engine.js`](public/sonic-engine.js) is a standalone module that works in both the browser (`window.SonicEngine`) and Node.js (`require('./public/sonic-engine.js')`):
+[`public/sonic-engine.js`](public/sonic-engine.js) is a standalone UMD module that works in both the browser (`window.SonicEngine`) and Node.js (`require('./public/sonic-engine.js')`):
 
 ```javascript
-const { Terrain, Player, buildTestStage } = window.SonicEngine;
+const { Terrain, Player } = window.SonicEngine;
 
-// 1. Build a custom stage or load the default Green Hill test course
+// 1. Load the built-in Green Hill test course (or construct custom surfaces)
 const terrain = new Terrain();
-terrain.addLine(0, 520, 600, 520, 0); // Flat ground
-terrain.addLoop(1200, 392, 128);      // 360-degree dual-layer loop-de-loop
 
-// 2. Spawn the player
-const player = new Player(120, 501);
+// 2. Spawn the player on the terrain
+const player = new Player(terrain);
 
-// 3. Step physics in your requestAnimationFrame loop
-player.update(dtSeconds, {
+// 3. Step physics in your requestAnimationFrame loop (frame-rate independent)
+player.update({
   left: keys.left,
   right: keys.right,
   down: keys.down,
-  jumpDown: keys.jumpDown,
+  jumpHeld: keys.jumpHeld,
   jumpPressed: keys.jumpPressed
-}, terrain);
+}, dtSeconds);
 ```

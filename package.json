@@ -1,13 +1,19 @@
 {
-  "name": "gavins-game",
+  "name": "sonic-retro-physics-engine",
   "version": "1.0.0",
-  "description": "Scar the Hedgerec - A retro 2D platformer web game built with Phaser 3 and Express",
+  "description": "Authentic 16-bit Sonic the Hedgehog physics engine and 360-degree loop test stage built from the Sonic Retro Physics Specification",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "test": "node tests/sonic_engine_test.js"
   },
-  "keywords": [],
+  "keywords": [
+    "sonic",
+    "physics-engine",
+    "16-bit",
+    "html5-canvas",
+    "platformer"
+  ],
   "author": "",
   "license": "ISC",
   "type": "commonjs",

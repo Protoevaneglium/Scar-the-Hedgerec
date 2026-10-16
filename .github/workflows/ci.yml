@@ -8,11 +8,13 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
 
     strategy:
+      fail-fast: false
       matrix:
-        node-version: [18.x, 20.x]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node-version: [20.x]
 
     steps:
       - uses: actions/checkout@v4
@@ -22,5 +24,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
       - run: npm ci
-      - name: Validate Server Entry point
+      - name: Validate Server Entry Point
         run: node -c server.js
+      - name: Run 21-Test Sonic Physics Verification Suite
+        run: npm test
