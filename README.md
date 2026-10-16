@@ -1,6 +1,6 @@
-# 16-Bit Sonic Retro Physics Engine & Test Stage 🦔⚡
+# Scar the Hedgerec — Palmtree Panic Zone (Sonic CD) 🌴🦔⚡
 
-An authentic 16-bit Sonic the Hedgehog physics engine and playable Green Hill test stage built from the **Sonic Retro Physics Guide** specification. Designed as a clean, cross-platform (**Linux, macOS, and Windows**), zero-approximation foundation for building Sonic fan games in HTML5 Canvas & JavaScript.
+**Scar the Hedgerec** is a playable 16-bit Sonic fan game featuring a full recreation of **Sonic CD's Palmtree Panic Zone — Act 1**, built on top of our authentic **Sonic Retro Physics Engine**. Designed as a clean, cross-platform (**Linux, macOS, and Windows**) HTML5 Canvas & JavaScript game with zero external runtime dependencies.
 
 📄 **[Read the Full Physics Specification (`SONIC_PHYSICS_SPEC.md`)](SONIC_PHYSICS_SPEC.md)**
 
@@ -8,20 +8,17 @@ An authentic 16-bit Sonic the Hedgehog physics engine and playable Green Hill te
 
 ## ✨ Key Features
 
+- **Full Palmtree Panic Zone — Act 1 (Sonic CD)**:
+  - **Multi-Tiered Vertical Routing (`High` / `Middle` / `Low`)**: High-speed sky arches and canopy ledges, middle-route corkscrew S-tunnels and pinball bumpers, and a continuous lower route with shallow waterfall splash basins and secret caverns.
+  - **All Good Future Objects Implemented**: Ripped 1:1 Sega CD sprites ([`public/assets/palmtree_objects.png`](public/assets/palmtree_objects.png)) for **Bounce Poles**, **Breakable Walls**, **Breakable Floors** (crumbling into `16x16` tiles), **Houdini Steps**, **Spinners**, **Swinging Platforms**, **Moving Platforms**, **Trap Doors**, **Rocks**, **Plants**, and **Animated Water Splashes**.
+  - **Sonic CD Time Travel (`PAST` / `FUTURE` Posts)**: Pass a Time Post and sustain speed (`|gsp| >= 6`) to trigger a Time Warp between **Good Future**, **Present**, and **Past** palettes.
+  - **Live Zone Map Radar**: Real-time mini-map using [`public/assets/palmtree_map.png`](public/assets/palmtree_map.png) tracking your exact position across the 10,400px stage.
 - **Exact 16-Bit Fixed-Point Physics (`60 FPS` Sub-stepped)**:
   - Authentic `ACC`, `DEC`, `FRC`, `TOP` (soft cap at `6.0`, hard cap at `16.0`), `ROLL_FRC`, `ROLL_DEC`, `AIR_ACC`, `GRV`, and `JMP` constants.
   - Frame-rate independent `(dt * 60)` sub-stepping so physics behave identically at 60Hz, 120Hz, or 144Hz.
 - **360-Degree 4-Quadrant Raycast Sensor Rig**:
   - Six analytical raycast sensors (**A/B** Ground, **C/D** Ceiling, **E/F** Wall Push) that dynamically rotate in $90^\circ$ increments across Floor (`Mode 0`), Right Wall (`Mode 1`), Ceiling (`Mode 2`), and Left Wall (`Mode 3`).
-  - Exact `±14px` ground snap window, `±5px` curl/uncurl normal offset, and steep slope slip/detach rules (`FALL_THRESHOLD = 2.5`, 30-frame control lock).
-- **Full Move Set**:
-  - Running with asymmetric slope factors (`SLP_NORMAL`), high-speed rolling (`SLP_ROLL_UP` vs `SLP_ROLL_DOWN`), Spin Dash (`spindash_rev` charge & decay), perpendicular slope jump launch, short-hop release clamp (`-4.0`), and airborne apex drag (`0.96875`).
-  - Full air-to-ground momentum conversion across shallow, half-steep, and steep landing angles.
-- **Dual-Layer 360° Loop-de-Loop & Analytical Terrain**:
-  - Supports `LineSurface`, `HeightFieldSurface` ($y = f(x)$ with exact derivative), and `ArcSurface` primitives.
-  - Built-in dual-layer loop system (`layer 0` entry + `layer 1` exit) with automatic entry, apex, and exit collision-layer switching gates.
-- **Real-Time Debug HUD & Visualizer**:
-  - Live telemetry for `State`, `GSP`, `Xsp/Ysp`, `Angle`, `Mode`, `Layer`, `Lock`, and `Rev`, plus toggleable on-screen rendering of the A–F sensor rays and hitbox.
+  - Dual-layer 360° Loops (**Loop #1** & **Loop #2**) with automatic entry, apex, and exit collision-layer switching gates.
 
 ---
 
@@ -33,9 +30,11 @@ An authentic 16-bit Sonic the Hedgehog physics engine and playable Green Hill te
 | **Down Arrow** or **S** | Crouch (when stopped) or Roll (when `\|gsp\| >= 1.0`) |
 | **Down** + **Space / Z / X / C** (Tap repeatedly) | Charge Spin Dash (Release **Down** to launch) |
 | **Space / Z / X / C** | Jump (Release early for short hop) |
+| **1 – 7** | Warp to Stage Checkpoints (*Cliff & Slide*, *Loop #1*, *Waterfalls*, *Dome Arch*, *Corkscrew*, *Fortress*, *Finale*) |
+| **T** | Cycle Sonic CD Time Era (*Good Future* / *Present* / *Past*) |
+| **M** | Switch between *Palmtree Panic Zone* and the original *Physics Test* course |
 | **Tab** or **G** | Toggle Debug HUD & Sensor Raycast Overlay |
-| **1 – 7** | Warp to Stage Checkpoints (Runway, Hills, Valley, Loop, Tunnel, Ramp) |
-| **R** | Reset Player to Stage Start |
+| **R** | Reset Stage & Objects |
 
 ---
 
@@ -44,11 +43,11 @@ An authentic 16-bit Sonic the Hedgehog physics engine and playable Green Hill te
 This repository is 100% OS-independent and verified automatically via GitHub Actions across **Ubuntu Linux**, **macOS**, and **Windows**.
 
 ### Option A: Zero-Install Instant Play (No Node.js Required)
-Because [`public/index.html`](public/index.html) and [`public/sonic-engine.js`](public/sonic-engine.js) are self-contained with procedural graphics and Web Audio synthesis (no CORS-restricted external fetches), you can clone or download the ZIP and open `public/index.html` directly in any modern browser:
+Open [`public/index.html`](public/index.html) directly in any modern browser:
 
 ```bash
-git clone https://github.com/Protoevaneglium/sonic-retro-physics-engine.git
-cd sonic-retro-physics-engine
+git clone https://github.com/Protoevaneglium/Scar-the-Hedgerec.git
+cd Scar-the-Hedgerec
 
 # macOS:
 open public/index.html
@@ -64,13 +63,13 @@ start public/index.html
 If you have [Node.js](https://nodejs.org/) (v18+ recommended) installed on Linux, macOS, or Windows:
 
 ```bash
-git clone https://github.com/Protoevaneglium/sonic-retro-physics-engine.git
-cd sonic-retro-physics-engine
+git clone https://github.com/Protoevaneglium/Scar-the-Hedgerec.git
+cd Scar-the-Hedgerec
 
 # 1. Install dependencies
 npm install
 
-# 2. Run the 21-test headless physics verification suite
+# 2. Run the 26-test headless physics & Palmtree Panic verification suite
 npm test
 
 # 3. Start the local Express server (defaults to http://localhost:3000, or set PORT=8080)

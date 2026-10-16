@@ -1,7 +1,7 @@
 {
-  "name": "sonic-retro-physics-engine",
+  "name": "scar-the-hedgerec",
   "version": "1.0.0",
-  "description": "Authentic 16-bit Sonic the Hedgehog physics engine and 360-degree loop test stage built from the Sonic Retro Physics Specification",
+  "description": "Scar the Hedgerec — Sonic CD Palmtree Panic Zone Act 1 built on the 16-bit Sonic Retro Physics Engine",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

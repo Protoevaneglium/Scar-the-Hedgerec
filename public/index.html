@@ -3,18 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sonic Retro Physics — Green Hill Test Stage</title>
+    <title>Sonic CD — Palmtree Panic Zone Act 1 (16-Bit Retro Physics)</title>
     <link rel="icon" href="data:,">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
         html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Courier New', monospace; color: #fff; }
         #canvas-container { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #050b14; }
-        canvas { display: block; box-shadow: 0 0 40px rgba(0, 0, 0, 0.8); }
-        #top-bar { position: absolute; top: 12px; right: 16px; display: flex; gap: 8px; z-index: 10; }
-        .chip { background: rgba(10, 20, 40, 0.85); border: 1px solid rgba(80, 160, 255, 0.5); color: #9cdcfe; padding: 6px 12px;
-                border-radius: 6px; font: 12px 'Courier New', monospace; cursor: pointer; }
-        .chip:hover { background: rgba(30, 60, 120, 0.9); color: #fff; }
+        canvas { display: block; box-shadow: 0 0 40px rgba(0, 0, 0, 0.85); image-rendering: pixelated; }
+        #top-bar { position: absolute; top: 10px; right: 14px; display: flex; flex-wrap: wrap; gap: 6px; z-index: 10; justify-content: flex-end; max-width: 68%; }
+        .chip { background: rgba(10, 20, 40, 0.88); border: 1px solid rgba(80, 160, 255, 0.55); color: #9cdcfe; padding: 5px 10px;
+                border-radius: 6px; font: bold 11px 'Courier New', monospace; cursor: pointer; transition: background 0.12s; }
+        .chip:hover { background: rgba(30, 60, 120, 0.92); color: #fff; }
         .chip.on { background: #1976d2; color: #fff; border-color: #90caf9; }
+        .chip.gold { background: rgba(180, 100, 10, 0.9); color: #ffe57f; border-color: #ffd54f; }
         #touch { position: absolute; bottom: 20px; left: 0; right: 0; display: none; justify-content: space-between; padding: 0 30px; pointer-events: none; z-index: 10; }
         @media (pointer: coarse) { #touch { display: flex; } }
         .tgroup { display: flex; gap: 12px; pointer-events: auto; }
@@ -28,9 +29,11 @@
 <div id="canvas-container">
     <canvas id="game"></canvas>
     <div id="top-bar">
-        <button class="chip on" id="btn-hud" title="Tab / G">HUD: ON</button>
+        <button class="chip gold" id="btn-stage" title="Switch Stage (M)">Zone: Palmtree Panic</button>
+        <button class="chip on" id="btn-era" title="Cycle Sonic CD Time Era (T)">Time: Good Future</button>
+        <button class="chip" id="btn-hud" title="Tab / G">Debug Sensors: OFF</button>
         <button class="chip on" id="btn-audio">Audio: ON</button>
-        <button class="chip" id="btn-cp" title="Keys 1–7">Checkpoint: Runway (1)</button>
+        <button class="chip" id="btn-cp" title="Keys 1–7">Checkpoint: Cliff & Slide (1)</button>
         <button class="chip" id="btn-reset" title="R">Reset (R)</button>
     </div>
     <div id="touch">
@@ -46,10 +49,10 @@
 <script src="sonic-engine.js"></script>
 <script>
 'use strict';
-const { PHYS, HITBOX, STATE, Terrain, Player, MODE_FRAMES, toDeg, TAU } = window.SonicEngine;
+const { PHYS, HITBOX, STATE, Terrain, Player, MODE_FRAMES, PALMTREE_SPRITES, toDeg, TAU } = window.SonicEngine;
 
 /* ==========================================================================
-   AUDIO — tiny Web Audio synth (unlocked on first input)
+   AUDIO — 16-Bit Sega CD / Genesis Web Audio Synthesizer
    ========================================================================== */
 class RetroAudio {
     constructor() { this.ctx = null; this.enabled = true; this.lastSkid = 0; }
@@ -57,9 +60,9 @@ class RetroAudio {
         if (!this.ctx) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) this.ctx = new AC(); }
         if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
     }
-    tone(type, f0, f1, dur, vol = 0.15) {
+    tone(type, f0, f1, dur, vol = 0.14, delay = 0) {
         if (!this.enabled || !this.ctx) return;
-        const t = this.ctx.currentTime, o = this.ctx.createOscillator(), g = this.ctx.createGain();
+        const t = this.ctx.currentTime + delay, o = this.ctx.createOscillator(), g = this.ctx.createGain();
         o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
         g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
         o.connect(g); g.connect(this.ctx.destination); o.start(t); o.stop(t + dur);
@@ -77,14 +80,49 @@ class RetroAudio {
     roll() { this.noise(0.12, 900, 0.1); }
     rev(r) { this.tone('sawtooth', 240 + r * 50, 380 + r * 60, 0.1, 0.12); }
     release() { this.tone('triangle', 700, 200, 0.25, 0.2); this.noise(0.2, 600, 0.12); }
-    land() { this.tone('sine', 150, 50, 0.08, 0.15); }
+    land() { this.tone('sine', 150, 50, 0.08, 0.14); }
     bonk() { this.tone('square', 180, 90, 0.08, 0.1); }
     skid(now) { if (now - this.lastSkid > 90) { this.lastSkid = now; this.noise(0.09, 1500, 0.1); } }
+    ring() {
+        this.tone('sine', 987.77, 987.77, 0.07, 0.14, 0);     // B5
+        this.tone('sine', 1318.51, 1318.51, 0.18, 0.14, 0.07); // E6
+    }
+    ringLoss() {
+        for (let i = 0; i < 4; i++) this.tone('square', 900 - i * 140, 600 - i * 100, 0.06, 0.09, i * 0.05);
+    }
+    bouncePole() {
+        this.tone('triangle', 260, 880, 0.22, 0.18, 0);
+        this.tone('square', 420, 660, 0.14, 0.10, 0.04);
+    }
+    spinner() {
+        this.tone('sine', 660, 1320, 0.10, 0.15, 0);
+        this.tone('triangle', 990, 1480, 0.12, 0.12, 0.05);
+    }
+    shatter() {
+        this.noise(0.22, 420, 0.18);
+        this.tone('sawtooth', 220, 65, 0.18, 0.15, 0);
+    }
+    boost() {
+        this.tone('sawtooth', 300, 1100, 0.24, 0.16, 0);
+        this.noise(0.18, 1200, 0.12);
+    }
+    timePost() {
+        this.tone('square', 523.25, 1046.5, 0.12, 0.14, 0);
+        this.tone('square', 659.25, 1318.5, 0.16, 0.14, 0.08);
+    }
+    timeWarp() {
+        const notes = [523.25, 659.25, 783.99, 1046.5, 1318.5];
+        notes.forEach((n, i) => this.tone('triangle', n, n * 1.2, 0.14, 0.16, i * 0.06));
+    }
+    goalPost() {
+        const notes = [523.25, 659.25, 783.99, 1046.5, 783.99, 1046.5];
+        notes.forEach((n, i) => this.tone('square', n, n, 0.12, 0.14, i * 0.09));
+    }
 }
 const audio = new RetroAudio();
 
 /* ==========================================================================
-   INPUT — Left, Right, Down, Jump, Debug toggle (+ reset / checkpoints)
+   INPUT — Left, Right, Down, Jump, Stage/Time/Debug toggles & Checkpoints
    ========================================================================== */
 class InputHandler {
     constructor() {
@@ -105,6 +143,8 @@ class InputHandler {
             if (e.repeat) return;
             if (e.code === 'Tab' || e.code === 'KeyG') this.debugToggle = true;
             if (e.code === 'KeyR') this.actions.push({ type: 'reset' });
+            if (e.code === 'KeyM') this.actions.push({ type: 'stage' });
+            if (e.code === 'KeyT') this.actions.push({ type: 'era' });
             const m = /^Digit([1-7])$/.exec(e.code);
             if (m) this.actions.push({ type: 'checkpoint', index: +m[1] - 1 });
         });
@@ -131,11 +171,13 @@ class InputHandler {
 }
 
 /* ==========================================================================
-   GAME — loop, camera, rendering, debug overlay
+   GAME — Palmtree Panic Renderer, Sprite Atlas, Camera & HUD
    ========================================================================== */
 const SENSOR_COLORS = { A: '#00ff6a', B: '#d4ff00', C: '#00d0ff', D: '#5b7cff', E: '#ff66cc', F: '#ff4040' };
 const MODE_NAMES = ['Floor', 'Right Wall', 'Ceiling', 'Left Wall'];
 const BLUE = '#1f4fe0', BLUE_D = '#12329a', PEACH = '#f6c08e', RED = '#e02424';
+const ERAS = ['good_future', 'present', 'past'];
+const ERA_LABELS = { good_future: 'Good Future', present: 'Present', past: 'Past' };
 
 class Game {
     constructor() {
@@ -146,11 +188,44 @@ class Game {
         this.resize();
         window.addEventListener('resize', () => this.resize());
 
+        // Load Sonic CD Palmtree Panic Good Future sprite sheet & full zone map
+        this.objSheet = new Image();
+        this.objSheetLoaded = false;
+        this.objSheet.onload = () => { this.objSheetLoaded = true; };
+        this.objSheet.src = 'assets/palmtree_objects.png';
+
+        this.mapImg = new Image();
+        this.mapImgLoaded = false;
+        this.mapImg.onload = () => { this.mapImgLoaded = true; };
+        this.mapImg.src = 'assets/palmtree_map.png';
+
         this.input = new InputHandler();
-        this.terrain = new Terrain();
+        this.showDebug = false;
+        this.stageName = 'palmtree';
+        this.stageTime = 0;
+
+        this.patterns = {
+            palmtreeRock: this.makePalmtreeRockPattern(),
+            palmtreeLoop: this.makePalmtreeLoopPattern(),
+            checker: this.makeChecker('#b0601e', '#8a4614', 16),
+            loopChecker: this.makeChecker('#c46b22', '#94501a', 12),
+            rock: this.makeChecker('#6b3a17', '#5a3013', 20),
+        };
+
+        this.loadStage('palmtree');
+        this.setupUI();
+
+        this.fps = 60; this.fpsFrames = 0; this.fpsTime = 0; this.dt60 = 1;
+        this.last = performance.now();
+        requestAnimationFrame((t) => this.frame(t));
+    }
+
+    loadStage(stageName) {
+        this.stageName = stageName;
+        this.terrain = new Terrain(stageName);
         this.particles = [];
-        this.showDebug = true;
         this.cpIndex = 0;
+        this.stageTime = 0;
 
         this.player = new Player(this.terrain, {
             jump: () => audio.jump(),
@@ -159,20 +234,29 @@ class Game {
             spindashRev: (rev, p) => { audio.rev(rev); this.dust(p, 5, -p.facing, 2.5); },
             spindashRelease: (v, p) => { audio.release(); this.dust(p, 8, -p.facing, 3.5); },
             land: (d, p) => { audio.land(); if (d.ysp > 4) { this.dust(p, 3, 1, 1.5); this.dust(p, 3, -1, 1.5); } },
-            respawn: (cp) => { this.cpIndex = this.terrain.checkpoints.indexOf(cp); this.updateCpButton(); this.snapCamera(); },
+            respawn: (cp) => {
+                this.cpIndex = Math.max(0, this.terrain.checkpoints.indexOf(cp));
+                this.updateCpButton();
+                this.snapCamera();
+            },
+            ring: () => audio.ring(),
+            ringLoss: () => audio.ringLoss(),
+            bouncePole: (bp, p) => { audio.bouncePole(); this.dust(p, 6, 1, 2.2); },
+            spinner: () => audio.spinner(),
+            breakWall: () => audio.shatter(),
+            breakRock: () => audio.shatter(),
+            breakFloor: () => audio.shatter(),
+            houdini: () => audio.spinner(),
+            enemyPop: () => audio.spinner(),
+            boost: (sb, p) => { audio.boost(); this.dust(p, 10, -p.facing, 3.8); },
+            timePost: () => audio.timePost(),
+            timeWarp: () => { audio.timeWarp(); this.updateEraButton(); },
+            goalPost: () => audio.goalPost(),
         });
 
         this.camX = 0; this.camY = 0; this.look = 0;
         this.snapCamera();
-
-        this.fps = 60; this.fpsFrames = 0; this.fpsTime = 0; this.dt60 = 1;
-        this.checker = this.makeChecker('#b0601e', '#8a4614', 16);
-        this.loopChecker = this.makeChecker('#c46b22', '#94501a', 12);
-        this.rock = this.makeChecker('#6b3a17', '#5a3013', 20);
-        this.setupUI();
-
-        this.last = performance.now();
-        requestAnimationFrame((t) => this.frame(t));
+        this.updateStageButtons();
     }
 
     resize() {
@@ -180,6 +264,50 @@ class Game {
         const s = Math.min(c.clientWidth / this.W, c.clientHeight / this.H);
         this.canvas.style.width = Math.floor(this.W * s) + 'px';
         this.canvas.style.height = Math.floor(this.H * s) + 'px';
+    }
+
+    /** Authentic Sonic CD Palmtree Panic bevelled golden/orange striped & triangle-carved rock pattern. */
+    makePalmtreeRockPattern() {
+        const cv = document.createElement('canvas');
+        cv.width = 64; cv.height = 64;
+        const g = cv.getContext('2d');
+        // Rich dark brown base
+        g.fillStyle = '#3c1800'; g.fillRect(0, 0, 64, 64);
+        // Horizontal bevelled Sonic CD golden-orange rock strata
+        const bands = [
+            [0, 6, '#fca800'], [6, 8, '#dc6800'], [14, 4, '#903000'],
+            [18, 14, '#581c00'],
+            [32, 6, '#fca800'], [38, 8, '#dc6800'], [46, 4, '#903000'],
+            [50, 14, '#581c00'],
+        ];
+        for (const [y, h, col] of bands) { g.fillStyle = col; g.fillRect(0, y, 64, h); }
+        // Carved Sonic CD geometric triangles inside the dark strata
+        for (let row = 0; row < 2; row++) {
+            const y0 = row * 32 + 16;
+            for (let x = 0; x < 64; x += 16) {
+                g.fillStyle = '#b44800';
+                g.beginPath(); g.moveTo(x, y0); g.lineTo(x + 16, y0); g.lineTo(x + 8, y0 + 14); g.closePath(); g.fill();
+                g.fillStyle = '#fc9800';
+                g.beginPath(); g.moveTo(x + 2, y0); g.lineTo(x + 8, y0); g.lineTo(x + 8, y0 + 11); g.closePath(); g.fill();
+            }
+        }
+        return this.ctx.createPattern(cv, 'repeat');
+    }
+
+    makePalmtreeLoopPattern() {
+        const cv = document.createElement('canvas');
+        cv.width = 32; cv.height = 32;
+        const g = cv.getContext('2d');
+        g.fillStyle = '#a83c00'; g.fillRect(0, 0, 32, 32);
+        for (let y = 0; y < 32; y += 16) {
+            for (let x = 0; x < 32; x += 16) {
+                g.fillStyle = '#fca800';
+                g.beginPath(); g.moveTo(x, y); g.lineTo(x + 16, y); g.lineTo(x + 8, y + 16); g.closePath(); g.fill();
+                g.fillStyle = '#dc6800';
+                g.beginPath(); g.moveTo(x + 8, y); g.lineTo(x + 16, y); g.lineTo(x + 8, y + 16); g.closePath(); g.fill();
+            }
+        }
+        return this.ctx.createPattern(cv, 'repeat');
     }
 
     makeChecker(a, b, size) {
@@ -192,35 +320,65 @@ class Game {
     }
 
     setupUI() {
+        const stg = document.getElementById('btn-stage');
+        const era = document.getElementById('btn-era');
         const hud = document.getElementById('btn-hud');
         const aud = document.getElementById('btn-audio');
         const cp = document.getElementById('btn-cp');
         const rst = document.getElementById('btn-reset');
         const blurAfter = (el, fn) => el.addEventListener('click', () => { audio.unlock(); fn(); el.blur(); });
+        blurAfter(stg, () => this.toggleStage());
+        blurAfter(era, () => this.cycleEra());
         blurAfter(hud, () => this.toggleDebug());
         blurAfter(aud, () => { audio.enabled = !audio.enabled; aud.textContent = `Audio: ${audio.enabled ? 'ON' : 'OFF'}`; aud.classList.toggle('on', audio.enabled); });
         blurAfter(cp, () => this.gotoCheckpoint((this.cpIndex + 1) % this.terrain.checkpoints.length));
-        blurAfter(rst, () => this.gotoCheckpoint(0));
+        blurAfter(rst, () => {
+            if (this.terrain.stage === 'palmtree') this.terrain.setupPalmtreeObjects();
+            this.player.rings = 0; this.player.score = 0; this.stageTime = 0;
+            this.gotoCheckpoint(0);
+        });
+    }
+
+    toggleStage() {
+        this.loadStage(this.stageName === 'palmtree' ? 'test' : 'palmtree');
+    }
+    cycleEra() {
+        const idx = (ERAS.indexOf(this.terrain.timeEra) + 1) % ERAS.length;
+        this.terrain.timeEra = ERAS[idx];
+        this.terrain.timeWarpFlash = 18;
+        audio.timePost();
+        this.updateEraButton();
+    }
+    updateStageButtons() {
+        const stg = document.getElementById('btn-stage');
+        if (stg) stg.textContent = `Zone: ${this.stageName === 'palmtree' ? 'Palmtree Panic' : 'Physics Test'}`;
+        this.updateEraButton();
+        this.updateCpButton();
+    }
+    updateEraButton() {
+        const era = document.getElementById('btn-era');
+        if (era) era.textContent = `Time: ${ERA_LABELS[this.terrain.timeEra] || 'Good Future'}`;
     }
     toggleDebug() {
         this.showDebug = !this.showDebug;
         const b = document.getElementById('btn-hud');
-        b.textContent = `HUD: ${this.showDebug ? 'ON' : 'OFF'}`;
+        b.textContent = `Debug Sensors: ${this.showDebug ? 'ON' : 'OFF'}`;
         b.classList.toggle('on', this.showDebug);
     }
     gotoCheckpoint(i) {
-        this.cpIndex = i;
-        this.player.place(this.terrain.checkpoints[i].x);
+        this.cpIndex = i % this.terrain.checkpoints.length;
+        const c = this.terrain.checkpoints[this.cpIndex];
+        this.player.place(c.x, 0, c.y);
         this.particles.length = 0;
         this.updateCpButton();
         this.snapCamera();
     }
     updateCpButton() {
-        const c = this.terrain.checkpoints[this.cpIndex];
+        const c = this.terrain.checkpoints[this.cpIndex] || this.terrain.checkpoints[0];
         document.getElementById('btn-cp').textContent = `Checkpoint: ${c.name} (${this.cpIndex + 1})`;
     }
 
-    /* ---------------- main loop: real dt -> engine (engine scales by dt*60 and sub-steps) ---------------- */
+    /* ---------------- main loop ---------------- */
     frame(now) {
         const dt = Math.min((now - this.last) / 1000, 0.05);
         this.last = now;
@@ -230,8 +388,18 @@ class Game {
 
         if (this.input.debugToggle) this.toggleDebug();
         for (const a of this.input.actions) {
-            if (a.type === 'reset') this.gotoCheckpoint(0);
+            if (a.type === 'reset') {
+                if (this.terrain.stage === 'palmtree') this.terrain.setupPalmtreeObjects();
+                this.player.rings = 0; this.player.score = 0; this.stageTime = 0;
+                this.gotoCheckpoint(0);
+            }
+            if (a.type === 'stage') this.toggleStage();
+            if (a.type === 'era') this.cycleEra();
             if (a.type === 'checkpoint') this.gotoCheckpoint(a.index);
+        }
+
+        if (!this.terrain.goalPost || !this.terrain.goalPost.cleared) {
+            this.stageTime += dt;
         }
 
         this.player.update(this.input.snapshot(), dt);
@@ -271,18 +439,34 @@ class Game {
     /* ---------------- smooth look-ahead camera ---------------- */
     snapCamera() {
         this.look = 0;
-        this.camX = this.player.x - this.W / 2;
-        this.camY = this.player.y - this.H / 2 + 40;
+        this.camX = Math.max(0, this.player.x - this.W / 2);
+        this.camY = this.player.y - this.H / 2 + 25;
     }
     updateCamera(dt) {
         const p = this.player;
         const vx = p.grounded ? p.gsp * Math.cos(p.angle) : p.xsp;
-        const targetLook = Math.max(-150, Math.min(150, vx * 18));
-        this.look += (targetLook - this.look) * (1 - Math.exp(-2.5 * dt));
-        const tx = p.x + this.look - this.W / 2;
-        const ty = p.y - this.H / 2 + 40;
+        const targetLook = Math.max(-150, Math.min(160, vx * 16));
+        this.look += (targetLook - this.look) * (1 - Math.exp(-2.8 * dt));
+        const tx = Math.max(0, Math.min(this.terrain.endX - this.W, p.x + this.look - this.W / 2));
+        const ty = Math.max(-140, Math.min(420, p.y - this.H / 2 + 25));
         this.camX += (tx - this.camX) * (1 - Math.exp(-9 * dt));
-        this.camY += (ty - this.camY) * (1 - Math.exp(-6 * dt));
+        this.camY += (ty - this.camY) * (1 - Math.exp(-6.5 * dt));
+    }
+
+    /** Helper to draw a sprite rect from `assets/palmtree_objects.png`. */
+    drawSprite(ctx, rect, dx, dy, dw = rect.w, dh = rect.h, flipX = false) {
+        if (!this.objSheetLoaded || !rect) return false;
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        if (flipX) {
+            ctx.translate(dx + dw, dy);
+            ctx.scale(-1, 1);
+            ctx.drawImage(this.objSheet, rect.x, rect.y, rect.w, rect.h, 0, 0, dw, dh);
+        } else {
+            ctx.drawImage(this.objSheet, rect.x, rect.y, rect.w, rect.h, dx, dy, dw, dh);
+        }
+        ctx.restore();
+        return true;
     }
 
     /* ======================================================================
@@ -293,55 +477,96 @@ class Game {
         this.drawBackground(ctx);
         ctx.save();
         ctx.translate(-Math.round(this.camX), -Math.round(this.camY));
-        this.view = { x0: this.camX - 40, x1: this.camX + this.W + 40, y0: this.camY - 40, y1: this.camY + this.H + 40 };
+        this.view = { x0: this.camX - 80, x1: this.camX + this.W + 80, y0: this.camY - 80, y1: this.camY + this.H + 80 };
 
-        this.drawPit(ctx);
-        this.drawTunnelBack(ctx);
-        this.drawProps(ctx);
-        this.drawLoop(ctx);
-        for (const f of this.terrain.floors) this.drawFloor(ctx, f);
-        this.drawTunnelRock(ctx);
-        this.drawSigns(ctx);
+        if (this.terrain.stage === 'palmtree') {
+            this.drawWaterfallsBack(ctx);
+            this.drawTunnelsBack(ctx);
+            this.drawSceneryProps(ctx);
+            this.drawLoops(ctx);
+            for (const f of this.terrain.floors) this.drawFloor(ctx, f);
+            this.drawTunnelsRock(ctx);
+            this.drawWaterSurface(ctx);
+            this.drawPalmtreeObjects(ctx);
+            this.drawSigns(ctx);
+        } else {
+            this.drawPit(ctx);
+            this.drawTunnelsBack(ctx);
+            this.drawLegacyProps(ctx);
+            this.drawLoops(ctx);
+            for (const f of this.terrain.floors) this.drawFloor(ctx, f);
+            this.drawTunnelsRock(ctx);
+            this.drawSigns(ctx);
+        }
+
         if (this.showDebug) this.drawLoopDebug(ctx);
         this.drawParticles(ctx);
         this.drawPlayer(ctx);
         if (this.showDebug) this.drawSensors(ctx);
         ctx.restore();
 
+        if (this.terrain.timeWarpFlash > 0) {
+            ctx.fillStyle = `rgba(255, 255, 255, ${(this.terrain.timeWarpFlash / 35).toFixed(2)})`;
+            ctx.fillRect(0, 0, this.W, this.H);
+        }
+
+        this.drawSonicCDHUD(ctx);
+        if (this.terrain.stage === 'palmtree') this.drawZoneMapRadar(ctx);
         if (this.showDebug) this.drawHUD(ctx);
-        else this.drawMiniHUD(ctx);
+        this.drawControlsHint(ctx);
     }
 
     drawBackground(ctx) {
         const W = this.W, H = this.H;
+        const era = this.terrain.timeEra || 'good_future';
         const sky = ctx.createLinearGradient(0, 0, 0, H);
-        sky.addColorStop(0, '#1c58c7'); sky.addColorStop(0.5, '#3a8ff7'); sky.addColorStop(1, '#bfe4ff');
+        if (era === 'good_future') {
+            sky.addColorStop(0, '#1044b8'); sky.addColorStop(0.48, '#2890fc'); sky.addColorStop(1, '#ace8ff');
+        } else if (era === 'past') {
+            sky.addColorStop(0, '#441868'); sky.addColorStop(0.5, '#b84868'); sky.addColorStop(1, '#fca860');
+        } else {
+            sky.addColorStop(0, '#002898'); sky.addColorStop(0.5, '#2068dc'); sky.addColorStop(1, '#88d0fc');
+        }
         ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
 
         const t = performance.now();
-        ctx.fillStyle = '#fff';
-        const co = -((this.camX * 0.05 + t * 0.008) % 480);
+        // Clouds
+        ctx.fillStyle = era === 'past' ? 'rgba(255,220,200,0.85)' : '#fff';
+        const co = -((this.camX * 0.06 + t * 0.01) % 480);
         for (let x = co - 480; x < W + 480; x += 240) {
-            ctx.beginPath(); ctx.arc(x, 80, 24, 0, TAU); ctx.arc(x + 24, 70, 32, 0, TAU); ctx.arc(x + 54, 78, 24, 0, TAU); ctx.fill();
+            ctx.beginPath(); ctx.arc(x, 68, 22, 0, TAU); ctx.arc(x + 24, 58, 30, 0, TAU); ctx.arc(x + 52, 66, 22, 0, TAU); ctx.fill();
         }
-        const horizon = 300 - (this.camY - 300) * 0.05;
-        ctx.fillStyle = '#2f8a50';
-        const mo = -((this.camX * 0.12) % 220);
-        for (let x = mo - 220; x < W + 220; x += 220) { ctx.beginPath(); ctx.arc(x + 110, horizon + 30, 120, Math.PI, 0); ctx.fill(); }
-        ctx.fillStyle = '#226b3e';
-        const mo2 = -((this.camX * 0.2) % 160);
-        for (let x = mo2 - 160; x < W + 160; x += 160) { ctx.beginPath(); ctx.arc(x + 80, horizon + 40, 70, Math.PI, 0); ctx.fill(); }
+
+        // Distant Sonic CD Palmtree Panic tropical islands & mountains
+        const horizon = 290 - (this.camY - 300) * 0.06;
+        ctx.fillStyle = era === 'good_future' ? '#20a068' : era === 'past' ? '#486838' : '#288848';
+        const mo = -((this.camX * 0.11) % 260);
+        for (let x = mo - 260; x < W + 260; x += 260) {
+            ctx.beginPath(); ctx.arc(x + 130, horizon + 35, 130, Math.PI, 0); ctx.fill();
+        }
+        ctx.fillStyle = era === 'good_future' ? '#147850' : '#1c6434';
+        const mo2 = -((this.camX * 0.18) % 180);
+        for (let x = mo2 - 180; x < W + 180; x += 180) {
+            ctx.beginPath(); ctx.arc(x + 90, horizon + 42, 75, Math.PI, 0); ctx.fill();
+        }
+
+        // Shimmering Palmtree Panic tropical bay
         const water = ctx.createLinearGradient(0, horizon + 40, 0, H);
-        water.addColorStop(0, '#1a63c0'); water.addColorStop(1, '#0d3f86');
+        if (era === 'good_future') {
+            water.addColorStop(0, '#1888e8'); water.addColorStop(1, '#083898');
+        } else if (era === 'past') {
+            water.addColorStop(0, '#683890'); water.addColorStop(1, '#281450');
+        } else {
+            water.addColorStop(0, '#1860c8'); water.addColorStop(1, '#082c78');
+        }
         ctx.fillStyle = water; ctx.fillRect(0, horizon + 40, W, H);
-        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        ctx.fillStyle = 'rgba(255,255,255,0.38)';
         for (let y = horizon + 50, i = 0; y < H; y += 14, i++) {
-            const o = Math.sin(i * 1.7 + t * 0.002) * 30 - ((this.camX * (0.25 + i * 0.03)) % 120);
-            for (let x = o - 120; x < W; x += 120) ctx.fillRect(x, y, 50, 2);
+            const o = Math.sin(i * 1.7 + t * 0.0025) * 30 - ((this.camX * (0.22 + i * 0.03)) % 120);
+            for (let x = o - 120; x < W; x += 120) ctx.fillRect(x, y, 52, 2);
         }
     }
 
-    /** Trace y = f(x) across the visible part of a height field. Returns the drawn [a, b] or null. */
     traceField(ctx, s, start = true) {
         const a = Math.max(s.x0, this.view.x0), b = Math.min(s.x1, this.view.x1);
         if (a >= b) return null;
@@ -352,95 +577,443 @@ class Game {
     }
 
     drawFloor(ctx, s) {
-        const bottom = this.view.y1 + 50;
+        const isPalm = this.terrain.stage === 'palmtree';
+        // Elevated oneWay tiers draw as thick Sonic CD cliff shelves (68px deep) so lower caverns remain visible underneath!
+        const thickness = s.oneWay ? (s.tier === 'high' ? 54 : 68) : 0;
         ctx.beginPath();
         const r = this.traceField(ctx, s);
         if (!r) return;
         const [a, b] = r;
-        ctx.lineTo(b, bottom); ctx.lineTo(a, bottom); ctx.closePath();
-        ctx.fillStyle = this.checker; ctx.fill();
-        // grass band below the surface line (feet sit exactly on its top edge)
+        if (s.oneWay) {
+            for (let x = b; x > a; x -= 6) ctx.lineTo(x, s.f(x) + thickness);
+            ctx.lineTo(a, s.f(a) + thickness);
+        } else {
+            const bottom = this.view.y1 + 60;
+            ctx.lineTo(b, bottom); ctx.lineTo(a, bottom);
+        }
+        ctx.closePath();
+        ctx.fillStyle = isPalm ? this.patterns.palmtreeRock : this.patterns.checker;
+        ctx.fill();
+
+        if (s.oneWay) {
+            ctx.strokeStyle = '#381400'; ctx.lineWidth = 2; ctx.stroke();
+        }
+
+        // Vibrant Sonic CD grass band + yellow/green jagged turf teeth along the surface
         ctx.beginPath();
         this.traceField(ctx, s);
-        for (let x = b; x > a; x -= 4) ctx.lineTo(x, s.f(x) + 11);
-        ctx.lineTo(a, s.f(a) + 11); ctx.closePath();
-        ctx.fillStyle = '#25b52a'; ctx.fill();
+        for (let x = b; x > a; x -= 4) ctx.lineTo(x, s.f(x) + 12);
+        ctx.lineTo(a, s.f(a) + 12); ctx.closePath();
+        ctx.fillStyle = isPalm ? '#00b400' : '#25b52a';
+        ctx.fill();
+
+        if (isPalm) {
+            ctx.fillStyle = '#fcff00';
+            for (let x = Math.floor(a / 16) * 16; x < b; x += 16) {
+                if (x < s.x0 || x + 8 > s.x1) continue;
+                const y = s.f(x + 4);
+                ctx.beginPath();
+                ctx.moveTo(x + 2, y + 11); ctx.lineTo(x + 8, y + 11); ctx.lineTo(x + 5, y + 16);
+                ctx.closePath(); ctx.fill();
+            }
+        }
+
         ctx.beginPath(); this.traceField(ctx, s);
-        ctx.strokeStyle = '#7dff6a'; ctx.lineWidth = 2; ctx.stroke();
-        // ramp lip / plateau faces
-        ctx.fillStyle = '#5b2f10';
-        const lip = this.terrain.lip;
-        if (s === this.terrain.mainFloor && b >= lip.x - 1) ctx.fillRect(lip.x - 6, lip.y, 6, bottom - lip.y);
-        if (s === this.terrain.plateau && a <= s.x0 + 1) ctx.fillRect(s.x0, s.f(s.x0), 6, bottom - s.f(s.x0));
+        ctx.strokeStyle = isPalm ? '#58fc40' : '#7dff6a';
+        ctx.lineWidth = 2.5; ctx.stroke();
     }
 
+    drawWaterfallsBack(ctx) {
+        const t = performance.now() * 0.08;
+        for (const wf of this.terrain.waterfalls) {
+            if (wf.x + wf.w < this.view.x0 || wf.x > this.view.x1) continue;
+            const grad = ctx.createLinearGradient(wf.x, 0, wf.x + wf.w, 0);
+            grad.addColorStop(0, 'rgba(120, 72, 240, 0.72)');
+            grad.addColorStop(0.5, 'rgba(184, 136, 255, 0.82)');
+            grad.addColorStop(1, 'rgba(120, 72, 240, 0.72)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(wf.x, wf.y0, wf.w, wf.y1 - wf.y0);
+
+            // Animated vertical foam bands
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+            for (let x = wf.x + 8; x < wf.x + wf.w - 6; x += 16) {
+                for (let y = wf.y0 + ((t + x * 0.7) % 36); y < wf.y1 - 12; y += 36) {
+                    ctx.fillRect(x, y, 4, 18);
+                }
+            }
+        }
+    }
+
+    drawWaterSurface(ctx) {
+        const t = performance.now() * 0.004;
+        for (const wz of this.terrain.waterZones) {
+            if (wz.x1 < this.view.x0 || wz.x0 > this.view.x1) continue;
+            ctx.fillStyle = 'rgba(120, 160, 255, 0.45)';
+            ctx.fillRect(wz.x0, wz.y - 6, wz.x1 - wz.x0, 14);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+            for (let x = wz.x0; x < wz.x1 - 16; x += 24) {
+                const wave = Math.sin(t + x * 0.05) * 2;
+                ctx.fillRect(x, wz.y - 6 + wave, 14, 2);
+            }
+        }
+        // Render active water splashes using exact frames from `assets/palmtree_objects.png`!
+        for (const sp of this.terrain.splashes) {
+            const arr = sp.type === 'burst' ? PALMTREE_SPRITES.splashBurst : PALMTREE_SPRITES.splashPlume;
+            const rect = arr[Math.min(sp.frame, arr.length - 1)];
+            if (rect) {
+                this.drawSprite(ctx, rect, sp.x - rect.w / 2, sp.y - rect.h);
+            }
+        }
+    }
+
+    drawTunnelsBack(ctx) {
+        const list = this.terrain.tunnels && this.terrain.tunnels.length ? this.terrain.tunnels : (this.terrain.tunnel ? [this.terrain.tunnel] : []);
+        for (const t of list) {
+            if (t.x1 < this.view.x0 || t.x0 > this.view.x1) continue;
+            const c = t.ceiling, f = t.floor || this.terrain.mainFloor;
+            ctx.beginPath();
+            const r = this.traceField(ctx, c);
+            if (!r) continue;
+            for (let x = r[1]; x > r[0]; x -= 4) ctx.lineTo(x, f.f(x));
+            ctx.lineTo(r[0], f.f(r[0])); ctx.closePath();
+            ctx.fillStyle = '#241004'; ctx.fill();
+        }
+    }
+
+    drawTunnelsRock(ctx) {
+        const isPalm = this.terrain.stage === 'palmtree';
+        const list = this.terrain.tunnels && this.terrain.tunnels.length ? this.terrain.tunnels : (this.terrain.tunnel ? [this.terrain.tunnel] : []);
+        for (const t of list) {
+            if (t.x1 < this.view.x0 || t.x0 > this.view.x1) continue;
+            const c = t.ceiling;
+            ctx.beginPath();
+            const r = this.traceField(ctx, c);
+            if (!r) continue;
+            ctx.lineTo(r[1], t.roofY); ctx.lineTo(r[0], t.roofY); ctx.closePath();
+            ctx.fillStyle = isPalm ? this.patterns.palmtreeRock : this.patterns.rock;
+            ctx.fill();
+            ctx.beginPath(); this.traceField(ctx, c);
+            ctx.strokeStyle = '#2a1405'; ctx.lineWidth = 3; ctx.stroke();
+            ctx.fillStyle = isPalm ? '#00b400' : '#25b52a';
+            ctx.fillRect(t.x0, t.roofY, t.x1 - t.x0, 11);
+            ctx.fillStyle = '#7dff6a'; ctx.fillRect(t.x0, t.roofY, t.x1 - t.x0, 2);
+        }
+    }
+
+    drawLoops(ctx) {
+        const isPalm = this.terrain.stage === 'palmtree';
+        const loops = this.terrain.loops && this.terrain.loops.length ? this.terrain.loops : [this.terrain.loop];
+        for (const L of loops) {
+            if (!L || L.cx + L.r + 40 < this.view.x0 || L.cx - L.r - 40 > this.view.x1) continue;
+            ctx.beginPath(); ctx.arc(L.cx, L.cy, L.r + 28, 0, TAU); ctx.arc(L.cx, L.cy, L.r, 0, TAU, true);
+            ctx.fillStyle = isPalm ? this.patterns.palmtreeLoop : this.patterns.loopChecker;
+            ctx.fill();
+            ctx.beginPath(); ctx.arc(L.cx, L.cy, L.r + 9, 0, TAU); ctx.arc(L.cx, L.cy, L.r, 0, TAU, true);
+            ctx.fillStyle = isPalm ? '#00b400' : '#25b52a';
+            ctx.fill();
+            ctx.beginPath(); ctx.arc(L.cx, L.cy, L.r + 1, 0, TAU);
+            ctx.strokeStyle = '#7dff6a'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.beginPath(); ctx.arc(L.cx, L.cy, L.r + 28, 0, TAU);
+            ctx.strokeStyle = '#5b2f10'; ctx.lineWidth = 2; ctx.stroke();
+        }
+    }
+
+    drawSceneryProps(ctx) {
+        // 1. Iconic Sonic CD Palmtree Panic Palm Trees (segmented gold trunk + green & magenta fronds)
+        for (const pt of this.terrain.palmTrees) {
+            if (pt.x < this.view.x0 - 90 || pt.x > this.view.x1 + 90) continue;
+            this.drawSonicCDPalm(ctx, pt.x, pt.y, pt.scale || 1);
+        }
+        // 2. Good Future Plants from the sprite sheet (`plantTall` & `plantShort`)
+        for (const pl of this.terrain.plants) {
+            if (pl.x < this.view.x0 - 40 || pl.x > this.view.x1 + 40) continue;
+            const rect = pl.tall ? PALMTREE_SPRITES.plantTall : PALMTREE_SPRITES.plantShort;
+            if (!this.drawSprite(ctx, rect, pl.x - rect.w / 2, pl.y - rect.h)) {
+                this.flower(ctx, pl.x, pl.y, '#ffe028');
+            }
+        }
+    }
+
+    drawSonicCDPalm(ctx, x, y, scale = 1) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(scale, scale);
+        // Segmented golden-brown trunk
+        for (let i = 0; i < 7; i++) {
+            const ty = -i * 13 - 6;
+            const ox = Math.sin(i * 0.35) * 4;
+            ctx.fillStyle = i % 2 === 0 ? '#dc7800' : '#a84800';
+            ctx.beginPath();
+            ctx.moveTo(ox - 7, ty + 6); ctx.lineTo(ox + 7, ty + 6);
+            ctx.lineTo(ox + 5, ty - 6); ctx.lineTo(ox - 5, ty - 6);
+            ctx.closePath(); ctx.fill();
+            ctx.fillStyle = '#fca800';
+            ctx.fillRect(ox - 3, ty - 5, 4, 10);
+        }
+        const topX = Math.sin(2.1) * 4, topY = -96;
+        // Magenta/pink Sonic CD upper crown accent fronds
+        ctx.fillStyle = '#fc48a8';
+        for (const a of [-0.9, -0.35, 0.35, 0.9]) {
+            ctx.beginPath();
+            ctx.ellipse(topX + Math.sin(a) * 22, topY - 4 + Math.abs(a) * 6, 22, 5.5, a * 0.7, 0, TAU);
+            ctx.fill();
+        }
+        // Bright green lower palm fronds
+        ctx.fillStyle = '#00c800';
+        for (const a of [-1.1, -0.6, 0, 0.6, 1.1]) {
+            ctx.beginPath();
+            ctx.ellipse(topX + Math.sin(a) * 26, topY + 2 + Math.abs(a) * 8, 26, 6.5, a * 0.8, 0, TAU);
+            ctx.fill();
+        }
+        // Coconuts / Gold center
+        ctx.fillStyle = '#fca800';
+        ctx.beginPath(); ctx.arc(topX - 4, topY + 4, 4, 0, TAU); ctx.arc(topX + 4, topY + 4, 4, 0, TAU); ctx.fill();
+        ctx.restore();
+    }
+
+    /* ======================================================================
+       RENDER ALL PALMTREE PANIC GOOD FUTURE OBJECTS FROM THE SPRITE SHEET
+       ====================================================================== */
+    drawPalmtreeObjects(ctx) {
+        const T = this.terrain;
+        const S = PALMTREE_SPRITES;
+
+        // 1. Floating & Moving Platforms (platformSmall 32x32, platformLarge 64x32)
+        for (const p of T.platforms) {
+            if (p.x + p.w < this.view.x0 || p.x - p.w > this.view.x1) continue;
+            const rect = p.large ? S.platformLarge : S.platformSmall;
+            if (!this.drawSprite(ctx, rect, p.x - p.w / 2, p.y - 4, p.w, p.h)) {
+                ctx.fillStyle = '#00b400'; ctx.fillRect(p.x - p.w / 2, p.y, p.w, 12);
+            }
+        }
+
+        // 2. Swinging Pendulum Platforms (swingPivot, swingChain x4, swingLedge)
+        for (const sw of T.swingPlatforms) {
+            if (sw.pivotX + 100 < this.view.x0 || sw.pivotX - 100 > this.view.x1) continue;
+            this.drawSprite(ctx, S.swingPivot, sw.pivotX - 8, sw.pivotY - 8);
+            for (let i = 1; i <= 4; i++) {
+                const f = i / 5;
+                const cx = sw.pivotX + (sw.x - sw.pivotX) * f;
+                const cy = sw.pivotY + (sw.y - sw.pivotY) * f;
+                this.drawSprite(ctx, S.swingChain, cx - 8, cy - 8);
+            }
+            this.drawSprite(ctx, S.swingLedge, sw.x - 24, sw.y - 8);
+        }
+
+        // 3. Bounce Poles (poleStraight, poleBentDown, poleBentUp)
+        for (const bp of T.bouncePoles) {
+            if (bp.x + 40 < this.view.x0 || bp.x - 40 > this.view.x1) continue;
+            const rect = bp.state === 'down' ? S.poleBentDown : bp.state === 'up' ? S.poleBentUp : S.poleStraight;
+            this.drawSprite(ctx, rect, bp.x - 16, bp.y - 8, rect.w, rect.h, bp.dir < 0);
+        }
+
+        // 4. Spinners (alternating spinnerSilver & spinnerDark as they spin!)
+        for (const sp of T.spinners) {
+            if (sp.x + 30 < this.view.x0 || sp.x - 30 > this.view.x1) continue;
+            const fast = sp.cooldown > 0 ? 2 : 6;
+            const useDark = (Math.floor(sp.spinTimer / fast) + (sp.variant === 'dark' ? 1 : 0)) % 2 === 1;
+            const rect = useDark ? S.spinnerDark : S.spinnerSilver;
+            this.drawSprite(ctx, rect, sp.x - 16, sp.y - 8);
+        }
+
+        // 5. Houdini Steps (houdiniTrigger + 4 sparkling step frames)
+        for (const hg of T.houdiniGroups) {
+            if (hg.triggerX + 200 < this.view.x0 || hg.triggerX - 60 > this.view.x1) continue;
+            this.drawSprite(ctx, S.houdiniTrigger, hg.triggerX - 12, hg.triggerY - 12);
+            for (const st of hg.steps) {
+                const frameIdx = Math.floor(st.animTimer) % S.houdiniSteps.length;
+                this.drawSprite(ctx, S.houdiniSteps[frameIdx], st.x - 12, st.y - 12);
+            }
+        }
+
+        // 6. Breakable Walls (3 columns of wallCols 16x48)
+        for (const w of T.breakableWalls) {
+            if (w.broken || w.x + 40 < this.view.x0 || w.x - 40 > this.view.x1) continue;
+            for (let c = 0; c < 3; c++) {
+                this.drawSprite(ctx, S.wallCols[c], w.x - 24 + c * 16, w.y - 48);
+            }
+        }
+
+        // 7. Breakable Floors (breakFloorThin 128x40 & breakFloorThick 128x56)
+        for (const bf of T.breakableFloors) {
+            if (bf.broken || bf.x + bf.w < this.view.x0 || bf.x > this.view.x1) continue;
+            const rect = bf.kind === 'thick' ? S.breakFloorThick : S.breakFloorThin;
+            const shakeX = bf.stepping ? (Math.random() - 0.5) * 3 : 0;
+            const shakeY = bf.stepping ? (Math.random() - 0.5) * 2 : 0;
+            this.drawSprite(ctx, rect, bf.x + shakeX, bf.y - 4 + shakeY, bf.w, bf.h);
+        }
+
+        // 8. Trap Doors (trapDoorFlat when closed, trapDoorDown when open)
+        for (const td of T.trapDoors) {
+            if (td.x + td.w < this.view.x0 || td.x - 20 > this.view.x1) continue;
+            if (td.isOpen) {
+                this.drawSprite(ctx, S.trapDoorUp, td.x, td.y);
+            } else {
+                if (!td.warn || Math.floor(T.clock / 3) % 2 === 0) {
+                    this.drawSprite(ctx, S.trapDoorFlat, td.x, td.y - 4);
+                }
+            }
+        }
+
+        // 9. Rocks (rock 40x32)
+        for (const rk of T.rocks) {
+            if (rk.broken || rk.x + 30 < this.view.x0 || rk.x - 30 > this.view.x1) continue;
+            this.drawSprite(ctx, S.rock, rk.x - 20, rk.y - 32);
+        }
+
+        // 10. Speed Boosters
+        for (const sb of T.speedBoosters) {
+            if (sb.x + 30 < this.view.x0 || sb.x - 30 > this.view.x1) continue;
+            ctx.save();
+            ctx.translate(sb.x, sb.y);
+            ctx.fillStyle = '#222'; ctx.fillRect(-16, -6, 32, 6);
+            ctx.fillStyle = (Math.floor(T.clock / 4) % 2 === 0) ? '#ff2a2a' : '#ffe000';
+            for (let i = -10; i <= 6; i += 8) {
+                ctx.beginPath(); ctx.moveTo(i, -6); ctx.lineTo(i + 6, -3); ctx.lineTo(i, 0); ctx.closePath(); ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        // 11. Sonic CD Time Posts ('FUTURE' / 'PAST') & Goal Signpost
+        for (const tp of T.timePosts) {
+            if (tp.x + 30 < this.view.x0 || tp.x - 30 > this.view.x1) continue;
+            this.drawTimePost(ctx, tp);
+        }
+        if (T.goalPost && T.goalPost.x + 60 >= this.view.x0 && T.goalPost.x - 60 <= this.view.x1) {
+            this.drawGoalPost(ctx, T.goalPost);
+        }
+
+        // 12. Rings & Scattered Rings
+        for (const r of T.rings) {
+            if (r.collected || r.x < this.view.x0 || r.x > this.view.x1) continue;
+            this.drawRing(ctx, r.x, r.y, T.clock);
+        }
+        for (const sr of T.scatteredRings) {
+            if (sr.life < 45 && Math.floor(sr.life / 3) % 2 === 0) continue;
+            this.drawRing(ctx, sr.x, sr.y, T.clock * 1.6);
+        }
+
+        // 13. Badniks (CrabBots & BuzzBots)
+        for (const en of T.enemies) {
+            if (!en.alive || en.x + 40 < this.view.x0 || en.x - 40 > this.view.x1) continue;
+            if (en.kind === 'crab') this.drawCrabBot(ctx, en);
+            else this.drawBuzzBot(ctx, en);
+        }
+
+        // 14. Shattered Wall Shards, Collapsing Floor Tiles & Score Popups
+        for (const d of T.debris) {
+            if (d.delay && d.delay > 0) {
+                // Draw shaking tile still in place before its drop delay expires
+                if (d.kind === 'floorTile') {
+                    const rect = S.breakFloorTiles[Math.min(d.tileRow, S.breakFloorTiles.length - 1)];
+                    this.drawSprite(ctx, rect, d.x - 8, d.y - 8);
+                }
+                continue;
+            }
+            if (d.kind === 'wallShard') {
+                ctx.save();
+                ctx.translate(d.x, d.y);
+                ctx.rotate(d.rot);
+                const rect = S.wallShards[d.shardIdx];
+                this.drawSprite(ctx, rect, -8, -8);
+                ctx.restore();
+            } else if (d.kind === 'floorTile') {
+                const rect = S.breakFloorTiles[Math.min(d.tileRow, S.breakFloorTiles.length - 1)];
+                this.drawSprite(ctx, rect, d.x - 8, d.y - 8);
+            } else if (d.kind === 'rockChunk') {
+                ctx.fillStyle = '#9aa4b0';
+                ctx.beginPath(); ctx.arc(d.x, d.y, 5, 0, TAU); ctx.fill();
+            } else if (d.kind === 'sparkle') {
+                ctx.fillStyle = '#fff59d';
+                ctx.beginPath(); ctx.arc(d.x, d.y, 3.5, 0, TAU); ctx.fill();
+            }
+        }
+
+        ctx.font = 'bold 12px Courier New';
+        ctx.textAlign = 'center';
+        for (const pp of T.popups) {
+            ctx.fillStyle = '#000'; ctx.fillText(pp.text, pp.x + 1, pp.y + 1);
+            ctx.fillStyle = '#ffeb3b'; ctx.fillText(pp.text, pp.x, pp.y);
+        }
+        ctx.textAlign = 'left';
+    }
+
+    drawRing(ctx, x, y, clock) {
+        const w = Math.max(2.5, Math.abs(Math.cos(clock * 0.1)) * 7);
+        ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.ellipse(x, y, w, 7, 0, 0, TAU); ctx.stroke();
+        ctx.strokeStyle = '#fff9c4'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.ellipse(x - 0.5, y - 0.5, Math.max(1.5, w - 1), 5.5, 0, 0, TAU); ctx.stroke();
+    }
+
+    drawCrabBot(ctx, en) {
+        const x = en.x, y = en.y - 12;
+        const leg = Math.sin(this.terrain.clock * 0.3) * 3;
+        ctx.fillStyle = '#ff9800';
+        ctx.fillRect(x - 12, y + 6, 4, 6 + leg); ctx.fillRect(x + 8, y + 6, 4, 6 - leg);
+        ctx.fillStyle = '#e53935';
+        ctx.beginPath(); ctx.ellipse(x, y, 14, 10, 0, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(x - 5, y - 4, 3.5, 0, TAU); ctx.arc(x + 5, y - 4, 3.5, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#111';
+        ctx.beginPath(); ctx.arc(x - 5 + Math.sign(en.vx), y - 4, 1.5, 0, TAU); ctx.arc(x + 5 + Math.sign(en.vx), y - 4, 1.5, 0, TAU); ctx.fill();
+    }
+
+    drawBuzzBot(ctx, en) {
+        const x = en.x, y = en.y;
+        ctx.fillStyle = 'rgba(200,240,255,0.75)';
+        const wingY = Math.sin(this.terrain.clock * 0.8) * 5;
+        ctx.beginPath(); ctx.ellipse(x - 4, y - 9 + wingY, 10, 4, -0.3, 0, TAU); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(x + 4, y - 9 - wingY, 10, 4, 0.3, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#fdd835';
+        ctx.beginPath(); ctx.ellipse(x, y, 13, 8, 0, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#1e88e5';
+        ctx.beginPath(); ctx.ellipse(x - 7, y - 1, 6, 5, 0, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#ff1744';
+        ctx.beginPath(); ctx.arc(x - 9, y - 2, 2, 0, TAU); ctx.fill();
+    }
+
+    drawTimePost(ctx, tp) {
+        ctx.save();
+        ctx.translate(tp.x, tp.y);
+        ctx.fillStyle = '#b0bec5'; ctx.fillRect(-2, -38, 4, 38);
+        const scaleX = tp.spin > 0 ? Math.cos(tp.spin * 0.45) : 1;
+        ctx.scale(scaleX, 1);
+        const isFut = tp.kind === 'FUTURE';
+        ctx.fillStyle = isFut ? '#00e5ff' : '#ff6d00';
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5;
+        ctx.fillRect(-18, -52, 36, 16);
+        ctx.strokeRect(-18, -52, 36, 16);
+        ctx.fillStyle = '#000'; ctx.font = 'bold 9px Courier New'; ctx.textAlign = 'center';
+        ctx.fillText(tp.kind, 0, -41);
+        ctx.restore();
+    }
+
+    drawGoalPost(ctx, gp) {
+        ctx.save();
+        ctx.translate(gp.x, gp.y);
+        ctx.fillStyle = '#cfd8dc'; ctx.fillRect(-3, -58, 6, 58);
+        const sx = gp.spinning ? Math.cos(gp.angle) : 1;
+        ctx.scale(sx, 1);
+        ctx.fillStyle = gp.cleared ? '#1e88e5' : '#d32f2f';
+        ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.ellipse(0, -68, 24, 18, 0, 0, TAU); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 10px Courier New'; ctx.textAlign = 'center';
+        ctx.fillText(gp.cleared ? 'SONIC' : 'EGGMAN', 0, -65);
+        ctx.restore();
+    }
+
+    /* ---------------- Legacy Green Hill Test Stage helpers ---------------- */
     drawPit(ctx) {
         const g = this.terrain.gap;
-        if (g.x1 < this.view.x0 || g.x0 > this.view.x1) return;
+        if (!g || g.x1 < this.view.x0 || g.x0 > this.view.x1) return;
         const y = this.terrain.deathY - 80;
         ctx.fillStyle = '#0d3f86'; ctx.fillRect(g.x0, y, g.x1 - g.x0, this.view.y1 - y + 60);
-        ctx.fillStyle = 'rgba(255,255,255,0.4)';
-        for (let i = 0; i < 6; i++) ctx.fillRect(g.x0 + ((i * 47 + performance.now() * 0.02) % (g.x1 - g.x0)), y + 6 + (i % 3) * 10, 24, 2);
     }
-
-    drawTunnelBack(ctx) {
-        const t = this.terrain.tunnel, c = this.terrain.tunnelCeiling, f = this.terrain.mainFloor;
-        if (t.x1 < this.view.x0 || t.x0 > this.view.x1) return;
-        ctx.beginPath();
-        const r = this.traceField(ctx, c);
-        if (!r) return;
-        for (let x = r[1]; x > r[0]; x -= 4) ctx.lineTo(x, f.f(x));
-        ctx.lineTo(r[0], f.f(r[0])); ctx.closePath();
-        ctx.fillStyle = '#2b170a'; ctx.fill();
-    }
-
-    drawTunnelRock(ctx) {
-        const t = this.terrain.tunnel, c = this.terrain.tunnelCeiling;
-        if (t.x1 < this.view.x0 || t.x0 > this.view.x1) return;
-        ctx.beginPath();
-        const r = this.traceField(ctx, c);
-        if (!r) return;
-        ctx.lineTo(r[1], t.roofY); ctx.lineTo(r[0], t.roofY); ctx.closePath();
-        ctx.fillStyle = this.rock; ctx.fill();
-        ctx.beginPath(); this.traceField(ctx, c);
-        ctx.strokeStyle = '#2a1405'; ctx.lineWidth = 3; ctx.stroke();
-        ctx.fillStyle = '#25b52a'; ctx.fillRect(t.x0, t.roofY, t.x1 - t.x0, 11);
-        ctx.fillStyle = '#7dff6a'; ctx.fillRect(t.x0, t.roofY, t.x1 - t.x0, 2);
-    }
-
-    drawLoop(ctx) {
-        const L = this.terrain.loop;
-        if (L.cx + L.r + 40 < this.view.x0 || L.cx - L.r - 40 > this.view.x1) return;
-        ctx.beginPath(); ctx.arc(L.cx, L.cy, L.r + 26, 0, TAU); ctx.arc(L.cx, L.cy, L.r, 0, TAU, true);
-        ctx.fillStyle = this.loopChecker; ctx.fill();
-        ctx.beginPath(); ctx.arc(L.cx, L.cy, L.r + 9, 0, TAU); ctx.arc(L.cx, L.cy, L.r, 0, TAU, true);
-        ctx.fillStyle = '#25b52a'; ctx.fill();
-        ctx.beginPath(); ctx.arc(L.cx, L.cy, L.r + 1, 0, TAU);
-        ctx.strokeStyle = '#7dff6a'; ctx.lineWidth = 2; ctx.stroke();
-        ctx.beginPath(); ctx.arc(L.cx, L.cy, L.r + 26, 0, TAU);
-        ctx.strokeStyle = '#5b2f10'; ctx.lineWidth = 2; ctx.stroke();
-    }
-
-    drawProps(ctx) {
+    drawLegacyProps(ctx) {
         const f = this.terrain.mainFloor;
         const palms = [340, 760, 1200, 1990, 2790, 3250, 4250, 5200];
-        for (const x of palms) if (x > this.view.x0 - 80 && x < this.view.x1 + 80) this.palm(ctx, x, f.f(x));
-        if (this.terrain.plateau) for (const x of [5900, 6250]) if (x > this.view.x0 - 80 && x < this.view.x1 + 80) this.palm(ctx, x, this.terrain.plateau.f(x));
-        const flowers = [120, 260, 480, 620, 900, 1500, 2400, 3110, 3700, 5150, 5950];
-        for (let i = 0; i < flowers.length; i++) {
-            const x = flowers[i];
-            if (x < this.view.x0 || x > this.view.x1) continue;
-            const s = x > this.terrain.gap.x1 ? this.terrain.plateau : f;
-            this.flower(ctx, x, s.f(x), i % 2 ? '#ffe028' : '#ff3a6a');
-        }
-    }
-    palm(ctx, x, y) {
-        ctx.strokeStyle = '#9a5a1c'; ctx.lineWidth = 7;
-        ctx.beginPath(); ctx.moveTo(x, y + 4); ctx.quadraticCurveTo(x - 14, y - 50, x - 6, y - 92); ctx.stroke();
-        ctx.fillStyle = '#17a51c';
-        for (let a = -1.0; a <= 1.01; a += 0.5) {
-            ctx.beginPath(); ctx.ellipse(x - 6 + Math.sin(a) * 26, y - 94 + Math.abs(a) * 8, 26, 7, a * 0.8, 0, TAU); ctx.fill();
-        }
+        for (const x of palms) if (x > this.view.x0 - 80 && x < this.view.x1 + 80) this.drawSonicCDPalm(ctx, x, f.f(x), 1);
     }
     flower(ctx, x, y, color) {
         ctx.strokeStyle = '#1f7f22'; ctx.lineWidth = 3;
@@ -466,30 +1039,33 @@ class Game {
     }
 
     drawLoopDebug(ctx) {
-        const T = this.terrain, L = T.loop, G = T.gates, layer = this.player.layer;
-        if (L.cx + L.r + 200 < this.view.x0 || L.cx - L.r - 200 > this.view.x1) return;
-        // collision layers: surface angle a -> canvas angle (π/2 - a)
-        const arc = (s, color, active) => {
+        const loops = this.terrain.loops && this.terrain.loops.length ? this.terrain.loops : [{ ...this.terrain.loop, arc0: this.terrain.loopArc0, arc1: this.terrain.loopArc1, gates: this.terrain.gates }];
+        const layer = this.player.layer;
+        for (const L of loops) {
+            if (!L || L.cx + L.r + 200 < this.view.x0 || L.cx - L.r - 200 > this.view.x1) continue;
+            const arc = (s, color, active) => {
+                ctx.save();
+                ctx.strokeStyle = color; ctx.lineWidth = active ? 3 : 2; ctx.globalAlpha = active ? 1 : 0.35;
+                if (!active) ctx.setLineDash([6, 6]);
+                ctx.beginPath();
+                ctx.arc(L.cx, L.cy, L.r - 2, Math.PI / 2 - s.fromDeg * Math.PI / 180, Math.PI / 2 - s.toDeg * Math.PI / 180, true);
+                ctx.stroke(); ctx.restore();
+            };
+            arc(L.arc0, '#00e5ff', layer === 0);
+            arc(L.arc1, '#ff3dd0', layer === 1);
             ctx.save();
-            ctx.strokeStyle = color; ctx.lineWidth = active ? 3 : 2; ctx.globalAlpha = active ? 1 : 0.35;
-            if (!active) ctx.setLineDash([6, 6]);
-            ctx.beginPath();
-            ctx.arc(L.cx, L.cy, L.r - 2, Math.PI / 2 - s.fromDeg * Math.PI / 180, Math.PI / 2 - s.toDeg * Math.PI / 180, true);
-            ctx.stroke(); ctx.restore();
-        };
-        arc(T.loopArc0, '#00e5ff', layer === 0);
-        arc(T.loopArc1, '#ff3dd0', layer === 1);
-        ctx.save();
-        ctx.setLineDash([4, 4]); ctx.lineWidth = 2; ctx.font = '10px Courier New';
-        const gate = (x, y0, y1, color, label) => {
-            ctx.strokeStyle = color; ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x, y1); ctx.stroke();
-            ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.fillText(label, x, y0 - 6);
-        };
-        gate(G.entryX, L.cy - 60, L.cy + L.r, '#00e5ff', 'ENTRY → L0');
-        gate(G.exitX, L.cy - 60, L.cy + L.r, '#ff3dd0', 'EXIT → L1');
-        gate(G.apexX, L.cy - L.r - 4, L.cy - L.r + 44, '#ffe14d', 'APEX gsp>0→L1 / gsp<0→L0');
-        ctx.restore();
-        ctx.textAlign = 'left';
+            ctx.setLineDash([4, 4]); ctx.lineWidth = 2; ctx.font = '10px Courier New';
+            const G = L.gates;
+            const gate = (x, y0, y1, color, label) => {
+                ctx.strokeStyle = color; ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x, y1); ctx.stroke();
+                ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.fillText(label, x, y0 - 6);
+            };
+            gate(G.entryX, L.cy - 60, L.cy + L.r, '#00e5ff', 'ENTRY → L0');
+            gate(G.exitX, L.cy - 60, L.cy + L.r, '#ff3dd0', 'EXIT → L1');
+            gate(G.apexX, L.cy - L.r - 4, L.cy - L.r + 44, '#ffe14d', 'APEX');
+            ctx.restore();
+            ctx.textAlign = 'left';
+        }
     }
 
     drawParticles(ctx) {
@@ -503,12 +1079,11 @@ class Game {
     /* ---------------- player sprite ---------------- */
     drawPlayer(ctx) {
         const p = this.player;
+        if (p.invulnTimer > 0 && Math.floor(p.invulnTimer / 3) % 2 === 1) return;
         ctx.save();
         ctx.translate(p.x, p.y);
         if (p.curled) this.drawBall(ctx, p);
         else {
-            // Canvas rotation is clockwise-positive with +Y down, while surface angles are
-            // counter-clockwise (90° = right wall, head pointing left) — hence the minus sign.
             ctx.rotate(-p.visualAngle);
             ctx.scale(p.facing, 1);
             this.drawBody(ctx, p);
@@ -540,7 +1115,6 @@ class Game {
         ctx.beginPath(); ctx.arc(0, 0, R - 1, -0.3, 0.9); ctx.stroke();
     }
 
-    /** Local frame: facing right, origin = centre, feet at y = +19 (standing height radius). */
     drawBody(ctx, p) {
         const speed = Math.abs(p.grounded ? p.gsp : p.xsp);
         const crouch = p.crouching ? 6 : 0;
@@ -548,7 +1122,6 @@ class Game {
         const lean = p.skidding ? -0.25 : Math.min(speed / PHYS.TOP, 1.2) * 0.12;
         ctx.rotate(lean);
 
-        // legs + shoes
         if (speed >= PHYS.TOP && p.grounded) {
             const r = p.runPhase * 2.2;
             ctx.strokeStyle = RED; ctx.lineWidth = 5;
@@ -566,22 +1139,18 @@ class Game {
                 ctx.restore();
             }
         }
-        // quills
         ctx.fillStyle = BLUE;
         ctx.beginPath();
         ctx.moveTo(-3, -16); ctx.lineTo(-18, -13); ctx.lineTo(-9, -8); ctx.lineTo(-20, -3);
         ctx.lineTo(-9, 0); ctx.lineTo(-15, 7); ctx.lineTo(-3, 4); ctx.closePath(); ctx.fill();
-        // body + belly
         ctx.beginPath(); ctx.ellipse(0, 3, 6.5, 7, 0, 0, TAU); ctx.fill();
         ctx.fillStyle = PEACH; ctx.beginPath(); ctx.ellipse(2, 4, 4, 5, 0, 0, TAU); ctx.fill();
-        // head
         ctx.fillStyle = BLUE; ctx.beginPath(); ctx.arc(1, -8, 9, 0, TAU); ctx.fill();
         ctx.beginPath(); ctx.moveTo(-4, -14); ctx.lineTo(-1, -21); ctx.lineTo(3, -15); ctx.fill();
         ctx.fillStyle = PEACH; ctx.beginPath(); ctx.ellipse(6.5, -5, 5, 3.6, 0, 0, TAU); ctx.fill();
         ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(11.3, -6.4, 1.6, 0, TAU); ctx.fill();
         ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(4.5, -10.5, 3.4, 4.4, 0.1, 0, TAU); ctx.fill();
         ctx.fillStyle = '#0a5a12'; ctx.fillRect(5.6, -11.5, 1.8, 3);
-        // arm + glove
         ctx.fillStyle = PEACH; ctx.fillRect(0, 1, 6, 2);
         ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(7, 2, 3, 0, TAU); ctx.fill();
     }
@@ -591,7 +1160,7 @@ class Game {
         const p = this.player, r = p.radii;
         ctx.save();
         ctx.translate(p.x, p.y);
-        ctx.rotate(-p.mode * Math.PI / 2);   // hitbox rotates with the quadrant mode
+        ctx.rotate(-p.mode * Math.PI / 2);
         ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 1;
         ctx.strokeRect(-r.width, -r.height, r.width * 2, r.height * 2);
         ctx.restore();
@@ -629,19 +1198,79 @@ class Game {
         ctx.fill(); ctx.stroke();
     }
 
+    /* ---------------- Authentic Sonic CD HUD + Zone Map Radar ---------------- */
+    drawSonicCDHUD(ctx) {
+        const p = this.player;
+        const mins = Math.floor(this.stageTime / 60);
+        const secs = Math.floor(this.stageTime % 60).toString().padStart(2, '0');
+        const cs = Math.floor((this.stageTime * 100) % 100).toString().padStart(2, '0');
+
+        this.panel(ctx, 12, 10, 210, 86);
+        ctx.font = 'bold 14px Courier New';
+        const row = (label, val, y, labelCol = '#ffeb3b') => {
+            ctx.fillStyle = '#000'; ctx.fillText(label, 23, y + 1); ctx.fillText(val, 105, y + 1);
+            ctx.fillStyle = labelCol; ctx.fillText(label, 22, y);
+            ctx.fillStyle = '#fff'; ctx.fillText(val, 104, y);
+        };
+        row('SCORE', String(p.score || 0).padStart(6, '0'), 30);
+        row('TIME', `${mins}'${secs}"${cs}`, 50);
+        const ringFlash = (p.rings || 0) === 0 && Math.floor(performance.now() / 250) % 2 === 0;
+        row('RINGS', String(p.rings || 0).padStart(3, '0'), 70, ringFlash ? '#ff5252' : '#ffeb3b');
+
+        // Time Warp charge indicator
+        const T = this.terrain;
+        ctx.font = 'bold 10px Courier New';
+        const eraTxt = `ERA: ${(ERA_LABELS[T.timeEra] || 'Good Future').toUpperCase()}`;
+        ctx.fillStyle = '#64ffda'; ctx.fillText(eraTxt, 22, 88);
+        if (T.timeWarpTarget) {
+            const pct = Math.min(1, T.timeWarpCharge / 90);
+            ctx.fillStyle = '#ff9800';
+            ctx.fillText(`WARP → ${T.timeWarpTarget.toUpperCase()} (${Math.round(pct * 100)}%)`, 235, 28);
+        }
+
+        // Act Clear overlay banner
+        if (T.goalPost && T.goalPost.cleared) {
+            this.panel(ctx, this.W / 2 - 210, 130, 420, 110);
+            ctx.textAlign = 'center';
+            ctx.font = 'bold 20px Courier New';
+            ctx.fillStyle = '#ffeb3b';
+            ctx.fillText('SONIC GOT THROUGH', this.W / 2, 165);
+            ctx.fillStyle = '#00e5ff';
+            ctx.fillText('PALMTREE PANIC ZONE ACT 1', this.W / 2, 192);
+            ctx.font = 'bold 13px Courier New';
+            ctx.fillStyle = '#fff';
+            ctx.fillText(`FINAL SCORE: ${p.score}   ·   PRESS R TO PLAY AGAIN`, this.W / 2, 222);
+            ctx.textAlign = 'left';
+        }
+    }
+
+    /** Live mini-map at bottom-left using the uploaded Sonic CD `palmtree_map.png`! */
+    drawZoneMapRadar(ctx) {
+        if (!this.mapImgLoaded) return;
+        const mw = 260, mh = 26, mx = 12, my = this.H - 64;
+        this.panel(ctx, mx - 2, my - 2, mw + 4, mh + 4);
+        ctx.drawImage(this.mapImg, mx, my, mw, mh);
+        const px = mx + clamp01(this.player.x / this.terrain.endX) * mw;
+        const py = my + clamp01((this.player.y - 180) / 620) * mh;
+        if (Math.floor(performance.now() / 180) % 2 === 0) {
+            ctx.fillStyle = '#00e5ff';
+            ctx.beginPath(); ctx.arc(px, py, 3.5, 0, TAU); ctx.fill();
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke();
+        }
+    }
+
     drawHUD(ctx) {
         const p = this.player;
         const deg = toDeg(p.angle);
-        this.panel(ctx, 12, 12, 292, 262);
+        this.panel(ctx, 12, 102, 292, 246);
         ctx.font = 'bold 12px Courier New'; ctx.fillStyle = '#ffd700';
-        ctx.fillText('SONIC RETRO PHYSICS — DEBUG', 24, 31);
+        ctx.fillText('SONIC RETRO PHYSICS — DEBUG', 24, 121);
         ctx.font = '12px Courier New';
         const absG = Math.abs(p.gsp);
         const rows = [
             ['STATE', p.state + (p.curled ? ' (ball)' : ''), p.state === STATE.SPINDASH ? '#ff7a33' : p.state === STATE.ROLLING ? '#00e5ff' : '#fff'],
             ['GSP', p.gsp.toFixed(3), absG >= PHYS.TOP ? '#ffcc00' : absG >= PHYS.FALL_THRESHOLD ? '#5dff5d' : '#ff6b6b'],
-            ['XSP', p.xsp.toFixed(3), '#fff'],
-            ['YSP', p.ysp.toFixed(3), '#fff'],
+            ['XSP / YSP', `${p.xsp.toFixed(2)} / ${p.ysp.toFixed(2)}`, '#fff'],
             ['ANGLE', deg.toFixed(1) + '°', '#5dff5d'],
             ['QUAD MODE', `${p.mode} (${MODE_NAMES[p.mode]})`, '#ffa53d'],
             ['LOOP LAYER', String(p.layer), p.layer === 0 ? '#00e5ff' : '#ff3dd0'],
@@ -649,13 +1278,12 @@ class Game {
             ['SPIN REV', `${p.spindashRev.toFixed(2)} / 8`, p.spindashRev > 0 ? '#ff7a33' : '#888'],
             ['AIR MOTION', p.grounded ? '—' : p.airMotion, '#bbb'],
         ];
-        let y = 52;
+        let y = 140;
         for (const [k, v, c] of rows) {
             ctx.fillStyle = '#9cdcfe'; ctx.fillText(k, 24, y);
             ctx.fillStyle = c; ctx.fillText(v, 136, y);
             y += 18;
         }
-        // sensor legend
         let x = 24; y += 4;
         ctx.font = 'bold 11px Courier New';
         for (const k of ['A', 'B', 'C', 'D', 'E', 'F']) {
@@ -663,19 +1291,11 @@ class Game {
             ctx.fillText(k, x + 13, y); x += 40;
         }
         ctx.font = '10px Courier New'; ctx.fillStyle = '#8a9bb0';
-        ctx.fillText(`FPS ${this.fps}  ·  dt×60 = ${this.dt60.toFixed(2)}  ·  x ${p.x.toFixed(0)} y ${p.y.toFixed(0)}`, 24, y + 20);
+        ctx.fillText(`FPS ${this.fps} · x ${p.x.toFixed(0)} y ${p.y.toFixed(0)}`, 24, y + 18);
+    }
 
-        this.drawControlsHint(ctx);
-    }
-    drawMiniHUD(ctx) {
-        const p = this.player;
-        this.panel(ctx, 12, 12, 170, 30);
-        ctx.font = 'bold 12px Courier New'; ctx.fillStyle = '#ffd700';
-        ctx.fillText(`SPEED ${Math.abs(p.grounded ? p.gsp : Math.hypot(p.xsp, p.ysp)).toFixed(2)}`, 24, 32);
-        this.drawControlsHint(ctx);
-    }
     drawControlsHint(ctx) {
-        const txt = '←/→ run   ↓ roll/crouch   Space/Z jump   ↓ + Jump spin dash (tap to rev, release ↓)   Tab HUD   1–7 checkpoints   R reset';
+        const txt = '←/→ run  ↓ roll  Space/Z jump  ↓+Jump spin dash  1–7 checkpoints  T time era  M zone  Tab debug  R reset';
         ctx.font = '11px Courier New';
         const w = ctx.measureText(txt).width + 20;
         this.panel(ctx, (this.W - w) / 2, this.H - 30, w, 22);
@@ -684,6 +1304,7 @@ class Game {
 }
 
 function crough(c) { return c * 0.6; }
+function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
 
 window.addEventListener('DOMContentLoaded', () => { window.sonicGame = new Game(); });
 </script>

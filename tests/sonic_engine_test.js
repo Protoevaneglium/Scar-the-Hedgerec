@@ -240,5 +240,56 @@ test('refresh-rate independence: 30 / 60 / 144 Hz finish within 2% of each other
     console.log(`      (frames: ${times.map((t) => t.toFixed(1)).join(' / ')})`);
 });
 
+console.log('\nPalmtree Panic Zone Act 1 (Sonic CD)');
+test('Palmtree Panic course builds multi-tiered floors, 2 loops, and all Good Future objects', () => {
+    const pt = new Terrain('palmtree');
+    assert(pt.loops.length === 2, `loops=${pt.loops.length}`);
+    assert(pt.platforms.length > 0 && pt.swingPlatforms.length > 0, 'platforms & swingPlatforms');
+    assert(pt.bouncePoles.length > 0 && pt.spinners.length > 0, 'bouncePoles & spinners');
+    assert(pt.houdiniGroups.length > 0 && pt.breakableWalls.length > 0, 'houdiniGroups & breakableWalls');
+    assert(pt.breakableFloors.length > 0 && pt.trapDoors.length > 0 && pt.rocks.length > 0, 'floors, trapDoors, rocks');
+    assert(pt.rings.length > 100 && pt.enemies.length > 5 && pt.goalPost, 'rings, badniks, goalPost');
+    assert(E.PALMTREE_SPRITES && E.PALMTREE_SPRITES.poleStraight.w === 32, 'PALMTREE_SPRITES atlas');
+});
+test('Bounce Pole bends and launches Sonic high into the air', () => {
+    const pt = new Terrain('palmtree');
+    const p = new Player(pt);
+    const bp = pt.bouncePoles[0];
+    p.x = bp.x; p.y = bp.y - 20; p.state = STATE.AIRBORNE; p.ysp = 3;
+    sim(p, 2 / 60, 60, () => ({}));
+    assert(bp.state === 'down' || bp.state === 'up', `pole state=${bp.state}`);
+    assert(p.ysp < -10 && p.curled && p.state === STATE.AIRBORNE, `ysp=${p.ysp}`);
+});
+test('Breakable Wall shatters when rolled through without stopping Sonic', () => {
+    const pt = new Terrain('palmtree');
+    const p = new Player(pt);
+    const wall = pt.breakableWalls[0];
+    p.place(wall.x - 45, 0, wall.y);
+    p.curl(); p.state = STATE.ROLLING; p.gsp = 8;
+    sim(p, 15 / 60, 60, () => ({ right: true }));
+    assert(wall.broken && !wall.leftSurf.enabled, 'wall should be shattered');
+    assert(p.x > wall.x && p.gsp > 6, `Sonic blasted through: x=${p.x.toFixed(1)} gsp=${p.gsp.toFixed(2)}`);
+});
+test('Breakable Floor collapses into 16x16 tiles after standing on it', () => {
+    const pt = new Terrain('palmtree');
+    const p = new Player(pt);
+    const bf = pt.breakableFloors[0];
+    p.place(bf.x + 32, 0, bf.y);
+    assert(!bf.broken && p.groundSurface === bf.surface, 'standing on breakable floor');
+    sim(p, 30 / 60, 60, () => ({}));
+    assert(bf.broken && !bf.surface.enabled, 'breakable floor collapsed');
+    assert(pt.debris.some((d) => d.kind === 'floorTile'), 'spawned 16x16 floor tile debris');
+});
+test('Full Palmtree Panic Act 1 run reaches and spins the Goal Signpost', () => {
+    const pt = new Terrain('palmtree');
+    const p = new Player(pt);
+    let deaths = 0; p.events.death = () => deaths++;
+    const f = sim(p, 40, 60, spinDashThenRight, () => pt.goalPost.spinning || pt.goalPost.cleared);
+    assert(f !== null && deaths === 0, `f=${f} deaths=${deaths} x=${p.x.toFixed(0)}`);
+    assert(p.rings > 10 && p.score > 1000, `rings=${p.rings} score=${p.score}`);
+    console.log(`      (cleared Palmtree Panic Act 1 in ${(f / 60).toFixed(2)}s with ${p.rings} rings, score ${p.score})`);
+});
+
 console.log(failures ? `\n${failures} FAILED\n` : '\nAll tests passed\n');
 process.exit(failures ? 1 : 0);
+
