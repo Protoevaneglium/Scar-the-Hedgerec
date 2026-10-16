@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sonic CD — Palmtree Panic Zone Act 1 (16-Bit Retro Physics)</title>
+    <title>Scar the Hedgerec</title>
     <link rel="icon" href="data:,">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
@@ -29,8 +29,8 @@
 <div id="canvas-container">
     <canvas id="game"></canvas>
     <div id="top-bar">
-        <button class="chip gold" id="btn-stage" title="Switch Stage (M)">Zone: Palmtree Panic</button>
-        <button class="chip on" id="btn-era" title="Cycle Sonic CD Time Era (T)">Time: Good Future</button>
+        <button class="chip gold" id="btn-stage" title="Switch Stage (M)">Stage: Act 1</button>
+        <button class="chip on" id="btn-era" title="Cycle Time Era (T)">Time: Good Future</button>
         <button class="chip" id="btn-hud" title="Tab / G">Debug Sensors: OFF</button>
         <button class="chip on" id="btn-audio">Audio: ON</button>
         <button class="chip" id="btn-cp" title="Keys 1–7">Checkpoint: Cliff & Slide (1)</button>
@@ -351,7 +351,7 @@ class Game {
     }
     updateStageButtons() {
         const stg = document.getElementById('btn-stage');
-        if (stg) stg.textContent = `Zone: ${this.stageName === 'palmtree' ? 'Palmtree Panic' : 'Physics Test'}`;
+        if (stg) stg.textContent = `Stage: ${this.stageName === 'palmtree' ? 'Act 1' : 'Physics Test'}`;
         this.updateEraButton();
         this.updateCpButton();
     }
@@ -1234,9 +1234,9 @@ class Game {
             ctx.textAlign = 'center';
             ctx.font = 'bold 20px Courier New';
             ctx.fillStyle = '#ffeb3b';
-            ctx.fillText('SONIC GOT THROUGH', this.W / 2, 165);
+            ctx.fillText('SCAR GOT THROUGH', this.W / 2, 165);
             ctx.fillStyle = '#00e5ff';
-            ctx.fillText('PALMTREE PANIC ZONE ACT 1', this.W / 2, 192);
+            ctx.fillText('STAGE ACT 1', this.W / 2, 192);
             ctx.font = 'bold 13px Courier New';
             ctx.fillStyle = '#fff';
             ctx.fillText(`FINAL SCORE: ${p.score}   ·   PRESS R TO PLAY AGAIN`, this.W / 2, 222);

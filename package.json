@@ -1,7 +1,7 @@
 {
   "name": "scar-the-hedgerec",
   "version": "1.0.0",
-  "description": "Scar the Hedgerec — Sonic CD Palmtree Panic Zone Act 1 built on the 16-bit Sonic Retro Physics Engine",
+  "description": "Scar the Hedgerec — A high-speed 16-bit retro platformer with 360-degree loop and slope physics",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
