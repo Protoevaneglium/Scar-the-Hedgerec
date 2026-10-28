@@ -46,19 +46,140 @@
     </div>
 </div>
 
+<audio id="bgm" src="assets/level1.mp3" loop autoplay preload="auto"></audio>
+
 <script src="sonic-engine.js"></script>
 <script>
 'use strict';
 const { PHYS, HITBOX, STATE, Terrain, Player, MODE_FRAMES, PALMTREE_SPRITES, toDeg, TAU } = window.SonicEngine;
 
 /* ==========================================================================
-   AUDIO — 16-Bit Sega CD / Genesis Web Audio Synthesizer
+   AUDIO — 16-Bit Sega CD / Genesis Web Audio Synthesizer & BGM Player
    ========================================================================== */
 class RetroAudio {
-    constructor() { this.ctx = null; this.enabled = true; this.lastSkid = 0; }
+    constructor() {
+        this.ctx = null;
+        this._enabled = true;
+        this.lastSkid = 0;
+        this.bgm = document.getElementById('bgm') || new Audio('assets/level1.mp3');
+        this.bgm.loop = true;
+        this.bgm.volume = 0.5;
+        this.bgmStarted = false;
+
+        this.buffers = {};
+        this.sfxFiles = {
+            jump: 'assets/jump.wav',
+            ring: 'assets/rings.wav',
+            goalPost: 'assets/goalpost.wav'
+        };
+        this.loadSFX();
+
+        // Explicit ended event listener to guarantee seamless looping across all browsers
+        this.bgm.addEventListener('ended', () => {
+            this.bgm.currentTime = 0;
+            if (this._enabled) {
+                this.bgm.play().catch(() => {});
+            }
+        });
+
+        // Trigger playback immediately as the page loads
+        this.playBGM();
+        this.bgm.addEventListener('canplay', () => this.playBGM(), { once: true });
+        window.addEventListener('DOMContentLoaded', () => this.playBGM(), { once: true });
+        window.addEventListener('load', () => this.playBGM(), { once: true });
+
+        // Fallback for browsers that block initial unmuted autoplay until first document touch/movement
+        const autoStart = () => {
+            if (this._enabled && this.bgm && this.bgm.paused) {
+                this.unlock();
+                this.playBGM();
+            }
+        };
+        ['pointerdown', 'keydown', 'touchstart', 'mousemove', 'wheel', 'focus', 'click'].forEach((evt) => {
+            window.addEventListener(evt, autoStart, { once: true, passive: true });
+        });
+    }
+    async loadSFX() {
+        for (const [key, url] of Object.entries(this.sfxFiles)) {
+            try {
+                const res = await fetch(url);
+                const arrayBuf = await res.arrayBuffer();
+                this.sfxData = this.sfxData || {};
+                this.sfxData[key] = arrayBuf;
+                if (this.ctx) {
+                    this.ctx.decodeAudioData(arrayBuf.slice(0), (decoded) => {
+                        this.buffers[key] = decoded;
+                    }, () => {});
+                }
+            } catch (e) {}
+        }
+    }
+    get enabled() { return this._enabled; }
+    set enabled(val) {
+        this._enabled = !!val;
+        if (!this._enabled) {
+            this.pauseBGM();
+        } else {
+            this.playBGM();
+        }
+    }
     unlock() {
         if (!this.ctx) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) this.ctx = new AC(); }
         if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+        if (this.ctx && this.sfxData) {
+            for (const [key, data] of Object.entries(this.sfxData)) {
+                if (!this.buffers[key]) {
+                    this.ctx.decodeAudioData(data.slice(0), (decoded) => {
+                        this.buffers[key] = decoded;
+                    }, () => {});
+                }
+            }
+        }
+        if (this._enabled && this.bgm && this.bgm.paused) {
+            this.playBGM();
+        }
+    }
+    playWav(key, vol = 0.5) {
+        if (!this.enabled) return true;
+        if (this.ctx && this.buffers[key]) {
+            try {
+                const src = this.ctx.createBufferSource();
+                src.buffer = this.buffers[key];
+                const g = this.ctx.createGain();
+                g.gain.value = vol;
+                src.connect(g);
+                g.connect(this.ctx.destination);
+                src.start(0);
+                return true;
+            } catch (e) {}
+        }
+        if (this.sfxFiles && this.sfxFiles[key]) {
+            const a = new Audio(this.sfxFiles[key]);
+            a.volume = vol;
+            a.play().catch(() => {});
+            return true;
+        }
+        return false;
+    }
+    playBGM() {
+        if (!this._enabled || !this.bgm) return;
+        if (this.bgm.paused) {
+            const p = this.bgm.play();
+            if (p && p.then) {
+                p.then(() => { this.bgmStarted = true; }).catch(() => {});
+            }
+        }
+    }
+    pauseBGM() {
+        if (this.bgm && !this.bgm.paused) {
+            this.bgm.pause();
+        }
+    }
+    restartBGM() {
+        if (this.bgm) {
+            this.bgm.currentTime = 0;
+            if (this._enabled) this.playBGM();
+        }
     }
     tone(type, f0, f1, dur, vol = 0.14, delay = 0) {
         if (!this.enabled || !this.ctx) return;
@@ -76,7 +197,9 @@ class RetroAudio {
         src.buffer = buf; f.type = 'bandpass'; f.frequency.value = freq; g.gain.value = vol;
         src.connect(f); f.connect(g); g.connect(this.ctx.destination); src.start(t);
     }
-    jump() { this.tone('square', 320, 760, 0.16, 0.12); }
+    jump() {
+        if (!this.playWav('jump', 0.5)) this.tone('square', 320, 760, 0.16, 0.12);
+    }
     roll() { this.noise(0.12, 900, 0.1); }
     rev(r) { this.tone('sawtooth', 240 + r * 50, 380 + r * 60, 0.1, 0.12); }
     release() { this.tone('triangle', 700, 200, 0.25, 0.2); this.noise(0.2, 600, 0.12); }
@@ -84,8 +207,10 @@ class RetroAudio {
     bonk() { this.tone('square', 180, 90, 0.08, 0.1); }
     skid(now) { if (now - this.lastSkid > 90) { this.lastSkid = now; this.noise(0.09, 1500, 0.1); } }
     ring() {
-        this.tone('sine', 987.77, 987.77, 0.07, 0.14, 0);     // B5
-        this.tone('sine', 1318.51, 1318.51, 0.18, 0.14, 0.07); // E6
+        if (!this.playWav('ring', 0.55)) {
+            this.tone('sine', 987.77, 987.77, 0.07, 0.14, 0);     // B5
+            this.tone('sine', 1318.51, 1318.51, 0.18, 0.14, 0.07); // E6
+        }
     }
     ringLoss() {
         for (let i = 0; i < 4; i++) this.tone('square', 900 - i * 140, 600 - i * 100, 0.06, 0.09, i * 0.05);
@@ -115,8 +240,10 @@ class RetroAudio {
         notes.forEach((n, i) => this.tone('triangle', n, n * 1.2, 0.14, 0.16, i * 0.06));
     }
     goalPost() {
-        const notes = [523.25, 659.25, 783.99, 1046.5, 783.99, 1046.5];
-        notes.forEach((n, i) => this.tone('square', n, n, 0.12, 0.14, i * 0.09));
+        if (!this.playWav('goalPost', 0.7)) {
+            const notes = [523.25, 659.25, 783.99, 1046.5, 783.99, 1046.5];
+            notes.forEach((n, i) => this.tone('square', n, n, 0.12, 0.14, i * 0.09));
+        }
     }
 }
 const audio = new RetroAudio();
@@ -154,10 +281,41 @@ class InputHandler {
             if (k) this.press(k, false);
         });
         window.addEventListener('blur', () => { this.left = this.right = this.down = this.jumpHeld = false; });
-        document.querySelectorAll('.tbtn').forEach((el) => {
+        window.addEventListener('pointerdown', () => audio.unlock());
+        const touchBar = document.getElementById('touch');
+        if (touchBar && ('ontouchstart' in window || navigator.maxTouchPoints > 0)) {
+            touchBar.style.display = 'flex';
+        }
+        const tbtns = Array.from(document.querySelectorAll('.tbtn'));
+        const syncTouches = (e) => {
+            if (!e.touches) return;
+            e.preventDefault();
+            audio.unlock();
+            const activeKeys = new Set();
+            for (let i = 0; i < e.touches.length; i++) {
+                const t = e.touches[i];
+                const el = document.elementFromPoint(t.clientX, t.clientY);
+                if (el && el.classList && el.classList.contains('tbtn') && el.dataset.key) {
+                    activeKeys.add(el.dataset.key);
+                }
+            }
+            for (const btn of tbtns) {
+                const k = btn.dataset.key;
+                const isDown = activeKeys.has(k);
+                btn.classList.toggle('active', isDown);
+                this.press(k, isDown);
+            }
+        };
+        if (touchBar) {
+            touchBar.addEventListener('touchstart', syncTouches, { passive: false });
+            touchBar.addEventListener('touchmove', syncTouches, { passive: false });
+            touchBar.addEventListener('touchend', syncTouches, { passive: false });
+            touchBar.addEventListener('touchcancel', syncTouches, { passive: false });
+        }
+        tbtns.forEach((el) => {
             const k = el.dataset.key;
-            const on = (e) => { e.preventDefault(); audio.unlock(); el.classList.add('active'); this.press(k, true); };
-            const off = (e) => { e.preventDefault(); el.classList.remove('active'); this.press(k, false); };
+            const on = (e) => { if (e.pointerType === 'touch') return; e.preventDefault(); audio.unlock(); el.classList.add('active'); this.press(k, true); };
+            const off = (e) => { if (e.pointerType === 'touch') return; e.preventDefault(); el.classList.remove('active'); this.press(k, false); };
             el.addEventListener('pointerdown', on);
             ['pointerup', 'pointercancel', 'pointerleave'].forEach((t) => el.addEventListener(t, off));
         });
@@ -186,6 +344,145 @@ const SCAR_FRAMES = [
     { name: 'run2',  sx: 192, anchorX: 27, anchorY: 47 },
 ];
 
+const ENEMY_FRAMES = {
+    crab_idle:   { sx: 2,   sy: 2, w: 31, h: 22, ax: 16, ay: 22 },
+    crab_walk1:  { sx: 37,  sy: 2, w: 31, h: 22, ax: 16, ay: 22 },
+    crab_walk2:  { sx: 72,  sy: 2, w: 31, h: 28, ax: 16, ay: 28 },
+    crab_walk3:  { sx: 107, sy: 2, w: 32, h: 28, ax: 16, ay: 28 },
+    crab_attack: { sx: 143, sy: 2, w: 35, h: 21, ax: 18, ay: 21 },
+    buzz_fly1:   { sx: 182, sy: 2, w: 32, h: 18, ax: 16, ay: 9 },
+    buzz_fly2:   { sx: 218, sy: 2, w: 32, h: 14, ax: 16, ay: 7 },
+    buzz_fly3:   { sx: 254, sy: 2, w: 33, h: 18, ax: 17, ay: 9 },
+    buzz_fly4:   { sx: 291, sy: 2, w: 33, h: 14, ax: 17, ay: 7 },
+    buzz_aim:    { sx: 328, sy: 2, w: 29, h: 26, ax: 15, ay: 13 },
+    buzz_fire:   { sx: 361, sy: 2, w: 31, h: 27, ax: 16, ay: 14 },
+    moto_1:      { sx: 396, sy: 2, w: 27, h: 21, ax: 14, ay: 21 },
+    moto_2:      { sx: 427, sy: 2, w: 28, h: 21, ax: 14, ay: 21 },
+    moto_3:      { sx: 459, sy: 2, w: 27, h: 20, ax: 14, ay: 20 },
+    moto_4:      { sx: 490, sy: 2, w: 28, h: 20, ax: 14, ay: 20 },
+    chopper_1:   { sx: 522, sy: 2, w: 21, h: 23, ax: 11, ay: 12 },
+    chopper_2:   { sx: 547, sy: 2, w: 21, h: 23, ax: 11, ay: 12 },
+    spikes_1:    { sx: 572, sy: 2, w: 28, h: 25, ax: 14, ay: 25 },
+    spikes_2:    { sx: 604, sy: 2, w: 29, h: 27, ax: 15, ay: 27 },
+    spikes_3:    { sx: 637, sy: 2, w: 25, h: 27, ax: 13, ay: 27 },
+    cater_1:     { sx: 666, sy: 2, w: 29, h: 23, ax: 15, ay: 23 },
+    cater_2:     { sx: 699, sy: 2, w: 29, h: 22, ax: 15, ay: 22 },
+    cater_3:     { sx: 732, sy: 2, w: 36, h: 17, ax: 18, ay: 17 },
+    cater_4:     { sx: 772, sy: 2, w: 36, h: 17, ax: 18, ay: 17 },
+    bat_1:       { sx: 812, sy: 2, w: 22, h: 21, ax: 11, ay: 11 },
+    bat_2:       { sx: 838, sy: 2, w: 19, h: 14, ax: 10, ay: 7 },
+    bat_3:       { sx: 861, sy: 2, w: 17, h: 19, ax: 9,  ay: 10 },
+    burro_1:     { sx: 882, sy: 2, w: 17, h: 33, ax: 9,  ay: 33 },
+    burro_2:     { sx: 903, sy: 2, w: 18, h: 33, ax: 9,  ay: 33 },
+    burro_3:     { sx: 925, sy: 2, w: 18, h: 30, ax: 9,  ay: 30 },
+    burro_4:     { sx: 947, sy: 2, w: 18, h: 30, ax: 9,  ay: 30 }
+};
+
+const COMMON_SPRITES = {
+    rings: [
+        { x: 24, y: 198, w: 16, h: 16 },
+        { x: 50, y: 198, w: 12, h: 16 },
+        { x: 73, y: 198, w: 6,  h: 16 },
+        { x: 90, y: 198, w: 12, h: 16 }
+    ],
+    ringSparkles: [
+        { x: 112, y: 198, w: 16, h: 14 },
+        { x: 136, y: 200, w: 16, h: 14 },
+        { x: 160, y: 198, w: 16, h: 14 },
+        { x: 184, y: 200, w: 16, h: 14 }
+    ],
+    bigRings: [
+        { x: 24,  y: 240, w: 64, h: 63 },
+        { x: 96,  y: 240, w: 48, h: 63 },
+        { x: 152, y: 240, w: 24, h: 63 },
+        { x: 184, y: 240, w: 48, h: 63 }
+    ],
+    bigRingFlash: [
+        { x: 56,  y: 325, w: 32, h: 50 },
+        { x: 118, y: 325, w: 42, h: 50 },
+        { x: 180, y: 325, w: 52, h: 50 },
+        { x: 240, y: 325, w: 51, h: 50 },
+        { x: 24,  y: 383, w: 52, h: 64 },
+        { x: 96,  y: 383, w: 42, h: 64 },
+        { x: 168, y: 383, w: 32, h: 64 }
+    ],
+    spikesUp: { x: 324, y: 198, w: 31, h: 32 },
+    scores: {
+        '+100':   { x: 326, y: 315, w: 14, h: 8 },
+        '+200':   { x: 349, y: 315, w: 15, h: 8 },
+        '+500':   { x: 373, y: 315, w: 15, h: 8 },
+        '+1000':  { x: 396, y: 315, w: 19, h: 8 },
+        '+10000': { x: 428, y: 315, w: 24, h: 8 }
+    },
+    shield: [
+        { x: 473, y: 286, w: 46, h: 42 },
+        { x: 530, y: 286, w: 45, h: 42 },
+        { x: 585, y: 286, w: 46, h: 42 }
+    ],
+    invinc: [
+        { x: 472, y: 198, w: 48, h: 48 },
+        { x: 528, y: 198, w: 48, h: 48 },
+        { x: 584, y: 198, w: 48, h: 48 },
+        { x: 640, y: 198, w: 48, h: 48 }
+    ],
+    monitorBox:    { x: 25, y: 487, w: 30, h: 30 },
+    monitorBroken: { x: 64, y: 501, w: 32, h: 16 },
+    monitorStatic: [
+        { x: 24, y: 540, w: 16, h: 16 },
+        { x: 48, y: 540, w: 16, h: 16 },
+        { x: 72, y: 540, w: 16, h: 16 }
+    ],
+    monitorIcons: {
+        rings:  { x: 96, y: 540, w: 16, h: 16 },
+        shoes:  { x: 24, y: 564, w: 16, h: 16 },
+        shield: { x: 48, y: 564, w: 16, h: 16 },
+        invinc: { x: 72, y: 564, w: 16, h: 16 },
+        oneUp:  { x: 96, y: 564, w: 16, h: 16 }
+    },
+    checkpointBase: { x: 132, y: 534, w: 16, h: 48 },
+    checkpointBlue: { x: 132, y: 486, w: 16, h: 16 },
+    checkpointRed:  { x: 132, y: 510, w: 16, h: 16 },
+    checkpointSpin: [
+        { x: 164, y: 486, w: 16, h: 64, ax: 8,  ay: 64 },
+        { x: 199, y: 486, w: 21, h: 64, ax: 13, ay: 64 },
+        { x: 243, y: 489, w: 25, h: 61, ax: 17, ay: 61 },
+        { x: 288, y: 493, w: 28, h: 57, ax: 20, ay: 57 },
+        { x: 336, y: 498, w: 28, h: 52, ax: 20, ay: 52 },
+        { x: 384, y: 502, w: 28, h: 48, ax: 20, ay: 48 },
+        { x: 435, y: 502, w: 25, h: 48, ax: 17, ay: 48 },
+        { x: 479, y: 502, w: 21, h: 48, ax: 13, ay: 48 },
+        { x: 164, y: 576, w: 16, h: 45, ax: 8,  ay: 45 },
+        { x: 204, y: 576, w: 21, h: 45, ax: 8,  ay: 45 },
+        { x: 244, y: 576, w: 25, h: 45, ax: 8,  ay: 45 },
+        { x: 292, y: 576, w: 28, h: 45, ax: 8,  ay: 45 },
+        { x: 340, y: 572, w: 28, h: 49, ax: 8,  ay: 49 },
+        { x: 388, y: 567, w: 28, h: 54, ax: 8,  ay: 54 },
+        { x: 436, y: 563, w: 25, h: 58, ax: 8,  ay: 58 },
+        { x: 484, y: 560, w: 21, h: 61, ax: 8,  ay: 61 }
+    ],
+    springs: {
+        redIdle:    { x: 530, y: 486, w: 28, h: 16 },
+        yellowIdle: { x: 570, y: 486, w: 28, h: 16 },
+        redFlat:    { x: 610, y: 486, w: 28, h: 16 },
+        yellowFlat: { x: 650, y: 486, w: 28, h: 16 },
+        redExt:     { x: 530, y: 510, w: 28, h: 32 },
+        yellowExt:  { x: 570, y: 510, w: 28, h: 32 }
+    },
+    explosions: [
+        { x: 26,  y: 706, w: 19, h: 16 },
+        { x: 59,  y: 719, w: 28, h: 30 },
+        { x: 96,  y: 718, w: 32, h: 32 },
+        { x: 137, y: 695, w: 38, h: 38 },
+        { x: 185, y: 697, w: 38, h: 34 }
+    ],
+    goalRobotnik: { x: 244, y: 678, w: 48, h: 48 },
+    goalDiag1:    { x: 300, y: 706, w: 32, h: 48 },
+    goalEdge:     { x: 340, y: 706, w: 8,  h: 48 },
+    goalDiag2:    { x: 356, y: 706, w: 32, h: 48 },
+    goalSonicTop: { x: 244, y: 734, w: 48, h: 32 },
+    goalPostStub: { x: 340, y: 738, w: 8,  h: 16 }
+};
+
 class Game {
     constructor() {
         this.canvas = document.getElementById('game');
@@ -200,6 +497,18 @@ class Game {
         this.scarSheetLoaded = false;
         this.scarSheet.onload = () => { this.scarSheetLoaded = true; };
         this.scarSheet.src = 'assets/scar_sheet.png';
+
+        // Load Badnik enemy sprites (Crabmeat, Buzz Bomber, etc.)
+        this.enemySheet = new Image();
+        this.enemySheetLoaded = false;
+        this.enemySheet.onload = () => { this.enemySheetLoaded = true; };
+        this.enemySheet.src = 'assets/enemies.png';
+
+        // Load Sonic Common Objects sprite sheet (Rings, Monitors, Checkpoints, Springs, Spikes, Goal Post, Shield, Explosions)
+        this.commonSheet = new Image();
+        this.commonSheetLoaded = false;
+        this.commonSheet.onload = () => { this.commonSheetLoaded = true; };
+        this.commonSheet.src = 'assets/common_objects.png';
 
         // Load Sonic CD Palmtree Panic Good Future sprite sheet & full zone map
         this.objSheet = new Image();
@@ -263,6 +572,7 @@ class Game {
             enemyPop: () => audio.spinner(),
             boost: (sb, p) => { audio.boost(); this.dust(p, 10, -p.facing, 3.8); },
             timePost: () => audio.timePost(),
+            checkpoint: () => audio.timePost(),
             timeWarp: () => { audio.timeWarp(); this.updateEraButton(); },
             goalPost: () => audio.goalPost(),
         });
@@ -501,7 +811,6 @@ class Game {
             this.drawTunnelsRock(ctx);
             this.drawWaterSurface(ctx);
             this.drawPalmtreeObjects(ctx);
-            this.drawSigns(ctx);
         } else {
             this.drawPit(ctx);
             this.drawTunnelsBack(ctx);
@@ -509,7 +818,7 @@ class Game {
             this.drawLoops(ctx);
             for (const f of this.terrain.floors) this.drawFloor(ctx, f);
             this.drawTunnelsRock(ctx);
-            this.drawSigns(ctx);
+            if (this.showDebug) this.drawSigns(ctx);
         }
 
         if (this.showDebug) this.drawLoopDebug(ctx);
@@ -1241,10 +1550,39 @@ class Game {
             ctx.restore();
         }
 
-        // 11. Sonic CD Time Posts ('FUTURE' / 'PAST') & Goal Signpost
+        // 11. Sonic CD Time Posts, Checkpoint Star Posts, Springs, Monitors, Spikes, Big Ring & Goal Signpost
         for (const tp of T.timePosts) {
             if (tp.x + 30 < this.view.x0 || tp.x - 30 > this.view.x1) continue;
             this.drawTimePost(ctx, tp);
+        }
+        if (T.starPosts) {
+            for (const sp of T.starPosts) {
+                if (sp.x + 36 < this.view.x0 || sp.x - 36 > this.view.x1) continue;
+                this.drawStarPost(ctx, sp);
+            }
+        }
+        if (T.springs) {
+            for (const sp of T.springs) {
+                if (sp.x + 30 < this.view.x0 || sp.x - 30 > this.view.x1) continue;
+                this.drawSpringObj(ctx, sp);
+            }
+        }
+        if (T.spikeClusters) {
+            for (const sc of T.spikeClusters) {
+                if (sc.x + 30 < this.view.x0 || sc.x - 30 > this.view.x1) continue;
+                this.drawSpikesObj(ctx, sc);
+            }
+        }
+        if (T.monitors) {
+            for (const m of T.monitors) {
+                if (m.x + 30 < this.view.x0 || m.x - 30 > this.view.x1) continue;
+                this.drawMonitorObj(ctx, m);
+            }
+        }
+        if (T.bigRing && (!T.bigRing.collected || T.bigRing.flashTimer > 0)) {
+            if (T.bigRing.x + 50 >= this.view.x0 && T.bigRing.x - 50 <= this.view.x1) {
+                this.drawBigRingObj(ctx, T.bigRing);
+            }
         }
         if (T.goalPost && T.goalPost.x + 60 >= this.view.x0 && T.goalPost.x - 60 <= this.view.x1) {
             this.drawGoalPost(ctx, T.goalPost);
@@ -1260,14 +1598,14 @@ class Game {
             this.drawRing(ctx, sr.x, sr.y, T.clock * 1.6);
         }
 
-        // 13. Badniks (CrabBots & BuzzBots)
-        for (const en of T.enemies) {
-            if (!en.alive || en.x + 40 < this.view.x0 || en.x - 40 > this.view.x1) continue;
-            if (en.kind === 'crab') this.drawCrabBot(ctx, en);
-            else this.drawBuzzBot(ctx, en);
+        // 13. Badniks (Motobug, Crabmeat, Buzz Bomber, Spikes, Caterkiller, Burrobot, Batbrain, Chopper)
+        for (let i = 0; i < T.enemies.length; i++) {
+            const en = T.enemies[i];
+            if (!en.alive || en.x + 48 < this.view.x0 || en.x - 48 > this.view.x1) continue;
+            this.drawEnemy(ctx, en, i);
         }
 
-        // 14. Shattered Wall Shards, Collapsing Floor Tiles & Score Popups
+        // 14. Shattered Wall Shards, Collapsing Floor Tiles, Ring Sparkles, Explosions & Score Popups
         for (const d of T.debris) {
             if (d.delay && d.delay > 0) {
                 // Draw shaking tile still in place before its drop delay expires
@@ -1287,6 +1625,19 @@ class Game {
             } else if (d.kind === 'floorTile') {
                 const rect = S.breakFloorTiles[Math.min(d.tileRow, S.breakFloorTiles.length - 1)];
                 this.drawSprite(ctx, rect, d.x - 8, d.y - 8);
+            } else if (d.kind === 'ringSparkle' && this.commonSheetLoaded) {
+                const prog = 1 - Math.max(0, d.life) / (d.maxLife || 16);
+                const idx = Math.min(3, Math.floor(prog * 4));
+                const f = COMMON_SPRITES.ringSparkles[idx];
+                ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, Math.round(d.x - f.w / 2), Math.round(d.y - f.h / 2), f.w, f.h);
+            } else if (d.kind === 'explosion' && this.commonSheetLoaded) {
+                const prog = 1 - Math.max(0, d.life) / (d.maxLife || 20);
+                const idx = Math.min(4, Math.floor(prog * 5));
+                const f = COMMON_SPRITES.explosions[idx];
+                ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, Math.round(d.x - f.w / 2), Math.round(d.y - f.h / 2), f.w, f.h);
+            } else if (d.kind === 'monitorIcon' && this.commonSheetLoaded) {
+                const f = COMMON_SPRITES.monitorIcons[d.item] || COMMON_SPRITES.monitorIcons.rings;
+                ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, Math.round(d.x - 8), Math.round(d.y - 8), f.w, f.h);
             } else if (d.kind === 'rockChunk') {
                 ctx.fillStyle = '#9aa4b0';
                 ctx.beginPath(); ctx.arc(d.x, d.y, 5, 0, TAU); ctx.fill();
@@ -1299,45 +1650,181 @@ class Game {
         ctx.font = 'bold 12px Courier New';
         ctx.textAlign = 'center';
         for (const pp of T.popups) {
-            ctx.fillStyle = '#000'; ctx.fillText(pp.text, pp.x + 1, pp.y + 1);
-            ctx.fillStyle = '#ffeb3b'; ctx.fillText(pp.text, pp.x, pp.y);
+            const scoreRect = this.commonSheetLoaded && COMMON_SPRITES.scores[pp.text];
+            if (scoreRect) {
+                ctx.drawImage(
+                    this.commonSheet,
+                    scoreRect.x, scoreRect.y, scoreRect.w, scoreRect.h,
+                    Math.round(pp.x - scoreRect.w / 2), Math.round(pp.y - scoreRect.h / 2),
+                    scoreRect.w, scoreRect.h
+                );
+            } else {
+                ctx.fillStyle = '#000'; ctx.fillText(pp.text, pp.x + 1, pp.y + 1);
+                ctx.fillStyle = '#ffeb3b'; ctx.fillText(pp.text, pp.x, pp.y);
+            }
         }
         ctx.textAlign = 'left';
     }
 
     drawRing(ctx, x, y, clock) {
+        if (this.commonSheetLoaded) {
+            const idx = Math.floor(clock * 0.16) % 4;
+            const f = COMMON_SPRITES.rings[idx];
+            ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, Math.round(x - f.w / 2), Math.round(y - f.h / 2), f.w, f.h);
+            return;
+        }
         const w = Math.max(2.5, Math.abs(Math.cos(clock * 0.1)) * 7);
         ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 2.5;
         ctx.beginPath(); ctx.ellipse(x, y, w, 7, 0, 0, TAU); ctx.stroke();
-        ctx.strokeStyle = '#fff9c4'; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.ellipse(x - 0.5, y - 0.5, Math.max(1.5, w - 1), 5.5, 0, 0, TAU); ctx.stroke();
     }
 
-    drawCrabBot(ctx, en) {
-        const x = en.x, y = en.y - 12;
-        const leg = Math.sin(this.terrain.clock * 0.3) * 3;
-        ctx.fillStyle = '#ff9800';
-        ctx.fillRect(x - 12, y + 6, 4, 6 + leg); ctx.fillRect(x + 8, y + 6, 4, 6 - leg);
-        ctx.fillStyle = '#e53935';
-        ctx.beginPath(); ctx.ellipse(x, y, 14, 10, 0, 0, TAU); ctx.fill();
-        ctx.fillStyle = '#fff';
-        ctx.beginPath(); ctx.arc(x - 5, y - 4, 3.5, 0, TAU); ctx.arc(x + 5, y - 4, 3.5, 0, TAU); ctx.fill();
-        ctx.fillStyle = '#111';
-        ctx.beginPath(); ctx.arc(x - 5 + Math.sign(en.vx), y - 4, 1.5, 0, TAU); ctx.arc(x + 5 + Math.sign(en.vx), y - 4, 1.5, 0, TAU); ctx.fill();
+    drawStarPost(ctx, sp) {
+        if (!this.commonSheetLoaded) return;
+        const x = Math.round(sp.x), y = Math.round(sp.y);
+        if (sp.spinTimer > 0) {
+            const idx = Math.floor((64 - sp.spinTimer) * 0.5) % COMMON_SPRITES.checkpointSpin.length;
+            const f = COMMON_SPRITES.checkpointSpin[idx];
+            ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, x - f.ax, y - f.ay, f.w, f.h);
+        } else {
+            const base = COMMON_SPRITES.checkpointBase;
+            ctx.drawImage(this.commonSheet, base.x, base.y, base.w, base.h, x - 8, y - 48, base.w, base.h);
+            const orb = (sp.active && Math.floor(this.terrain.clock * 0.25) % 2 === 0)
+                ? COMMON_SPRITES.checkpointRed
+                : (sp.active ? COMMON_SPRITES.checkpointBlue : COMMON_SPRITES.checkpointBlue);
+            ctx.drawImage(this.commonSheet, orb.x, orb.y, orb.w, orb.h, x - 8, y - 64, orb.w, orb.h);
+        }
     }
 
-    drawBuzzBot(ctx, en) {
-        const x = en.x, y = en.y;
-        ctx.fillStyle = 'rgba(200,240,255,0.75)';
-        const wingY = Math.sin(this.terrain.clock * 0.8) * 5;
-        ctx.beginPath(); ctx.ellipse(x - 4, y - 9 + wingY, 10, 4, -0.3, 0, TAU); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(x + 4, y - 9 - wingY, 10, 4, 0.3, 0, TAU); ctx.fill();
-        ctx.fillStyle = '#fdd835';
-        ctx.beginPath(); ctx.ellipse(x, y, 13, 8, 0, 0, TAU); ctx.fill();
-        ctx.fillStyle = '#1e88e5';
-        ctx.beginPath(); ctx.ellipse(x - 7, y - 1, 6, 5, 0, 0, TAU); ctx.fill();
-        ctx.fillStyle = '#ff1744';
-        ctx.beginPath(); ctx.arc(x - 9, y - 2, 2, 0, TAU); ctx.fill();
+    drawMonitorObj(ctx, m) {
+        if (!this.commonSheetLoaded) return;
+        const x = Math.round(m.x), y = Math.round(m.y);
+        if (m.broken) {
+            const br = COMMON_SPRITES.monitorBroken;
+            ctx.drawImage(this.commonSheet, br.x, br.y, br.w, br.h, x - 16, y - 16, br.w, br.h);
+            return;
+        }
+        const box = COMMON_SPRITES.monitorBox;
+        ctx.drawImage(this.commonSheet, box.x, box.y, box.w, box.h, x - 15, y - 30, box.w, box.h);
+        // Classic Sonic monitor screen: mostly shows the item icon, with brief static flicker
+        const tick = Math.floor(this.terrain.clock * 0.25) % 8;
+        const scr = (tick === 0)
+            ? COMMON_SPRITES.monitorStatic[Math.floor(this.terrain.clock) % 3]
+            : (COMMON_SPRITES.monitorIcons[m.item] || COMMON_SPRITES.monitorIcons.rings);
+        ctx.drawImage(this.commonSheet, scr.x, scr.y, scr.w, scr.h, x - 8, y - 25, scr.w, scr.h);
+    }
+
+    drawSpringObj(ctx, sp) {
+        if (!this.commonSheetLoaded) return;
+        const x = Math.round(sp.x), y = Math.round(sp.y);
+        const isRed = sp.color === 'red';
+        let f;
+        if (sp.timer > 11) {
+            f = isRed ? COMMON_SPRITES.springs.redFlat : COMMON_SPRITES.springs.yellowFlat;
+        } else if (sp.timer > 0) {
+            f = isRed ? COMMON_SPRITES.springs.redExt : COMMON_SPRITES.springs.yellowExt;
+        } else {
+            f = isRed ? COMMON_SPRITES.springs.redIdle : COMMON_SPRITES.springs.yellowIdle;
+        }
+        ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, x - Math.floor(f.w / 2), y - f.h, f.w, f.h);
+    }
+
+    drawSpikesObj(ctx, sc) {
+        if (!this.commonSheetLoaded) return;
+        const f = COMMON_SPRITES.spikesUp;
+        ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, Math.round(sc.x - f.w / 2), Math.round(sc.y - f.h), f.w, f.h);
+    }
+
+    drawBigRingObj(ctx, br) {
+        if (!this.commonSheetLoaded) return;
+        const x = Math.round(br.x), y = Math.round(br.y);
+        if (br.collected && br.flashTimer > 0) {
+            const idx = Math.min(6, Math.floor((1 - br.flashTimer / 28) * 7));
+            const f = COMMON_SPRITES.bigRingFlash[idx];
+            ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, x - Math.floor(f.w / 2), y - Math.floor(f.h / 2), f.w, f.h);
+            return;
+        }
+        const idx = Math.floor(this.terrain.clock * 0.14) % 4;
+        const f = COMMON_SPRITES.bigRings[idx];
+        ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, x - Math.floor(f.w / 2), y - Math.floor(f.h / 2), f.w, f.h);
+    }
+
+    drawEnemy(ctx, en, idx = 0) {
+        if (!this.enemySheetLoaded) {
+            const x = en.x, y = en.kind === 'crab' ? en.y - 12 : en.y;
+            ctx.fillStyle = en.kind === 'crab' ? '#e53935' : '#fdd835';
+            ctx.beginPath(); ctx.ellipse(x, y, 14, 10, 0, 0, TAU); ctx.fill();
+            return;
+        }
+
+        const clock = this.terrain.clock;
+        const groundTypes = ['motobug', 'crab', 'spikes', 'caterkiller', 'burrobot'];
+        const airTypes = ['buzz', 'batbrain', 'chopper'];
+        const type = en.type || (en.kind === 'crab' ? groundTypes[idx % groundTypes.length] : airTypes[idx % airTypes.length]);
+
+        let frameKey = 'crab_idle';
+        let flipX = 1;
+
+        if (type === 'motobug') {
+            const seq = ['moto_1', 'moto_2', 'moto_3', 'moto_4'];
+            frameKey = seq[Math.floor(clock * 0.25 + idx) % 4];
+            // Native sprite faces left; flip when moving right (vx > 0)
+            flipX = en.vx > 0 ? -1 : 1;
+        } else if (type === 'crab') {
+            const nearTurn = (en.minX !== undefined && (en.x - en.minX < 18 || en.maxX - en.x < 18));
+            if (nearTurn) {
+                frameKey = 'crab_attack';
+            } else {
+                const seq = ['crab_walk1', 'crab_idle', 'crab_walk2', 'crab_walk3'];
+                frameKey = seq[Math.floor(clock * 0.16 + en.x * 0.05) % 4];
+            }
+            flipX = en.vx >= 0 ? 1 : -1;
+        } else if (type === 'spikes') {
+            const seq = ['spikes_1', 'spikes_2', 'spikes_3', 'spikes_2'];
+            frameKey = seq[Math.floor(clock * 0.18 + idx) % 4];
+            flipX = en.vx > 0 ? -1 : 1;
+        } else if (type === 'caterkiller') {
+            const seq = ['cater_1', 'cater_2', 'cater_3', 'cater_4'];
+            frameKey = seq[Math.floor(clock * 0.2 + idx) % 4];
+            flipX = en.vx > 0 ? -1 : 1;
+        } else if (type === 'burrobot') {
+            const seq = ['burro_1', 'burro_2', 'burro_3', 'burro_4'];
+            frameKey = seq[Math.floor(clock * 0.22 + idx) % 4];
+            flipX = en.vx > 0 ? -1 : 1;
+        } else if (type === 'batbrain') {
+            const seq = ['bat_1', 'bat_2', 'bat_3', 'bat_2'];
+            frameKey = seq[Math.floor(clock * 0.28 + (en.phase || 0)) % 4];
+            const facingLeft = this.player.x < en.x;
+            flipX = facingLeft ? 1 : -1;
+        } else if (type === 'chopper') {
+            const seq = ['chopper_1', 'chopper_2'];
+            frameKey = seq[Math.floor(clock * 0.24 + (en.phase || 0)) % 2];
+            const facingLeft = this.player.x < en.x;
+            flipX = facingLeft ? 1 : -1;
+        } else {
+            // Buzz Bomber ('buzz')
+            const distToPlayer = Math.hypot(this.player.x - en.x, this.player.y - en.y);
+            const isAiming = distToPlayer < 150 && this.player.y > en.y;
+            if (isAiming) {
+                frameKey = (Math.floor(clock * 0.18) % 2 === 0) ? 'buzz_aim' : 'buzz_fire';
+            } else {
+                const seq = ['buzz_fly1', 'buzz_fly2', 'buzz_fly3', 'buzz_fly4'];
+                frameKey = seq[Math.floor(clock * 0.35 + (en.phase || 0)) % 4];
+            }
+            const facingLeft = this.player.x < en.x;
+            flipX = facingLeft ? 1 : -1;
+        }
+
+        const frame = ENEMY_FRAMES[frameKey] || ENEMY_FRAMES.crab_idle;
+
+        ctx.save();
+        ctx.translate(Math.round(en.x), Math.round(en.y));
+        ctx.scale(flipX, 1);
+        ctx.drawImage(
+            this.enemySheet,
+            frame.sx, frame.sy, frame.w, frame.h,
+            -frame.ax, -frame.ay, frame.w, frame.h
+        );
+        ctx.restore();
     }
 
     drawTimePost(ctx, tp) {
@@ -1357,6 +1844,42 @@ class Game {
     }
 
     drawGoalPost(ctx, gp) {
+        if (this.commonSheetLoaded) {
+            const x = Math.round(gp.x), y = Math.round(gp.y);
+            if (!gp.spinning && !gp.cleared) {
+                const f = COMMON_SPRITES.goalRobotnik;
+                ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, x - 24, y - 48, f.w, f.h);
+            } else if (gp.cleared) {
+                const stub = COMMON_SPRITES.goalPostStub;
+                const top = COMMON_SPRITES.goalSonicTop;
+                ctx.drawImage(this.commonSheet, stub.x, stub.y, stub.w, stub.h, x - 4, y - 16, stub.w, stub.h);
+                ctx.drawImage(this.commonSheet, top.x, top.y, top.w, top.h, x - 24, y - 48, top.w, top.h);
+            } else {
+                // Spinning sequence: Robotnik -> Diag1 -> Edge -> Diag2 -> Sonic -> Diag1 -> Edge -> Diag2
+                const step = Math.floor(gp.angle * 1.4) % 8;
+                if (step === 0) {
+                    const f = COMMON_SPRITES.goalRobotnik;
+                    ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, x - 24, y - 48, f.w, f.h);
+                } else if (step === 4) {
+                    const stub = COMMON_SPRITES.goalPostStub;
+                    const top = COMMON_SPRITES.goalSonicTop;
+                    ctx.drawImage(this.commonSheet, stub.x, stub.y, stub.w, stub.h, x - 4, y - 16, stub.w, stub.h);
+                    ctx.drawImage(this.commonSheet, top.x, top.y, top.w, top.h, x - 24, y - 48, top.w, top.h);
+                } else {
+                    const map = {
+                        1: COMMON_SPRITES.goalDiag1,
+                        2: COMMON_SPRITES.goalEdge,
+                        3: COMMON_SPRITES.goalDiag2,
+                        5: COMMON_SPRITES.goalDiag1,
+                        6: COMMON_SPRITES.goalEdge,
+                        7: COMMON_SPRITES.goalDiag2
+                    };
+                    const f = map[step];
+                    ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, x - Math.floor(f.w / 2), y - 48, f.w, f.h);
+                }
+            }
+            return;
+        }
         ctx.save();
         ctx.translate(gp.x, gp.y);
         ctx.fillStyle = '#cfd8dc'; ctx.fillRect(-3, -58, 6, 58);
@@ -1365,8 +1888,6 @@ class Game {
         ctx.fillStyle = gp.cleared ? '#1e88e5' : '#d32f2f';
         ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 2.5;
         ctx.beginPath(); ctx.ellipse(0, -68, 24, 18, 0, 0, TAU); ctx.fill(); ctx.stroke();
-        ctx.fillStyle = '#fff'; ctx.font = 'bold 10px Courier New'; ctx.textAlign = 'center';
-        ctx.fillText(gp.cleared ? 'SONIC' : 'EGGMAN', 0, -65);
         ctx.restore();
     }
 
@@ -1454,6 +1975,18 @@ class Game {
             ctx.rotate(-p.visualAngle);
             ctx.scale(p.facing, 1);
             this.drawBody(ctx, p);
+        }
+        // Render Blue Shield or Invincibility Sparkles from the Common Objects sprite sheet!
+        if (this.commonSheetLoaded) {
+            const clock = Math.floor(this.terrain.clock);
+            if (p.invincTimer && p.invincTimer > 0) {
+                const f = COMMON_SPRITES.invinc[Math.floor(clock * 0.35) % COMMON_SPRITES.invinc.length];
+                ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, -24, -24, f.w, f.h);
+            } else if (p.shield && clock % 2 === 0) {
+                // Classic Sonic 1 flickering shield effect (empty frame between each noted frame)
+                const f = COMMON_SPRITES.shield[Math.floor(clock / 2) % COMMON_SPRITES.shield.length];
+                ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, -Math.floor(f.w / 2), -Math.floor(f.h / 2), f.w, f.h);
+            }
         }
         ctx.restore();
     }

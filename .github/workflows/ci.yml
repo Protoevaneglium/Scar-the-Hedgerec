@@ -1,4 +1,4 @@
-name: CI
+name: Cross-Platform CI (Linux, macOS, Windows, Termux/Zero-Dep)
 
 on:
   push:
@@ -22,9 +22,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
-      - run: npm ci
-      - name: Validate Server Entry Point
+      - name: Validate Zero-Dependency Server Entry Point (Termux/Android Compat)
         run: node -c server.js
-      - name: Run 21-Test Sonic Physics Verification Suite
+      - name: Run 26-Test Sonic Physics & Stage Verification Suite (Zero-Dep)
         run: npm test
+      - name: Install Optional Dependencies & Re-Verify
+        run: |
+          npm install
+          npm test

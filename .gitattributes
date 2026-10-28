@@ -1,4 +1,8 @@
-# Normalize line endings to LF across Linux, macOS, and Windows
+# Normalize line endings across Linux, macOS, Termux/Android, and Windows
 * text=auto eol=lf
+*.sh text eol=lf
+*.bat text eol=crlf
 *.png binary
 *.jpg binary
+*.mp3 binary
+*.wav binary

@@ -1,10 +1,12 @@
 {
   "name": "scar-the-hedgerec",
   "version": "1.0.0",
-  "description": "Scar the Hedgerec — A high-speed 16-bit retro platformer with 360-degree loop and slope physics",
+  "description": "Scar the Hedgerec — A high-speed 16-bit retro platformer with 360-degree loop and slope physics (Windows, Linux, macOS, Termux/Android)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "start:open": "node server.js --open",
+    "termux": "node server.js --open",
     "test": "node tests/sonic_engine_test.js"
   },
   "keywords": [
@@ -12,13 +14,14 @@
     "physics-engine",
     "16-bit",
     "html5-canvas",
-    "platformer"
+    "platformer",
+    "termux",
+    "android"
   ],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "express": "^5.2.1",
-    "jimp": "^0.22.10"
+    "express": "^5.2.1"
   }
 }

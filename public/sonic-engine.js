@@ -943,28 +943,72 @@
                 { x: 9240, y: 574, boost: 12.5, cooldown: 0 }, // Final Straightaway sprint
             ];
 
-            // 11. TIME POSTS (Sonic CD 'FUTURE' & 'PAST' spinning signs) + GOAL SIGNPOST
+            // 11. TIME POSTS, CHECKPOINT STAR POSTS, SPRINGS, MONITORS, SPIKES, GIANT RING & GOAL SIGNPOST
             this.timePosts = [
                 { x: 420,  y: 420, kind: 'FUTURE', spin: 0, active: false },
                 { x: 2420, y: 540, kind: 'PAST',   spin: 0, active: false },
                 { x: 3060, y: 340, kind: 'FUTURE', spin: 0, active: false },
                 { x: 6220, y: 742, kind: 'FUTURE', spin: 0, active: false },
             ];
+            this.starPosts = [
+                { x: 1680, y: 742, active: false, spinTimer: 0 },
+                { x: 2300, y: 540, active: false, spinTimer: 0 },
+                { x: 3920, y: 700, active: false, spinTimer: 0 },
+                { x: 5950, y: 742, active: false, spinTimer: 0 },
+                { x: 7680, y: 530, active: false, spinTimer: 0 },
+                { x: 9200, y: 574, active: false, spinTimer: 0 },
+            ];
+            this.activeCheckpoint = null;
+            this.monitors = [
+                { x: 205,  y: 420, item: 'shield', broken: false },
+                { x: 640,  y: 250, item: 'rings',  broken: false },
+                { x: 1580, y: 742, item: 'shoes',  broken: false },
+                { x: 2460, y: 540, item: 'shield', broken: false },
+                { x: 3240, y: 340, item: 'invinc', broken: false },
+                { x: 4120, y: 540, item: 'rings',  broken: false },
+                { x: 4720, y: 212, item: 'invinc', broken: false },
+                { x: 6140, y: 742, item: 'shield', broken: false },
+                { x: 7060, y: 300, item: 'rings',  broken: false },
+                { x: 8300, y: 530, item: 'shoes',  broken: false },
+                { x: 9360, y: 574, item: 'rings',  broken: false },
+            ];
+            this.springs = [
+                { x: 1080, y: 742, color: 'red',    power: -13.5, timer: 0 },
+                { x: 2245, y: 540, color: 'red',    power: -13.2, timer: 0 },
+                { x: 4055, y: 540, color: 'yellow', power: -11.0, timer: 0 },
+                { x: 5960, y: 490, color: 'red',    power: -13.2, timer: 0 },
+                { x: 7655, y: 530, color: 'red',    power: -13.5, timer: 0 },
+            ];
+            this.spikeClusters = [
+                { x: 840,  y: 250 },
+                { x: 2860, y: 540 },
+                { x: 4480, y: 540 },
+                { x: 8050, y: 530 },
+            ];
+            this.bigRing = { x: 9830, y: 536, collected: false, flashTimer: 0 };
             this.goalPost = { x: 9950, y: 574, spinning: false, cleared: false, spinTimer: 0, angle: 0 };
 
-            // 12. BADNIKS (CrabBots / Anton & BuzzBots / Kama-Kama)
+            // 12. BADNIKS (Varied Badnik roster: Motobug, Crabmeat, Buzz Bomber, Spikes, Caterkiller, Burrobot, Batbrain, Chopper)
             this.enemies = [
-                { kind: 'crab', x: 1360, y: 742, minX: 1240, maxX: 1520, vx: 1.1, alive: true },
-                { kind: 'buzz', x: 1820, y: 310, baseX: 1820, baseY: 310, phase: 0, alive: true },
-                { kind: 'crab', x: 2520, y: 540, minX: 2380, maxX: 2640, vx: 1.2, alive: true },
-                { kind: 'buzz', x: 3100, y: 260, baseX: 3100, baseY: 260, phase: 1.5, alive: true },
-                { kind: 'crab', x: 3500, y: 742, minX: 3320, maxX: 3620, vx: 1.2, alive: true },
-                { kind: 'crab', x: 4560, y: 710, minX: 4400, maxX: 4720, vx: 1.3, alive: true },
-                { kind: 'buzz', x: 4720, y: 150, baseX: 4720, baseY: 150, phase: 0.7, alive: true },
-                { kind: 'crab', x: 6200, y: 742, minX: 6040, maxX: 6340, vx: 1.2, alive: true },
-                { kind: 'buzz', x: 7140, y: 230, baseX: 7140, baseY: 230, phase: 2.2, alive: true },
-                { kind: 'crab', x: 8010, y: 530, minX: 7960, maxX: 8070, vx: 0.9, alive: true },
-                { kind: 'crab', x: 8560, y: 742, minX: 8380, maxX: 8660, vx: 1.3, alive: true },
+                { kind: 'crab', type: 'motobug',     x: 260,  y: 420, minX: 210,  maxX: 330,  vx: 1.1, alive: true },
+                { kind: 'buzz', type: 'buzz',        x: 360,  y: 310, baseX: 360,  baseY: 310, phase: 0.4, alive: true },
+                { kind: 'crab', type: 'spikes',      x: 740,  y: 250, minX: 580,  maxX: 920,  vx: 1.0, alive: true },
+                { kind: 'buzz', type: 'batbrain',    x: 980,  y: 340, baseX: 980,  baseY: 340, phase: 1.1, alive: true },
+                { kind: 'crab', type: 'crab',        x: 1360, y: 742, minX: 1240, maxX: 1520, vx: 1.1, alive: true },
+                { kind: 'buzz', type: 'buzz',        x: 1820, y: 310, baseX: 1820, baseY: 310, phase: 0,   alive: true },
+                { kind: 'crab', type: 'caterkiller', x: 2520, y: 540, minX: 2380, maxX: 2640, vx: 1.2, alive: true },
+                { kind: 'buzz', type: 'chopper',     x: 2730, y: 630, baseX: 2730, baseY: 630, phase: 0.3, alive: true },
+                { kind: 'crab', type: 'burrobot',    x: 2940, y: 540, minX: 2825, maxX: 3060, vx: 1.15, alive: true },
+                { kind: 'buzz', type: 'batbrain',    x: 3100, y: 260, baseX: 3100, baseY: 260, phase: 1.5, alive: true },
+                { kind: 'crab', type: 'motobug',     x: 3500, y: 742, minX: 3320, maxX: 3620, vx: 1.2, alive: true },
+                { kind: 'crab', type: 'spikes',      x: 4320, y: 540, minX: 4160, maxX: 4520, vx: 1.1, alive: true },
+                { kind: 'crab', type: 'burrobot',    x: 4560, y: 710, minX: 4400, maxX: 4720, vx: 1.3, alive: true },
+                { kind: 'buzz', type: 'buzz',        x: 4720, y: 150, baseX: 4720, baseY: 150, phase: 0.7, alive: true },
+                { kind: 'crab', type: 'caterkiller', x: 6200, y: 742, minX: 6040, maxX: 6340, vx: 1.2, alive: true },
+                { kind: 'buzz', type: 'batbrain',    x: 7140, y: 230, baseX: 7140, baseY: 230, phase: 2.2, alive: true },
+                { kind: 'buzz', type: 'chopper',     x: 7860, y: 620, baseX: 7860, baseY: 620, phase: 1.4, alive: true },
+                { kind: 'crab', type: 'crab',        x: 8010, y: 530, minX: 7960, maxX: 8070, vx: 0.9, alive: true },
+                { kind: 'crab', type: 'spikes',      x: 8560, y: 742, minX: 8380, maxX: 8660, vx: 1.3, alive: true },
             ];
 
             // 13. RINGS — Generous Sonic CD ring arcs across High, Mid, and Low routes + inside both Loops!
@@ -1262,13 +1306,16 @@
                 if (sp.frame >= maxFrames) this.splashes.splice(i, 1);
             }
 
-            // 10. Rings & Scattered Rings
+            // 10. Rings & Scattered Rings + Power-up Timers
             if (player.invulnTimer > 0) player.invulnTimer = Math.max(0, player.invulnTimer - h);
+            if (player.invincTimer > 0) player.invincTimer = Math.max(0, player.invincTimer - h);
+            if (player.shoesTimer > 0) player.shoesTimer = Math.max(0, player.shoesTimer - h);
             for (const r of this.rings) {
                 if (!r.collected && Math.hypot(player.x - r.x, player.y - r.y) < 22) {
                     r.collected = true;
                     player.rings = (player.rings || 0) + 1;
                     player.score = (player.score || 0) + 10;
+                    this.debris.push({ kind: 'ringSparkle', x: r.x, y: r.y, vx: 0, vy: 0, life: 16, maxLife: 16 });
                     player.emit('ring', player.rings);
                 }
             }
@@ -1285,6 +1332,7 @@
                 }
                 if (sr.life < 130 && player.invulnTimer < 90 && Math.hypot(player.x - sr.x, player.y - sr.y) < 22) {
                     player.rings = (player.rings || 0) + 1;
+                    this.debris.push({ kind: 'ringSparkle', x: sr.x, y: sr.y, vx: 0, vy: 0, life: 16, maxLife: 16 });
                     player.emit('ring', player.rings);
                     this.scatteredRings.splice(i, 1);
                     continue;
@@ -1292,7 +1340,7 @@
                 if (sr.life <= 0) this.scatteredRings.splice(i, 1);
             }
 
-            // 11. Badniks (CrabBots & BuzzBots)
+            // 11. Badniks (Motobug, Crabmeat, Buzz Bomber, Spikes, Caterkiller, Burrobot, Batbrain, Chopper)
             for (const en of this.enemies) {
                 if (!en.alive) continue;
                 if (en.kind === 'crab') {
@@ -1301,26 +1349,106 @@
                     if (en.x >= en.maxX) { en.x = en.maxX; en.vx = -Math.abs(en.vx); }
                     const surf = this.getSurfaceAt(en.x, en.y - 24, 0);
                     if (surf && Math.abs(surf.y - en.y) < 30) en.y = surf.y;
+                } else if (en.type === 'chopper') {
+                    en.x = en.baseX;
+                    en.y = en.baseY - Math.abs(Math.sin(this.clock * 0.055 + (en.phase || 0))) * 75;
                 } else {
                     en.x = en.baseX + Math.sin(this.clock * 0.035 + en.phase) * 55;
                     en.y = en.baseY + Math.sin(this.clock * 0.07 + en.phase) * 18;
                 }
                 const ex = en.x, ey = en.kind === 'crab' ? en.y - 14 : en.y;
                 if (Math.hypot(player.x - ex, player.y - ey) < 24) {
-                    const attacking = player.curled || (player.state === STATE.AIRBORNE && player.ysp > 0 && player.y < ey);
+                    const attacking = player.curled || (player.invincTimer && player.invincTimer > 0) || (player.state === STATE.AIRBORNE && player.ysp > 0 && player.y < ey);
                     if (attacking) {
                         en.alive = false;
                         if (!player.grounded && player.ysp > 0) player.ysp = -Math.max(6.5, Math.abs(player.ysp));
                         player.score = (player.score || 0) + 100;
                         this.popups.push({ x: ex, y: ey - 16, text: '+100', life: 42 });
-                        for (let k = 0; k < 5; k++) {
-                            const a = (k / 5) * TAU;
-                            this.debris.push({ kind: 'sparkle', x: ex, y: ey, vx: Math.cos(a) * 2.5, vy: Math.sin(a) * 2.5 - 1, life: 24 });
-                        }
+                        this.debris.push({ kind: 'explosion', x: ex, y: ey, vx: 0, vy: 0, life: 20, maxLife: 20 });
                         player.emit('enemyPop', en);
                     } else if (!player.invulnTimer || player.invulnTimer <= 0) {
                         this.hurtPlayer(player, ex);
                     }
+                }
+            }
+
+            // 11b. Checkpoint Star Posts, Item Monitors, Springs, Spikes & Giant Ring
+            if (this.starPosts) {
+                for (const sp of this.starPosts) {
+                    if (sp.spinTimer > 0) sp.spinTimer = Math.max(0, sp.spinTimer - h);
+                    if (!sp.active && Math.abs(player.x - sp.x) < 24 && Math.abs(feetY - sp.y) < 56) {
+                        sp.active = true;
+                        sp.spinTimer = 64;
+                        this.activeCheckpoint = { x: sp.x, y: sp.y };
+                        player.emit('checkpoint', sp);
+                    }
+                }
+            }
+            if (this.monitors) {
+                for (const m of this.monitors) {
+                    if (m.broken) continue;
+                    const mx = m.x, my = m.y - 15;
+                    if (Math.hypot(player.x - mx, player.y - my) < 24) {
+                        if (player.curled || (player.state === STATE.AIRBORNE && player.ysp > 0 && player.y < my)) {
+                            m.broken = true;
+                            if (!player.grounded && player.ysp > 0) player.ysp = -Math.max(5.5, Math.abs(player.ysp));
+                            this.debris.push({ kind: 'explosion', x: mx, y: my, vx: 0, vy: 0, life: 20, maxLife: 20 });
+                            this.debris.push({ kind: 'monitorIcon', item: m.item, x: mx, y: my - 4, vx: 0, vy: -1.1, life: 32, maxLife: 32 });
+                            if (m.item === 'rings') {
+                                player.rings = (player.rings || 0) + 10;
+                                player.score = (player.score || 0) + 100;
+                                player.emit('ring', player.rings);
+                            } else if (m.item === 'shield') {
+                                player.shield = true;
+                                player.score = (player.score || 0) + 100;
+                            } else if (m.item === 'invinc') {
+                                player.invincTimer = 900;
+                                player.score = (player.score || 0) + 200;
+                            } else if (m.item === 'shoes') {
+                                player.shoesTimer = 900;
+                                if (player.grounded && Math.abs(player.gsp) < 9.5) {
+                                    player.gsp = (player.facing || 1) * 9.5;
+                                }
+                                player.score = (player.score || 0) + 100;
+                            }
+                            player.emit('enemyPop', m);
+                        }
+                    }
+                }
+            }
+            if (this.springs) {
+                for (const sp of this.springs) {
+                    if (sp.timer > 0) sp.timer = Math.max(0, sp.timer - h);
+                    if (Math.abs(player.x - sp.x) < 20 && Math.abs(feetY - sp.y) < 18 && player.ysp >= -1.0 && sp.timer <= 8) {
+                        sp.timer = 16;
+                        player.y = sp.y - player.radii.height - 4;
+                        player.ysp = sp.power;
+                        player.state = STATE.AIRBORNE;
+                        player.jumped = false;
+                        player.crouching = false;
+                        player.emit('bouncePole', sp);
+                    }
+                }
+            }
+            if (this.spikeClusters) {
+                for (const sc of this.spikeClusters) {
+                    if (Math.abs(player.x - sc.x) < 18 && feetY >= sc.y - 30 && feetY <= sc.y + 4 && player.ysp >= 0) {
+                        if ((!player.invulnTimer || player.invulnTimer <= 0) && (!player.invincTimer || player.invincTimer <= 0)) {
+                            this.hurtPlayer(player, sc.x);
+                        }
+                    }
+                }
+            }
+            if (this.bigRing) {
+                const br = this.bigRing;
+                if (br.flashTimer > 0) br.flashTimer = Math.max(0, br.flashTimer - h);
+                if (!br.collected && Math.hypot(player.x - br.x, player.y - br.y) < 38) {
+                    br.collected = true;
+                    br.flashTimer = 28;
+                    player.rings = (player.rings || 0) + 50;
+                    player.score = (player.score || 0) + 10000;
+                    this.popups.push({ x: br.x, y: br.y - 28, text: '+10000', life: 60 });
+                    player.emit('ring', player.rings);
                 }
             }
 
@@ -1381,7 +1509,9 @@
                 if (d.delay && d.delay > 0) { d.delay -= h; continue; }
                 d.x += d.vx * h;
                 d.y += d.vy * h;
-                if (d.kind !== 'sparkle') d.vy += 0.24 * h;
+                if (d.kind !== 'sparkle' && d.kind !== 'ringSparkle' && d.kind !== 'explosion' && d.kind !== 'monitorIcon') {
+                    d.vy += 0.24 * h;
+                }
                 if (d.vrot) d.rot += d.vrot * h;
                 d.life -= h;
                 if (d.life <= 0) this.debris.splice(i, 1);
@@ -1395,6 +1525,19 @@
         }
 
         hurtPlayer(player, hazardX) {
+            if (player.invincTimer && player.invincTimer > 0) return;
+            if (player.shield) {
+                player.shield = false;
+                player.invulnTimer = 120;
+                const dir = player.x < hazardX ? -1 : 1;
+                player.state = STATE.AIRBORNE;
+                player.curled = false;
+                player.jumped = false;
+                player.xsp = dir * 2.5;
+                player.ysp = -4.2;
+                player.emit('ringLoss', 0);
+                return;
+            }
             const rings = player.rings || 0;
             if (rings > 0) {
                 const dropCount = Math.min(rings, 16);
@@ -1499,6 +1642,12 @@
         }
 
         respawn() {
+            if (this.terrain.activeCheckpoint) {
+                const ac = this.terrain.activeCheckpoint;
+                this.place(ac.x, 0, ac.y);
+                this.emit('respawn', ac);
+                return;
+            }
             const cps = this.terrain.checkpoints;
             let cp = cps[0];
             for (const c of cps) if (c.x <= this.x) cp = c;
