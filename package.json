@@ -3,10 +3,14 @@
   "version": "1.0.0",
   "description": "Scar the Hedgerec — A high-speed 16-bit retro platformer with 360-degree loop and slope physics (Windows, Linux, macOS, Termux/Android)",
   "main": "server.js",
+  "bin": {
+    "scar": "./bin/scar.js"
+  },
   "scripts": {
     "start": "node server.js",
     "start:open": "node server.js --open",
     "termux": "node server.js --open",
+    "install:termux": "sh install-termux.sh",
     "test": "node tests/sonic_engine_test.js"
   },
   "keywords": [

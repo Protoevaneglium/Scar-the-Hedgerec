@@ -96,9 +96,16 @@ try {
 }
 
 function openBrowser(url) {
-    const isTermux = Boolean(process.env.TERMUX_VERSION || (process.env.PREFIX && process.env.PREFIX.includes('com.termux')));
+    const isTermux = Boolean(
+        process.platform === 'android' ||
+        process.env.TERMUX_VERSION ||
+        (process.env.PREFIX && process.env.PREFIX.includes('com.termux'))
+    );
     if (isTermux) {
-        exec(`termux-open-url "${url}" || am start -a android.intent.action.VIEW -d "${url}"`, () => {});
+        exec(
+            `termux-open-url "${url}" >/dev/null 2>&1 || am start --user 0 -a android.intent.action.VIEW -d "${url}" >/dev/null 2>&1 || am start -a android.intent.action.VIEW -d "${url}" >/dev/null 2>&1 || xdg-open "${url}" >/dev/null 2>&1`,
+            () => {}
+        );
     } else if (process.platform === 'win32') {
         exec(`cmd /c start "" "${url}"`, () => {});
     } else if (process.platform === 'darwin') {
@@ -108,10 +115,22 @@ function openBrowser(url) {
     }
 }
 
+const url = `http://localhost:${PORT}`;
+const shouldOpen = process.argv.includes('--open');
+
+server.on('error', (err) => {
+    if (err && err.code === 'EADDRINUSE' && shouldOpen) {
+        console.log(`Scar the Hedgerec is already running at ${url} — launching browser...`);
+        openBrowser(url);
+        setTimeout(() => process.exit(0), 600);
+        return;
+    }
+    throw err;
+});
+
 server.listen(PORT, HOST, () => {
-    const url = `http://localhost:${PORT}`;
     console.log(`Scar the Hedgerec running at ${url}`);
-    if (process.argv.includes('--open')) {
+    if (shouldOpen) {
         openBrowser(url);
     }
 });
