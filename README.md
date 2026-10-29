@@ -20,20 +20,25 @@ Every platform uses a simple **2-step setup**:
 ### 1. Windows 🪟 (Command Prompt `cmd` or PowerShell)
 
 #### Step 1 — First-Time Install (Run Once)
-Open **Command Prompt (`cmd`)** or **PowerShell**, paste this single command, and press **Enter** *(automatically installs or updates `%USERPROFILE%\Scar-the-Hedgerec`, checks for Node.js, and creates `scar.bat` on your PATH)*:
+Open **Command Prompt (`cmd`)** or **PowerShell**, paste this single command, and press **Enter** *(automatically installs or updates `%USERPROFILE%\Scar-the-Hedgerec`, checks for Node.js, and creates `scar.bat` / `scar.cmd` on your PATH)*:
 
 ```cmd
-powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/Protoevaneglium/Scar-the-Hedgerec/main/install-windows.ps1 | iex"
+powershell -ExecutionPolicy Bypass -Command "iex (irm https://raw.githubusercontent.com/Protoevaneglium/Scar-the-Hedgerec/main/install-windows.ps1)"
+```
+
+*(Or directly inside a PowerShell window, you can run:)*
+```powershell
+iex (irm https://raw.githubusercontent.com/Protoevaneglium/Scar-the-Hedgerec/main/install-windows.ps1)
 ```
 
 #### Step 2 — Start the Game Every Time
-Whenever you open **Command Prompt** or **PowerShell**, simply type:
+Whenever you open **Command Prompt** or **PowerShell** in any folder, simply type:
 
 ```cmd
 scar
 ```
 
-*(You can also type `scar.bat`, or double-click `scar.bat` in your user folder `C:\Users\<YourName>\scar.bat` or inside the `Scar-the-Hedgerec` folder. Press `Ctrl+C` in the terminal window anytime to stop the server.)*
+*(You can also type `scar.bat` or `scar.cmd`, or double-click `scar.bat` in your user folder `C:\Users\<YourName>\scar.bat` or inside the `Scar-the-Hedgerec` folder. Press `Ctrl+C` in the terminal window anytime to stop the server.)*
 
 <details>
 <summary><b>Alternative: Manual Git Clone / ZIP Install on Windows</b></summary>

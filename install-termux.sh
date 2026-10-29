@@ -28,6 +28,8 @@ fi
 
 if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/server.js" ]; then
     GAME_DIR="$SCRIPT_DIR"
+elif [ -f "./server.js" ]; then
+    GAME_DIR="$(pwd)"
 else
     GAME_DIR="${HOME}/Scar-the-Hedgerec"
     if [ -d "$GAME_DIR/.git" ]; then

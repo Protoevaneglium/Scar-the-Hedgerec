@@ -2,11 +2,15 @@
 # Scar the Hedgerec - Linux & macOS First-Time Auto-Installer & "scar" Launcher Generator
 # One-line First-Time Install:
 #   curl -fsSL https://raw.githubusercontent.com/Protoevaneglium/Scar-the-Hedgerec/main/install-linux.sh | sh
+# Or with wget:
+#   wget -qO- https://raw.githubusercontent.com/Protoevaneglium/Scar-the-Hedgerec/main/install-linux.sh | sh
 
 set -e
 
 REPO_URL="https://github.com/Protoevaneglium/Scar-the-Hedgerec.git"
-TAR_URL="https://github.com/Protoevaneglium/Scar-the-Hedgerec/archive/refs/heads/main.tar.gz"
+TAR_URL_MAIN="https://github.com/Protoevaneglium/Scar-the-Hedgerec/archive/refs/heads/main.tar.gz"
+TAR_URL_MASTER="https://github.com/Protoevaneglium/Scar-the-Hedgerec/archive/refs/heads/master.tar.gz"
+
 QUIET=0
 if [ "${1:-}" = "--quiet" ]; then
     QUIET=1
@@ -64,7 +68,7 @@ if [ -z "$NODE_BIN" ]; then
     elif command -v nodejs >/dev/null 2>&1; then
         NODE_BIN="nodejs"
     else
-        log "Note: Node.js was not detected. Install nodejs with your package manager (e.g. 'sudo apt install -y nodejs') for full server & audio support."
+        log "Note: Node.js was not detected. Install nodejs with your package manager (e.g. 'sudo apt install -y nodejs' or 'brew install node') for full server & audio support."
     fi
 fi
 
@@ -76,15 +80,21 @@ fi
 
 if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/server.js" ]; then
     GAME_DIR="$SCRIPT_DIR"
+elif [ -f "./server.js" ]; then
+    GAME_DIR="$(pwd)"
 else
     GAME_DIR="${HOME}/Scar-the-Hedgerec"
     if [ -d "$GAME_DIR/.git" ] && command -v git >/dev/null 2>&1; then
         log "Updating existing Scar the Hedgerec in $GAME_DIR ..."
-        git -C "$GAME_DIR" fetch origin main || true
+        git -C "$GAME_DIR" fetch origin || true
+        BRANCH="$(git -C "$GAME_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "master")"
+        if [ "$BRANCH" = "HEAD" ] || [ -z "$BRANCH" ]; then
+            BRANCH="master"
+        fi
         if [ -z "$(git -C "$GAME_DIR" status --porcelain 2>/dev/null)" ]; then
-            git -C "$GAME_DIR" checkout -B main origin/main || git -C "$GAME_DIR" pull --ff-only || true
+            git -C "$GAME_DIR" pull --ff-only origin "$BRANCH" 2>/dev/null || git -C "$GAME_DIR" pull origin "$BRANCH" || true
         else
-            git -C "$GAME_DIR" pull --rebase --autostash origin main || git -C "$GAME_DIR" pull --ff-only || true
+            git -C "$GAME_DIR" pull --rebase --autostash origin "$BRANCH" 2>/dev/null || git -C "$GAME_DIR" pull origin "$BRANCH" || true
         fi
     elif [ ! -d "$GAME_DIR" ] && command -v git >/dev/null 2>&1; then
         log "Cloning Scar the Hedgerec into $GAME_DIR ..."
@@ -93,18 +103,34 @@ else
         log "Downloading latest Scar the Hedgerec archive into $GAME_DIR ..."
         TMP_DIR="$(mktemp -d 2>/dev/null || echo "/tmp/scar-install-$$")"
         mkdir -p "$TMP_DIR" "$GAME_DIR"
-        if command -v curl >/dev/null 2>&1; then
-            curl -fsSL "$TAR_URL" -o "$TMP_DIR/scar.tar.gz"
-        elif command -v wget >/dev/null 2>&1; then
-            wget -qO "$TMP_DIR/scar.tar.gz" "$TAR_URL"
+        TAR_FILE="$TMP_DIR/scar.tar.gz"
+        DOWNLOAD_OK=0
+
+        for URL in "$TAR_URL_MAIN" "$TAR_URL_MASTER"; do
+            if command -v curl >/dev/null 2>&1; then
+                if curl -fsSL "$URL" -o "$TAR_FILE" 2>/dev/null; then
+                    DOWNLOAD_OK=1
+                    break
+                fi
+            elif command -v wget >/dev/null 2>&1; then
+                if wget -qO "$TAR_FILE" "$URL" 2>/dev/null; then
+                    DOWNLOAD_OK=1
+                    break
+                fi
+            fi
+        done
+
+        if [ "$DOWNLOAD_OK" -eq 1 ] && [ -f "$TAR_FILE" ]; then
+            tar -xzf "$TAR_FILE" -C "$TMP_DIR"
+            SRC_EXTRACT="$(find "$TMP_DIR" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+            if [ -n "$SRC_EXTRACT" ] && [ -d "$SRC_EXTRACT" ]; then
+                cp -R "$SRC_EXTRACT"/. "$GAME_DIR"/
+            fi
+            rm -rf "$TMP_DIR"
         else
-            echo "Error: curl, wget, or git is required to download Scar the Hedgerec."
+            echo "Error: Could not download Scar the Hedgerec. Git or curl/wget is required."
             exit 1
         fi
-        tar -xzf "$TMP_DIR/scar.tar.gz" -C "$TMP_DIR"
-        SRC_EXTRACT="$(find "$TMP_DIR" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
-        cp -R "$SRC_EXTRACT"/. "$GAME_DIR"/
-        rm -rf "$TMP_DIR"
     fi
 fi
 
@@ -127,12 +153,12 @@ if command -v node >/dev/null 2>&1; then
     exec node server.js --open "\$@"
 elif command -v nodejs >/dev/null 2>&1; then
     exec nodejs server.js --open "\$@"
-elif command -v xdg-open >/dev/null 2>&1; then
-    exec xdg-open "${GAME_DIR}/public/index.html"
 elif command -v open >/dev/null 2>&1; then
     exec open "${GAME_DIR}/public/index.html"
+elif command -v xdg-open >/dev/null 2>&1; then
+    exec xdg-open "${GAME_DIR}/public/index.html"
 else
-    echo "Please install Node.js (e.g. sudo apt install -y nodejs) or open ${GAME_DIR}/public/index.html"
+    echo "Please install Node.js (e.g. sudo apt install -y nodejs or brew install node) or open ${GAME_DIR}/public/index.html"
     exit 1
 fi
 EOF
@@ -162,6 +188,7 @@ update_rc() {
 update_rc "${HOME}/.bashrc"
 update_rc "${HOME}/.zshrc"
 update_rc "${HOME}/.profile"
+update_rc "${HOME}/.zprofile"
 if [ ! -f "${HOME}/.bashrc" ] && [ ! -f "${HOME}/.zshrc" ]; then
     printf "# Scar the Hedgerec quick launcher\n%s\n%s\n" "$PATH_LINE" "$ALIAS_LINE" > "${HOME}/.bashrc"
 fi

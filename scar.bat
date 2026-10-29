@@ -1,15 +1,21 @@
 @echo off
-REM Scar the Hedgerec - Quick "scar.bat" Launcher (Windows)
-REM Also ensures the global `scar` command is registered on first launch!
-cd /d "%~dp0"
-if exist "%~dp0install-windows.bat" (
-    if not exist "%USERPROFILE%\scar.bat" (
-        call "%~dp0install-windows.bat" --quiet >nul 2>nul
+REM Auto-generated launcher for Scar the Hedgerec
+cd /d "%~dp0" || exit /b 1
+set "NODE_BIN=node"
+where node >nul 2>nul
+if %ERRORLEVEL% NEQ 0 (
+    if exist "%ProgramFiles%\nodejs\node.exe" (
+        set "NODE_BIN=%ProgramFiles%\nodejs\node.exe"
+    ) else if exist "%ProgramFiles(x86)%\nodejs\node.exe" (
+        set "NODE_BIN=%ProgramFiles(x86)%\nodejs\node.exe"
+    ) else if exist "%LOCALAPPDATA%\Programs\node\node.exe" (
+        set "NODE_BIN=%LOCALAPPDATA%\Programs\node\node.exe"
+    ) else (
+        set "NODE_BIN="
     )
 )
-where node >nul 2>nul
-if %ERRORLEVEL% EQU 0 (
-    node server.js --open %*
+if defined NODE_BIN (
+    "%NODE_BIN%" server.js --open %*
 ) else (
     start "" "public\index.html"
 )
