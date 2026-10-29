@@ -124,18 +124,20 @@
 <body>
 <div class="wrap">
     <div class="hero">
-        <div class="badge">LEVEL CORE FOUNDATION KIT • v1.0</div>
+        <div class="badge">LEVEL CORE FOUNDATION KIT • v1.1 (3-ACT ZONES + CLASSIC LIVES)</div>
         <h1>Scar the Hedgerec — Blank Level Core Blueprint</h1>
         <p class="sub">
-            All core physics, Scar's 5-state animations, Spin Dash, WAV sound effects, touch/keyboard controls, and
-            universal Sonic stage objects (Rings, TV Monitors, Checkpoints, Springs, Spikes, Giant Ring, Goal Post) are
-            locked in and ready to reuse — leaving map layout, music, enemies, and bosses 100% open for your creative design on each level.
+            All core physics, Scar's 5-state animations, Spin Dash, 16-bit sliding Title Cards, Classic 3-Act Zone
+            progression (Act 1 &rarr; Act 2 &rarr; Act 3 Boss Act), Classic Lives (3 lives, Scar 1-Up TVs, 100-ring 1-Ups,
+            GAME OVER / TIME OVER), WAV SFX, and universal Sonic stage objects (Rings, TVs, Checkpoints, Springs, Spikes,
+            Giant Ring, Goal Post, Animal Capsule) are locked in — leaving map layout, music, enemies, and bosses 100% open for you!
         </p>
         <div class="btns">
             <a class="btn primary" href="downloads/scar-level-core-template.zip" download>⬇ Download Starter Core Kit (.zip)</a>
-            <a class="btn gold" href="downloads/level_template.js" download>⬇ Download level_template.js</a>
-            <a class="btn ghost" href="downloads/LEVEL_CORE_BLUEPRINT.md" download>📄 Download Blueprint Guide (.md)</a>
-            <a class="btn ghost" href="index.html">▶ Back to Level 1</a>
+            <a class="btn gold" href="downloads/level_template.js" download>⬇ Act 1/2 Template (.js)</a>
+            <a class="btn gold" href="downloads/boss_act_template.js" download>⬇ Act 3 Boss Template (.js)</a>
+            <a class="btn ghost" href="downloads/LEVEL_CORE_BLUEPRINT.md" download>📄 Blueprint Guide (.md)</a>
+            <a class="btn ghost" href="index.html">▶ Play Game (Zone 1)</a>
         </div>
     </div>
 
@@ -143,21 +145,21 @@
         <div class="card">
             <h2 class="locked">✓ Locked-In Core Guts (Included Automatically)</h2>
             <ul class="clean">
-                <li><strong>360° 6-Sensor Physics</strong>: Slopes, rolling, variable jump, Spin Dash &amp; dual-layer 360° Loops.</li>
-                <li><strong>Scar Animation Rig</strong>: 5-frame speed-reactive walk/peel-out run, Spin Dash ball, Shield bubble &amp; Invincibility sparkles.</li>
-                <li><strong>TV Item Monitors</strong>: <code>'rings'</code> (+10), <code>'shield'</code>, <code>'invinc'</code>, and <code>'shoes'</code> with static flicker &amp; broken shells.</li>
-                <li><strong>Universal Stage Objects</strong>: Spinning Rings + collection sparkles, Checkpoint Star Posts, Red/Yellow Springs, Spikes, Giant Ring (+10,000), and Robotnik/Sonic Goal Post.</li>
-                <li><strong>Core Audio &amp; Controls</strong>: <code>jump.wav</code>, <code>rings.wav</code>, <code>goalpost.wav</code>, looping BGM loader, Keyboard + Android/Termux multi-touch.</li>
+                <li><strong>3-Act Zone Progression &amp; Title Cards</strong>: 16-bit sliding Zone/Act Title Card banner, Act Clear Score Tally (Time + Ring Bonus), black fade transition, and Score/Lives/Shield carryover across <code>Act 1 &rarr; Act 2 &rarr; Act 3 (Boss Act) &rarr; Next Zone</code>.</li>
+                <li><strong>Classic Lives System</strong>: Starts with <code>3</code> lives (<code>SCAR &times; 03</code> HUD), <code>'1up'</code> Scar TV Monitors, <code>+1</code> life every <code>100</code> Rings, 10:00 <code>TIME OVER</code>, and sliding <code>GAME OVER</code> sprite screen.</li>
+                <li><strong>360° 6-Sensor Physics &amp; Scar Rig</strong>: Slopes, rolling, variable jump, Spin Dash, dual-layer 360° Loops, 5-frame speed-reactive walk/run, Shield bubble &amp; Invincibility sparkles.</li>
+                <li><strong>Universal Stage Objects</strong>: Rings, TV Monitors (<code>'rings'</code>, <code>'shield'</code>, <code>'invinc'</code>, <code>'shoes'</code>, <code>'1up'</code>), Star Post Checkpoints, Red/Yellow Springs, Spikes, Giant Ring, Goal Post (Acts 1–2) &amp; Animal Capsule (Act 3 Boss).</li>
+                <li><strong>Core Audio &amp; Controls</strong>: <code>jump.wav</code>, <code>rings.wav</code>, <code>goalpost.wav</code>, 1-Up &amp; Tally jingles, looping BGM loader, Keyboard + Android/Termux multi-touch.</li>
             </ul>
         </div>
         <div class="card">
-            <h2 class="owner">★ Owner Creative Decisions (Per Level)</h2>
+            <h2 class="owner">★ Owner Creative Decisions (Per Act / Zone)</h2>
             <ul class="clean owner-list">
-                <li><strong>Zone Theme &amp; Music</strong>: Sky/ground palette (or custom background renderer) + level BGM MP3 track.</li>
+                <li><strong>Zone Identity &amp; Music</strong>: Set <code>zone</code>, <code>zoneName</code> (for Title Cards!), <code>act</code> (<code>1..3</code>), sky/ground palette, and BGM MP3 track.</li>
                 <li><strong>Map Terrain Sculpting</strong>: Build flat runs, hills, steep drops, shelves, tunnels, and 360° loops piece-by-piece with <code>PathBuilder</code>.</li>
-                <li><strong>Common Object Placement</strong>: Choose where Rings, TVs, Checkpoints, Springs, Spikes, and the Goal Post sit.</li>
+                <li><strong>Common Object Placement</strong>: Choose where Rings, 1-Up &amp; Powerup TVs, Checkpoints, Springs, Spikes, Goal Post, or Animal Capsule sit.</li>
                 <li><strong>Level-Specific Enemies</strong>: Plug in a dedicated enemy sprite sheet &amp; frame atlas for that zone's Badniks.</li>
-                <li><strong>Unique Gimmicks &amp; Act Boss</strong>: Optional <code>createBoss</code>, <code>onUpdate</code>, <code>drawBack</code>, and <code>drawFront</code> hooks.</li>
+                <li><strong>Act 3 Boss &amp; Zone Gimmicks</strong>: Design the Zone Boss in <code>createBoss</code>, <code>onUpdate</code>, and <code>drawBoss</code> to unlock the Act 3 Animal Capsule!</li>
             </ul>
         </div>
     </div>
@@ -248,6 +250,11 @@ enemies: [
             g.drawImage(common, 25, 487, 30, 30, 0, 0, 60, 60);
             g.drawImage(common, 24, 564, 16, 16, 14, 10, 32, 32);
         }},
+        { label: 'TV: Scar 1-Up', w: 60, h: 60, draw: (g) => {
+            g.drawImage(common, 25, 487, 30, 30, 0, 0, 60, 60);
+            g.fillStyle = '#101830'; g.fillRect(14, 10, 32, 32);
+            g.drawImage(scar, 10, 8, 28, 24, 14, 10, 32, 32);
+        }},
         { label: 'Checkpoint Post', w: 40, h: 68, draw: (g, t) => {
             g.drawImage(common, 132, 534, 16, 48, 12, 20, 16, 48);
             const red = Math.floor(t * 4) % 2 === 0;
@@ -270,7 +277,7 @@ enemies: [
             const f = frames[Math.floor(t * 6) % 4];
             g.drawImage(common, f.x, f.y, f.w, f.h, Math.round(32 - f.w / 2), 0, f.w, f.h);
         }},
-        { label: 'Goal Post', w: 56, h: 56, draw: (g, t) => {
+        { label: 'Goal Post (Act 1-2)', w: 56, h: 56, draw: (g, t) => {
             const showSonic = Math.floor(t * 1.5) % 2 === 1;
             if (!showSonic) {
                 g.drawImage(common, 244, 678, 48, 48, 4, 4, 48, 48);
@@ -278,6 +285,19 @@ enemies: [
                 g.drawImage(common, 340, 738, 8, 16, 24, 36, 8, 16);
                 g.drawImage(common, 244, 734, 48, 32, 4, 4, 48, 32);
             }
+        }},
+        { label: 'Boss Capsule (Act 3)', w: 64, h: 78, draw: (g, t) => {
+            const open = Math.floor(t * 0.8) % 2 === 1;
+            const blink = Math.floor(t * 6) % 2;
+            const sx = blink ? 480 : 408;
+            if (!open) g.drawImage(common, sx, 678, 64, 77, 0, 1, 64, 77);
+            else g.drawImage(common, sx, 763, 64, 69, 0, 9, 64, 69);
+        }},
+        { label: 'GAME / TIME OVER', w: 96, h: 48, draw: (g, t) => {
+            const timeOver = Math.floor(t * 0.8) % 2 === 1;
+            if (!timeOver) g.drawImage(common, 472, 407, 62, 16, 17, 6, 62, 16);
+            else g.drawImage(common, 476, 431, 54, 16, 21, 6, 54, 16);
+            g.drawImage(common, 552, 407, 62, 16, 17, 26, 62, 16);
         }},
     ];
 

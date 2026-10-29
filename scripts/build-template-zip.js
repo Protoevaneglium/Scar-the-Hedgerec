@@ -110,14 +110,20 @@ indexHtml = indexHtml.replace(
     '<audio id="bgm" loop autoplay preload="auto"></audio>'
 );
 indexHtml = indexHtml.replace(
-    '<script src="sonic-engine.js"></script>',
-    '<script src="sonic-engine.js"></script>\n<script src="levels/level_template.js"></script>\n<script>window.DEFAULT_STAGE = "template"; window.STAGE_ORDER = ["template", "test"];</script>'
+    /<script src="sonic-engine\.js"><\/script>[\s\S]*?<script>/,
+    [
+        '<script src="sonic-engine.js"></script>',
+        '<script src="levels/level_template.js"></script>',
+        '<script src="levels/boss_act_template.js"></script>',
+        '<script>window.DEFAULT_STAGE = "template"; window.CAMPAIGN_STAGES = ["template", "boss_template"]; window.STAGE_ORDER = ["template", "boss_template", "test"];</script>',
+        '<script>',
+    ].join('\n')
 );
 
 const starterPkg = JSON.stringify({
     name: 'scar-level-core-starter',
-    version: '1.0.0',
-    description: 'Scar the Hedgerec — Standalone Level Core Foundation Starter Kit',
+    version: '1.1.0',
+    description: 'Scar the Hedgerec — Standalone 3-Act Level Core Foundation Starter Kit (with Title Cards & Classic Lives)',
     main: 'server.js',
     scripts: {
         start: 'node server.js',
@@ -139,22 +145,27 @@ const entries = [
     { name: prefix + 'start-termux.sh',         data: fs.readFileSync(path.join(ROOT, 'start-termux.sh')), executable: true },
     { name: prefix + 'public/index.html',       data: indexHtml },
     { name: prefix + 'public/sonic-engine.js',  data: fs.readFileSync(path.join(ROOT, 'public', 'sonic-engine.js')) },
-    { name: prefix + 'public/levels/level_template.js', data: fs.readFileSync(path.join(ROOT, 'templates', 'level_template.js')) },
-    { name: prefix + 'public/assets/scar_sheet.png',     data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'scar_sheet.png')) },
-    { name: prefix + 'public/assets/common_objects.png', data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'common_objects.png')) },
-    { name: prefix + 'public/assets/jump.wav',           data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'jump.wav')) },
-    { name: prefix + 'public/assets/rings.wav',          data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'rings.wav')) },
-    { name: prefix + 'public/assets/goalpost.wav',       data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'goalpost.wav')) },
+    { name: prefix + 'public/levels/level_template.js',    data: fs.readFileSync(path.join(ROOT, 'templates', 'level_template.js')) },
+    { name: prefix + 'public/levels/boss_act_template.js', data: fs.readFileSync(path.join(ROOT, 'templates', 'boss_act_template.js')) },
+    { name: prefix + 'public/assets/scar_sheet.png',       data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'scar_sheet.png')) },
+    { name: prefix + 'public/assets/common_objects.png',   data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'common_objects.png')) },
+    { name: prefix + 'public/assets/jump.wav',             data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'jump.wav')) },
+    { name: prefix + 'public/assets/rings.wav',            data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'rings.wav')) },
+    { name: prefix + 'public/assets/goalpost.wav',         data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'goalpost.wav')) },
 ];
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
 const zipBuf = buildZipBuffer(entries);
 fs.writeFileSync(OUT_ZIP, zipBuf);
 
-// Also copy `level_template.js` into `public/downloads/level_template.js` for single-file download
+// Also copy individual template files into `public/downloads/` for single-file download
 fs.copyFileSync(
     path.join(ROOT, 'templates', 'level_template.js'),
     path.join(OUT_DIR, 'level_template.js')
+);
+fs.copyFileSync(
+    path.join(ROOT, 'templates', 'boss_act_template.js'),
+    path.join(OUT_DIR, 'boss_act_template.js')
 );
 fs.copyFileSync(
     path.join(ROOT, 'templates', 'LEVEL_CORE_BLUEPRINT.md'),

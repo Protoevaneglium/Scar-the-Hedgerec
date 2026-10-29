@@ -49,6 +49,8 @@
 <audio id="bgm" src="assets/level1.mp3" loop autoplay preload="auto"></audio>
 
 <script src="sonic-engine.js"></script>
+<script src="levels/zone1_act2.js"></script>
+<script src="levels/zone1_act3.js"></script>
 <script>
 'use strict';
 const { PHYS, HITBOX, STATE, Terrain, Player, MODE_FRAMES, PALMTREE_SPRITES, toDeg, TAU } = window.SonicEngine;
@@ -259,6 +261,23 @@ class RetroAudio {
             notes.forEach((n, i) => this.tone('square', n, n, 0.12, 0.14, i * 0.09));
         }
     }
+    oneUp() {
+        const notes = [659.25, 783.99, 1318.51, 1046.50, 1174.66, 1567.98];
+        notes.forEach((n, i) => this.tone('square', n, n, 0.11, 0.14, i * 0.09));
+    }
+    tallyTick() {
+        this.tone('square', 880, 940, 0.035, 0.08, 0);
+    }
+    tallyDone() {
+        this.noise(0.14, 2400, 0.12);
+        this.tone('square', 1046.5, 1046.5, 0.22, 0.14, 0);
+        this.tone('triangle', 1567.98, 1567.98, 0.28, 0.14, 0.04);
+    }
+    gameOver() {
+        this.pauseBGM();
+        const notes = [392.00, 349.23, 329.63, 293.66, 261.63];
+        notes.forEach((n, i) => this.tone('triangle', n, n * 0.96, i === 4 ? 0.55 : 0.24, 0.16, i * 0.24));
+    }
 }
 const audio = new RetroAudio();
 
@@ -273,7 +292,7 @@ class InputHandler {
         this.actions = [];
         const KEY = {
             ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowDown: 'down', KeyS: 'down',
-            Space: 'jump', KeyZ: 'jump', KeyX: 'jump', KeyC: 'jump',
+            Space: 'jump', KeyZ: 'jump', KeyX: 'jump', KeyC: 'jump', Enter: 'jump',
         };
         const SWALLOW = new Set([...Object.keys(KEY), 'ArrowUp', 'Tab']);
         window.addEventListener('keydown', (e) => {
@@ -451,7 +470,8 @@ const COMMON_SPRITES = {
         shoes:  { x: 24, y: 564, w: 16, h: 16 },
         shield: { x: 48, y: 564, w: 16, h: 16 },
         invinc: { x: 72, y: 564, w: 16, h: 16 },
-        oneUp:  { x: 96, y: 564, w: 16, h: 16 }
+        oneUp:  { x: 96, y: 564, w: 16, h: 16 },
+        '1up':  { x: 96, y: 564, w: 16, h: 16 }
     },
     checkpointBase: { x: 132, y: 534, w: 16, h: 48 },
     checkpointBlue: { x: 132, y: 486, w: 16, h: 16 },
@@ -494,7 +514,19 @@ const COMMON_SPRITES = {
     goalEdge:     { x: 340, y: 706, w: 8,  h: 48 },
     goalDiag2:    { x: 356, y: 706, w: 32, h: 48 },
     goalSonicTop: { x: 244, y: 734, w: 48, h: 32 },
-    goalPostStub: { x: 340, y: 738, w: 8,  h: 16 }
+    goalPostStub: { x: 340, y: 738, w: 8,  h: 16 },
+    gameWord:     { x: 472, y: 407, w: 62, h: 16 },
+    overWord:     { x: 552, y: 407, w: 62, h: 16 },
+    timeWord:     { x: 476, y: 431, w: 54, h: 16 },
+    capsuleIdle: [
+        { x: 408, y: 678, w: 64, h: 77 },
+        { x: 480, y: 678, w: 64, h: 77 }
+    ],
+    capsuleOpen: [
+        { x: 408, y: 763, w: 64, h: 69 },
+        { x: 480, y: 763, w: 64, h: 69 }
+    ],
+    capsuleBroken: { x: 408, y: 840, w: 64, h: 32 }
 };
 
 class Game {
@@ -548,6 +580,11 @@ class Game {
             rock: this.makeChecker('#6b3a17', '#5a3013', 20),
         };
 
+        this.fadeAlpha = 1;
+        this.titleCard = null;
+        this.actClear = null;
+        this.gameOverTimer = 0;
+
         const urlStage = new URLSearchParams(window.location.search).get('stage');
         const defaultStage = (urlStage && (urlStage === 'palmtree' || urlStage === 'test' || Terrain.LEVELS[urlStage]))
             ? urlStage
@@ -560,12 +597,77 @@ class Game {
         requestAnimationFrame((t) => this.frame(t));
     }
 
-    loadStage(stageName) {
+    getStageMeta(stageName = this.stageName, def = this.terrain && this.terrain.levelDef) {
+        if (def) {
+            return {
+                zone: def.zone || 1,
+                zoneName: String(def.zoneName || def.title || stageName).toUpperCase(),
+                act: def.act || 1,
+                isBossAct: !!def.isBossAct,
+                showTitleCard: def.showTitleCard !== false,
+            };
+        }
+        if (stageName === 'palmtree') {
+            return {
+                zone: 1,
+                zoneName: 'PALMTREE PANIC',
+                act: 1,
+                isBossAct: false,
+                showTitleCard: true,
+            };
+        }
+        return {
+            zone: 0,
+            zoneName: 'PHYSICS SANDBOX',
+            act: 1,
+            isBossAct: false,
+            showTitleCard: false,
+        };
+    }
+
+    getCampaignStages() {
+        if (window.CAMPAIGN_STAGES && window.CAMPAIGN_STAGES.length) return window.CAMPAIGN_STAGES;
+        const customIds = Object.keys(Terrain.LEVELS || {}).filter((id) => {
+            const d = Terrain.LEVELS[id];
+            return !d || d.inCampaign !== false;
+        });
+        return ['palmtree', ...customIds];
+    }
+
+    getNextCampaignStage(stageName = this.stageName) {
+        const def = this.terrain && this.terrain.levelDef;
+        if (def && def.nextStage !== undefined) return def.nextStage;
+        const list = this.getCampaignStages();
+        const idx = list.indexOf(stageName);
+        if (idx >= 0 && idx + 1 < list.length) return list[idx + 1];
+        return null;
+    }
+
+    unlockStageProgress(stageId) {
+        if (!stageId) return;
+        try {
+            const raw = localStorage.getItem('scar_unlocked_stages');
+            const arr = raw ? JSON.parse(raw) : ['palmtree'];
+            if (!arr.includes(stageId)) {
+                arr.push(stageId);
+                localStorage.setItem('scar_unlocked_stages', JSON.stringify(arr));
+            }
+        } catch (e) {}
+    }
+
+    loadStage(stageName, opts = {}) {
+        const prevPlayer = this.player;
+        const carryover = !!(opts && opts.carryover && prevPlayer);
+
         this.stageName = stageName;
+        this.unlockStageProgress(stageName);
         this.terrain = new Terrain(stageName);
         this.particles = [];
         this.cpIndex = 0;
         this.stageTime = 0;
+        this.actClear = null;
+        this.gameOverTimer = 0;
+        this.fadeAlpha = opts.skipFade ? 0 : 1.0;
 
         this.player = new Player(this.terrain, {
             jump: () => audio.jump(),
@@ -581,6 +683,8 @@ class Game {
             },
             ring: () => audio.ring(),
             ringLoss: () => audio.ringLoss(),
+            oneUp: () => audio.oneUp(),
+            gameOver: () => { this.gameOverTimer = 0; audio.gameOver(); },
             bouncePole: (bp, p) => { audio.bouncePole(); this.dust(p, 6, 1, 2.2); },
             spinner: () => audio.spinner(),
             breakWall: () => audio.shatter(),
@@ -595,10 +699,17 @@ class Game {
             goalPost: () => audio.goalPost(),
         });
 
+        if (carryover) {
+            this.player.lives = Math.max(1, prevPlayer.lives !== undefined ? prevPlayer.lives : 3);
+            this.player.score = prevPlayer.score || 0;
+            this.player.shield = !!prevPlayer.shield;
+        }
+
         this.camX = 0; this.camY = 0; this.look = 0;
         const def = this.terrain.levelDef;
         if (def) {
             if (def.bgm !== undefined) audio.setBGM(def.bgm);
+            else audio.setBGM('assets/level1.mp3');
             const th = def.theme || {};
             this.customPatterns = {
                 ground: this.makeChecker(th.groundA || '#5c3c20', th.groundB || '#422814', 16),
@@ -620,8 +731,28 @@ class Game {
             this.customEnemySheetLoaded = false;
             if (stageName === 'palmtree') audio.setBGM('assets/level1.mp3');
         }
+
+        const meta = this.getStageMeta(stageName, def);
+        this.titleCard = (meta.showTitleCard && !opts.skipTitleCard)
+            ? { timer: 140, max: 140, ...meta }
+            : null;
+
         this.snapCamera();
         this.updateStageButtons();
+    }
+
+    resetCurrentStage(fullRestart = false) {
+        if (fullRestart || (this.player && this.player.gameOver)) {
+            this.loadStage(this.stageName);
+            return;
+        }
+        if (this.terrain.resetObjects) this.terrain.resetObjects();
+        else if (this.terrain.stage === 'palmtree') this.terrain.setupPalmtreeObjects();
+        this.player.rings = 0;
+        this.player.nextLifeRings = 100;
+        this.stageTime = 0;
+        this.actClear = null;
+        this.gotoCheckpoint(0);
     }
 
     resize() {
@@ -697,12 +828,7 @@ class Game {
         blurAfter(hud, () => this.toggleDebug());
         blurAfter(aud, () => { audio.enabled = !audio.enabled; aud.textContent = `Audio: ${audio.enabled ? 'ON' : 'OFF'}`; aud.classList.toggle('on', audio.enabled); });
         blurAfter(cp, () => this.gotoCheckpoint((this.cpIndex + 1) % this.terrain.checkpoints.length));
-        blurAfter(rst, () => {
-            if (this.terrain.resetObjects) this.terrain.resetObjects();
-            else if (this.terrain.stage === 'palmtree') this.terrain.setupPalmtreeObjects();
-            this.player.rings = 0; this.player.score = 0; this.stageTime = 0;
-            this.gotoCheckpoint(0);
-        });
+        blurAfter(rst, () => this.resetCurrentStage());
     }
 
     getStageOrder() {
@@ -725,9 +851,12 @@ class Game {
     }
     updateStageButtons() {
         const stg = document.getElementById('btn-stage');
-        const label = this.terrain.levelDef
-            ? (this.terrain.levelDef.title || this.stageName)
-            : (this.stageName === 'palmtree' ? 'Act 1' : 'Physics Test');
+        const meta = this.getStageMeta();
+        const label = this.stageName === 'test'
+            ? 'Physics Test'
+            : (this.terrain.levelDef && this.terrain.levelDef.title)
+                ? this.terrain.levelDef.title
+                : `Zone ${meta.zone} Act ${meta.act}`;
         if (stg) stg.textContent = `Stage: ${label}`;
         this.updateEraButton();
         this.updateCpButton();
@@ -755,6 +884,98 @@ class Game {
         document.getElementById('btn-cp').textContent = `Checkpoint: ${c.name} (${this.cpIndex + 1})`;
     }
 
+    computeTimeBonus(sec) {
+        if (sec < 30) return 50000;
+        if (sec < 45) return 10000;
+        if (sec < 60) return 5000;
+        if (sec < 90) return 4000;
+        if (sec < 120) return 3000;
+        if (sec < 180) return 2000;
+        if (sec < 240) return 1000;
+        if (sec < 300) return 500;
+        return 0;
+    }
+
+    updateActClear(dt60, jumpPressed) {
+        const p = this.player;
+        if (!this.actClear) {
+            const meta = this.getStageMeta();
+            const nextStage = this.getNextCampaignStage();
+            if (nextStage) this.unlockStageProgress(nextStage);
+            this.actClear = {
+                phase: 'intro',
+                timer: 42,
+                tickAcc: 0,
+                timeBonus: this.computeTimeBonus(this.stageTime),
+                ringBonus: (p.rings || 0) * 100,
+                totalAdded: 0,
+                meta,
+                nextStage,
+            };
+        }
+        const ac = this.actClear;
+        if (ac.phase === 'intro') {
+            ac.timer -= dt60;
+            if (ac.timer <= 0 || jumpPressed) {
+                ac.phase = 'tally';
+                ac.timer = 0;
+            }
+        } else if (ac.phase === 'tally') {
+            if (jumpPressed && (ac.timeBonus > 0 || ac.ringBonus > 0)) {
+                const rem = ac.timeBonus + ac.ringBonus;
+                p.score = (p.score || 0) + rem;
+                ac.totalAdded += rem;
+                ac.timeBonus = 0;
+                ac.ringBonus = 0;
+                audio.tallyDone();
+                ac.phase = 'hold';
+                ac.timer = 85;
+                return false;
+            }
+            ac.tickAcc += dt60;
+            while (ac.tickAcc >= 2 && (ac.timeBonus > 0 || ac.ringBonus > 0)) {
+                ac.tickAcc -= 2;
+                let step = 0;
+                if (ac.timeBonus > 0) {
+                    const take = Math.min(100, ac.timeBonus);
+                    ac.timeBonus -= take;
+                    step += take;
+                }
+                if (ac.ringBonus > 0) {
+                    const take = Math.min(100, ac.ringBonus);
+                    ac.ringBonus -= take;
+                    step += take;
+                }
+                p.score = (p.score || 0) + step;
+                ac.totalAdded += step;
+                audio.tallyTick();
+            }
+            if (ac.timeBonus <= 0 && ac.ringBonus <= 0) {
+                audio.tallyDone();
+                ac.phase = 'hold';
+                ac.timer = 95;
+            }
+        } else if (ac.phase === 'hold') {
+            ac.timer -= dt60;
+            if (ac.nextStage) {
+                if (ac.timer <= 0 || (jumpPressed && ac.timer < 70)) {
+                    ac.phase = 'fadeOut';
+                }
+            } else if (jumpPressed && ac.timer < 75) {
+                // End of currently built campaign acts: loop back to Act 1 carrying over score & lives!
+                ac.nextStage = this.getCampaignStages()[0] || 'palmtree';
+                ac.phase = 'fadeOut';
+            }
+        } else if (ac.phase === 'fadeOut') {
+            this.fadeAlpha = Math.min(1, this.fadeAlpha + 0.04 * dt60);
+            if (this.fadeAlpha >= 1 && ac.nextStage) {
+                this.loadStage(ac.nextStage, { carryover: true });
+                return true;
+            }
+        }
+        return false;
+    }
+
     /* ---------------- main loop ---------------- */
     frame(now) {
         const dt = Math.min((now - this.last) / 1000, 0.05);
@@ -765,22 +986,65 @@ class Game {
 
         if (this.input.debugToggle) this.toggleDebug();
         for (const a of this.input.actions) {
-            if (a.type === 'reset') {
-                if (this.terrain.resetObjects) this.terrain.resetObjects();
-                else if (this.terrain.stage === 'palmtree') this.terrain.setupPalmtreeObjects();
-                this.player.rings = 0; this.player.score = 0; this.stageTime = 0;
-                this.gotoCheckpoint(0);
-            }
+            if (a.type === 'reset') this.resetCurrentStage();
             if (a.type === 'stage') this.toggleStage();
             if (a.type === 'era') this.cycleEra();
             if (a.type === 'checkpoint') this.gotoCheckpoint(a.index);
         }
 
-        if (!this.terrain.goalPost || !this.terrain.goalPost.cleared) {
-            this.stageTime += dt;
+        const snap = this.input.snapshot();
+
+        // Smooth fade-in whenever not fading out to next act
+        if (!this.actClear || this.actClear.phase !== 'fadeOut') {
+            if (this.fadeAlpha > 0) {
+                this.fadeAlpha = Math.max(0, this.fadeAlpha - 0.042 * this.dt60);
+            }
+        }
+        if (this.titleCard) {
+            this.titleCard.timer -= this.dt60;
+            if (this.titleCard.timer <= 0) this.titleCard = null;
         }
 
-        this.player.update(this.input.snapshot(), dt);
+        const T = this.terrain;
+        const stageCleared = !!((T.goalPost && T.goalPost.cleared) || (T.capsule && T.capsule.cleared));
+
+        if (!stageCleared && !this.player.gameOver) {
+            this.stageTime += dt;
+            if (this.stageTime >= 600) {
+                this.player.loseLife('TIME OVER');
+                if (!this.player.gameOver) {
+                    this.stageTime = 0;
+                } else {
+                    this.stageTime = 600;
+                }
+            }
+        }
+
+        if (this.player.gameOver) {
+            this.gameOverTimer = (this.gameOverTimer || 0) + this.dt60;
+            if (this.gameOverTimer > 42 && snap.jumpPressed) {
+                this.input.endFrame();
+                this.loadStage(this.stageName);
+                this.render();
+                requestAnimationFrame((t) => this.frame(t));
+                return;
+            }
+        }
+
+        if (stageCleared) {
+            const switched = this.updateActClear(this.dt60, snap.jumpPressed);
+            if (switched) {
+                this.input.endFrame();
+                this.render();
+                requestAnimationFrame((t) => this.frame(t));
+                return;
+            }
+        }
+
+        const playerInput = (stageCleared || this.player.gameOver)
+            ? { left: false, right: false, down: false, jumpHeld: false, jumpPressed: false }
+            : snap;
+        this.player.update(playerInput, dt);
         this.input.endFrame();
 
         const p = this.player;
@@ -900,6 +1164,14 @@ class Game {
         if (this.terrain.stage === 'palmtree') this.drawZoneMapRadar(ctx);
         if (this.showDebug) this.drawHUD(ctx);
         this.drawControlsHint(ctx);
+        this.drawActClearOverlay(ctx);
+        this.drawGameOverOverlay(ctx);
+
+        if (this.fadeAlpha > 0.005) {
+            ctx.fillStyle = `rgba(0, 0, 0, ${Math.min(1, this.fadeAlpha).toFixed(3)})`;
+            ctx.fillRect(0, 0, this.W, this.H);
+        }
+        this.drawTitleCard(ctx);
     }
 
     drawBackground(mainCtx) {
@@ -1670,6 +1942,12 @@ class Game {
         if (T.goalPost && T.goalPost.x + 60 >= this.view.x0 && T.goalPost.x - 60 <= this.view.x1) {
             this.drawGoalPost(ctx, T.goalPost);
         }
+        if (T.capsule && T.capsule.x + 70 >= this.view.x0 && T.capsule.x - 70 <= this.view.x1) {
+            this.drawCapsuleObj(ctx, T.capsule);
+        }
+        if (T.boss && T.boss.x + 120 >= this.view.x0 && T.boss.x - 120 <= this.view.x1) {
+            this.drawBossObj(ctx, T.boss);
+        }
 
         // 12. Rings & Scattered Rings
         for (const r of T.rings) {
@@ -1719,8 +1997,12 @@ class Game {
                 const f = COMMON_SPRITES.explosions[idx];
                 ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, Math.round(d.x - f.w / 2), Math.round(d.y - f.h / 2), f.w, f.h);
             } else if (d.kind === 'monitorIcon' && this.commonSheetLoaded) {
-                const f = COMMON_SPRITES.monitorIcons[d.item] || COMMON_SPRITES.monitorIcons.rings;
-                ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, Math.round(d.x - 8), Math.round(d.y - 8), f.w, f.h);
+                if ((d.item === '1up' || d.item === 'oneUp') && this.scarSheetLoaded) {
+                    this.drawScarMiniIcon(ctx, Math.round(d.x - 8), Math.round(d.y - 8), 16, 16, true);
+                } else {
+                    const f = COMMON_SPRITES.monitorIcons[d.item] || COMMON_SPRITES.monitorIcons.rings;
+                    ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, Math.round(d.x - 8), Math.round(d.y - 8), f.w, f.h);
+                }
             } else if (d.kind === 'rockChunk') {
                 ctx.fillStyle = '#9aa4b0';
                 ctx.beginPath(); ctx.arc(d.x, d.y, 5, 0, TAU); ctx.fill();
@@ -1778,6 +2060,25 @@ class Game {
         }
     }
 
+    drawScarMiniIcon(ctx, x, y, w = 16, h = 16, withBg = false) {
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        if (withBg) {
+            ctx.fillStyle = '#101830';
+            ctx.fillRect(x, y, w, h);
+            ctx.strokeStyle = '#00e5ff';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+        }
+        if (this.scarSheetLoaded && this.scarSheet.complete && this.scarSheet.naturalWidth > 0) {
+            ctx.drawImage(this.scarSheet, 10, 8, 28, 24, x, y, w, h);
+        } else if (this.commonSheetLoaded) {
+            const f = COMMON_SPRITES.monitorIcons.oneUp;
+            ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, x, y, w, h);
+        }
+        ctx.restore();
+    }
+
     drawMonitorObj(ctx, m) {
         if (!this.commonSheetLoaded) return;
         const x = Math.round(m.x), y = Math.round(m.y);
@@ -1790,10 +2091,73 @@ class Game {
         ctx.drawImage(this.commonSheet, box.x, box.y, box.w, box.h, x - 15, y - 30, box.w, box.h);
         // Classic Sonic monitor screen: mostly shows the item icon, with brief static flicker
         const tick = Math.floor(this.terrain.clock * 0.25) % 8;
-        const scr = (tick === 0)
-            ? COMMON_SPRITES.monitorStatic[Math.floor(this.terrain.clock) % 3]
-            : (COMMON_SPRITES.monitorIcons[m.item] || COMMON_SPRITES.monitorIcons.rings);
-        ctx.drawImage(this.commonSheet, scr.x, scr.y, scr.w, scr.h, x - 8, y - 25, scr.w, scr.h);
+        if (tick === 0) {
+            const scr = COMMON_SPRITES.monitorStatic[Math.floor(this.terrain.clock) % 3];
+            ctx.drawImage(this.commonSheet, scr.x, scr.y, scr.w, scr.h, x - 8, y - 25, scr.w, scr.h);
+        } else if (m.item === '1up' || m.item === 'oneUp') {
+            this.drawScarMiniIcon(ctx, x - 8, y - 25, 16, 16, true);
+        } else {
+            const scr = COMMON_SPRITES.monitorIcons[m.item] || COMMON_SPRITES.monitorIcons.rings;
+            ctx.drawImage(this.commonSheet, scr.x, scr.y, scr.w, scr.h, x - 8, y - 25, scr.w, scr.h);
+        }
+    }
+
+    drawCapsuleObj(ctx, cap) {
+        const x = Math.round(cap.x), y = Math.round(cap.y);
+        const T = this.terrain;
+        if (this.commonSheetLoaded) {
+            ctx.save();
+            ctx.imageSmoothingEnabled = false;
+            const blink = Math.floor(T.clock * 0.2) % 2;
+            if (!cap.opened) {
+                const f = COMMON_SPRITES.capsuleIdle[blink];
+                ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, x - 32, y - f.h, f.w, f.h);
+            } else {
+                const f = COMMON_SPRITES.capsuleOpen[blink];
+                ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, x - 32, y - f.h, f.w, f.h);
+                // Hopping rescued critters & sparkles once capsule opens!
+                const elapsed = Math.max(0, 85 - (cap.openTimer || 0));
+                if (elapsed > 14) {
+                    const colors = ['#4fc3f7', '#ffb74d', '#f06292', '#aed581'];
+                    for (let i = 0; i < 4; i++) {
+                        const dir = i % 2 === 0 ? -1 : 1;
+                        const spd = 1.1 + (i % 3) * 0.45;
+                        const tHop = Math.max(0, elapsed - 14 - i * 5);
+                        const ax = x + dir * tHop * spd;
+                        const ay = (y - 18) - Math.abs(Math.sin(tHop * 0.22)) * 22;
+                        ctx.fillStyle = colors[i];
+                        ctx.beginPath(); ctx.arc(ax, ay, 5, 0, TAU); ctx.fill();
+                        ctx.fillStyle = '#fff';
+                        ctx.fillRect(ax + dir * 1, ay - 2, 2, 2);
+                    }
+                }
+            }
+            ctx.restore();
+            return;
+        }
+        ctx.fillStyle = '#546e7a';
+        ctx.fillRect(x - 28, y - 60, 56, 60);
+        ctx.fillStyle = cap.opened ? '#66bb6a' : '#ffd54f';
+        ctx.fillRect(x - 14, y - (cap.opened ? 64 : 72), 28, 12);
+    }
+
+    drawBossObj(ctx, boss) {
+        const def = this.terrain.levelDef;
+        if (def && typeof def.drawBoss === 'function') {
+            def.drawBoss(ctx, boss, this);
+            return;
+        }
+        if (boss.defeated && boss.hidden) return;
+        ctx.save();
+        ctx.translate(Math.round(boss.x || 0), Math.round(boss.y || 0));
+        if (boss.flashTimer && boss.flashTimer > 0 && Math.floor(boss.flashTimer) % 2 === 0) {
+            ctx.globalAlpha = 0.45;
+        }
+        ctx.fillStyle = '#37474f';
+        ctx.strokeStyle = '#ffeb3b';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.ellipse(0, 0, 32, 22, 0, 0, TAU); ctx.fill(); ctx.stroke();
+        ctx.restore();
     }
 
     drawSpringObj(ctx, sp) {
@@ -2299,20 +2663,212 @@ class Game {
             ctx.fillText(`WARP → ${T.timeWarpTarget.toUpperCase()} (${Math.round(pct * 100)}%)`, 235, 28);
         }
 
-        // Act Clear overlay banner
-        if (T.goalPost && T.goalPost.cleared) {
-            this.panel(ctx, this.W / 2 - 210, 130, 420, 110);
-            ctx.textAlign = 'center';
-            ctx.font = 'bold 20px Courier New';
-            ctx.fillStyle = '#ffeb3b';
-            ctx.fillText('SCAR GOT THROUGH', this.W / 2, 165);
-            ctx.fillStyle = '#00e5ff';
-            ctx.fillText('STAGE ACT 1', this.W / 2, 192);
-            ctx.font = 'bold 13px Courier New';
-            ctx.fillStyle = '#fff';
-            ctx.fillText(`FINAL SCORE: ${p.score}   ·   PRESS R TO PLAY AGAIN`, this.W / 2, 222);
+        // Classic Lives Badge (SCAR × 03)
+        this.panel(ctx, 12, 100, 134, 34);
+        this.drawScarMiniIcon(ctx, 20, 107, 22, 20, true);
+        ctx.font = 'bold 11px Courier New';
+        ctx.fillStyle = '#000'; ctx.fillText('SCAR', 51, 114);
+        ctx.fillStyle = '#ffeb3b'; ctx.fillText('SCAR', 50, 113);
+        const livesVal = `× ${String(Math.max(0, p.lives !== undefined ? p.lives : 3)).padStart(2, '0')}`;
+        ctx.font = 'bold 14px Courier New';
+        ctx.fillStyle = '#000'; ctx.fillText(livesVal, 51, 129);
+        ctx.fillStyle = '#fff'; ctx.fillText(livesVal, 50, 128);
+    }
+
+    drawActClearOverlay(ctx) {
+        const ac = this.actClear;
+        if (!ac) return;
+        const p = this.player;
+        const cx = this.W / 2;
+        const slideProg = ac.phase === 'intro' ? clamp01(1 - ac.timer / 42) : 1;
+        const ease = 1 - Math.pow(1 - slideProg, 3);
+        const offX = Math.round((1 - ease) * 520);
+
+        this.panel(ctx, cx - 235 + offX, 118, 470, 198);
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.font = 'bold 22px Courier New';
+        ctx.fillStyle = '#000'; ctx.fillText('SCAR GOT THROUGH', cx + 2 - offX, 154);
+        ctx.fillStyle = '#ffeb3b'; ctx.fillText('SCAR GOT THROUGH', cx - offX, 152);
+
+        const subTitle = (ac.meta.isBossAct || ac.meta.act === 3)
+            ? `${ac.meta.zoneName} — ZONE ${ac.meta.zone} CLEAR!`
+            : `${ac.meta.zoneName}   ACT ${ac.meta.act}`;
+        ctx.font = 'bold 18px Courier New';
+        ctx.fillStyle = '#000'; ctx.fillText(subTitle, cx + 2 + offX, 180);
+        ctx.fillStyle = '#00e5ff'; ctx.fillText(subTitle, cx + offX, 178);
+
+        const drawTallyRow = (label, val, y, badgeCol) => {
+            const lx = cx - 175 + offX, rx = cx + 175 + offX;
+            ctx.fillStyle = badgeCol;
+            ctx.fillRect(lx - 6, y - 13, 14, 14);
             ctx.textAlign = 'left';
+            ctx.font = 'bold 15px Courier New';
+            ctx.fillStyle = '#000'; ctx.fillText(label, lx + 17, y + 1);
+            ctx.fillStyle = '#ffeb3b'; ctx.fillText(label, lx + 16, y);
+            ctx.textAlign = 'right';
+            const sVal = String(val).padStart(6, '0');
+            ctx.fillStyle = '#000'; ctx.fillText(sVal, rx + 1, y + 1);
+            ctx.fillStyle = '#fff'; ctx.fillText(sVal, rx, y);
+        };
+
+        drawTallyRow('TIME BONUS', ac.timeBonus, 214, '#29b6f6');
+        drawTallyRow('RING BONUS', ac.ringBonus, 240, '#ffd54f');
+        drawTallyRow('TOTAL SCORE', p.score || 0, 268, '#ef5350');
+
+        ctx.textAlign = 'center';
+        ctx.font = 'bold 12px Courier New';
+        ctx.fillStyle = '#b2ebf2';
+        if (ac.phase === 'tally' || ac.phase === 'intro') {
+            ctx.fillText('PRESS JUMP TO FAST-FORWARD TALLY', cx, 298);
+        } else if (ac.nextStage) {
+            ctx.fillText('ADVANCING TO NEXT ACT...', cx, 298);
+        } else {
+            ctx.fillText(`ZONE ${ac.meta.zone} COMPLETE!  ·  PRESS JUMP TO CONTINUE OR R TO REPLAY`, cx, 298);
         }
+        ctx.restore();
+    }
+
+    drawGameOverOverlay(ctx) {
+        const p = this.player;
+        if (!p || !p.gameOver) return;
+        const t = clamp01((this.gameOverTimer || 0) / 34);
+        const ease = 1 - Math.pow(1 - t, 3);
+
+        ctx.save();
+        ctx.fillStyle = `rgba(4, 8, 18, ${(0.64 * ease).toFixed(3)})`;
+        ctx.fillRect(0, 0, this.W, this.H);
+
+        const isTimeOver = p.gameOverReason === 'TIME OVER';
+        const cy = Math.round(this.H / 2 - 28);
+        const scale = 3.5;
+
+        if (this.commonSheetLoaded) {
+            ctx.imageSmoothingEnabled = false;
+            const leftRect = isTimeOver ? COMMON_SPRITES.timeWord : COMMON_SPRITES.gameWord;
+            const rightRect = COMMON_SPRITES.overWord;
+            const lw = Math.round(leftRect.w * scale), lh = Math.round(leftRect.h * scale);
+            const rw = Math.round(rightRect.w * scale), rh = Math.round(rightRect.h * scale);
+            const gap = 26;
+            const totalW = lw + gap + rw;
+            const targetLeftX = Math.round((this.W - totalW) / 2);
+            const targetRightX = targetLeftX + lw + gap;
+
+            const curLeftX = Math.round(-lw - 40 + (targetLeftX - (-lw - 40)) * ease);
+            const curRightX = Math.round((this.W + 40) + (targetRightX - (this.W + 40)) * ease);
+
+            ctx.drawImage(this.commonSheet, leftRect.x, leftRect.y, leftRect.w, leftRect.h, curLeftX, cy - Math.floor(lh / 2), lw, lh);
+            ctx.drawImage(this.commonSheet, rightRect.x, rightRect.y, rightRect.w, rightRect.h, curRightX, cy - Math.floor(rh / 2), rw, rh);
+        } else {
+            ctx.textAlign = 'center';
+            ctx.font = 'bold 48px Courier New';
+            const word = isTimeOver ? 'TIME OVER' : 'GAME OVER';
+            ctx.fillStyle = '#000'; ctx.fillText(word, this.W / 2 + 3, cy + 16);
+            ctx.fillStyle = '#ff5252'; ctx.fillText(word, this.W / 2, cy + 13);
+        }
+
+        if ((this.gameOverTimer || 0) > 42 && Math.floor(performance.now() / 320) % 2 === 0) {
+            ctx.textAlign = 'center';
+            ctx.font = 'bold 15px Courier New';
+            ctx.fillStyle = '#000';
+            ctx.fillText('PRESS JUMP OR R TO CONTINUE', this.W / 2 + 2, cy + 66);
+            ctx.fillStyle = '#ffeb3b';
+            ctx.fillText('PRESS JUMP OR R TO CONTINUE', this.W / 2, cy + 64);
+        }
+        ctx.restore();
+    }
+
+    drawTitleCard(ctx) {
+        const tc = this.titleCard;
+        if (!tc) return;
+        const elapsed = tc.max - tc.timer;
+        let prog = 1;
+        if (elapsed < 22) {
+            const u = clamp01(elapsed / 22);
+            prog = 1 - Math.pow(1 - u, 3);
+        } else if (tc.timer < 26) {
+            const u = clamp01(tc.timer / 26);
+            prog = Math.pow(u, 3);
+        }
+
+        const offLeft = Math.round((1 - prog) * 480);
+        const offRight = Math.round((1 - prog) * 640);
+        const offTop = Math.round((1 - prog) * 320);
+
+        ctx.save();
+        // 1. Classic Sonic vertical crimson geometric ribbon on left
+        const rx = 205 - offLeft;
+        ctx.fillStyle = '#d50000';
+        ctx.beginPath();
+        ctx.moveTo(rx, -20 - offTop);
+        ctx.lineTo(rx + 86, -20 - offTop);
+        ctx.lineTo(rx + 60, 395 - offTop);
+        ctx.lineTo(rx - 26, 395 - offTop);
+        ctx.closePath();
+        ctx.fill();
+
+        // Gold & white accent stripes along the crimson pennant
+        ctx.fillStyle = '#ffd600';
+        ctx.beginPath();
+        ctx.moveTo(rx + 74, -20 - offTop);
+        ctx.lineTo(rx + 86, -20 - offTop);
+        ctx.lineTo(rx + 60, 395 - offTop);
+        ctx.lineTo(rx + 48, 395 - offTop);
+        ctx.closePath();
+        ctx.fill();
+
+        // Mini Scar emblem on the ribbon
+        this.drawScarMiniIcon(ctx, rx + 12, 128 - offTop, 36, 32, true);
+
+        // 2. Royal-navy horizontal Zone Name bar sliding in from the right
+        const bx = 225 + offRight, by = 178, bw = 535, bh = 104;
+        ctx.fillStyle = 'rgba(8, 20, 52, 0.95)';
+        ctx.fillRect(bx, by, bw, bh);
+        ctx.strokeStyle = '#00e5ff';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(bx, by, bw, bh);
+        ctx.fillStyle = '#ffd600';
+        ctx.fillRect(bx, by + bh - 8, bw, 8);
+
+        // Zone Title Text (3D 16-bit shadow)
+        ctx.textAlign = 'left';
+        const titleFont = tc.zoneName.length > 15 ? 'bold 28px Courier New' : 'bold 34px Courier New';
+        ctx.font = titleFont;
+        ctx.fillStyle = '#000';
+        ctx.fillText(tc.zoneName, bx + 26, by + 46);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(tc.zoneName, bx + 23, by + 43);
+
+        ctx.font = 'bold 22px Courier New';
+        ctx.fillStyle = '#000';
+        ctx.fillText('ZONE', bx + 28, by + 79);
+        ctx.fillStyle = '#ffd600';
+        ctx.fillText('ZONE', bx + 25, by + 76);
+
+        if (tc.isBossAct) {
+            ctx.font = 'bold 13px Courier New';
+            ctx.fillStyle = '#ff5252';
+            ctx.fillText('★ BOSS ACT ★', bx + 112, by + 75);
+        }
+
+        // 3. Golden Act Medallion on the right end of the bar
+        const mx = bx + bw - 68, my = by + 50;
+        ctx.fillStyle = '#ffd600';
+        ctx.beginPath(); ctx.arc(mx, my, 46, 0, TAU); ctx.fill();
+        ctx.lineWidth = 3.5;
+        ctx.strokeStyle = '#081434';
+        ctx.stroke();
+        ctx.fillStyle = '#081434';
+        ctx.textAlign = 'center';
+        ctx.font = 'bold 13px Courier New';
+        ctx.fillText('ACT', mx, my - 14);
+        ctx.font = 'bold 42px Courier New';
+        ctx.fillStyle = '#d50000';
+        ctx.fillText(String(tc.act), mx + 2, my + 24);
+        ctx.fillStyle = '#081434';
+        ctx.fillText(String(tc.act), mx, my + 22);
+
+        ctx.restore();
     }
 
     /** Live mini-map at bottom-left using the uploaded Sonic CD `palmtree_map.png`! */
@@ -2333,9 +2889,9 @@ class Game {
     drawHUD(ctx) {
         const p = this.player;
         const deg = toDeg(p.angle);
-        this.panel(ctx, 12, 102, 292, 246);
+        this.panel(ctx, 12, 140, 292, 246);
         ctx.font = 'bold 12px Courier New'; ctx.fillStyle = '#ffd700';
-        ctx.fillText('SONIC RETRO PHYSICS — DEBUG', 24, 121);
+        ctx.fillText('SONIC RETRO PHYSICS — DEBUG', 24, 159);
         ctx.font = '12px Courier New';
         const absG = Math.abs(p.gsp);
         const rows = [
@@ -2349,7 +2905,7 @@ class Game {
             ['SPIN REV', `${p.spindashRev.toFixed(2)} / 8`, p.spindashRev > 0 ? '#ff7a33' : '#888'],
             ['AIR MOTION', p.grounded ? '—' : p.airMotion, '#bbb'],
         ];
-        let y = 140;
+        let y = 178;
         for (const [k, v, c] of rows) {
             ctx.fillStyle = '#9cdcfe'; ctx.fillText(k, 24, y);
             ctx.fillStyle = c; ctx.fillText(v, 136, y);

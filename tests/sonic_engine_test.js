@@ -290,15 +290,69 @@ test('Full Palmtree Panic Act 1 run reaches and spins the Goal Signpost', () => 
     console.log(`      (cleared Palmtree Panic Act 1 in ${(f / 60).toFixed(2)}s with ${p.rings} rings, score ${p.score})`);
 });
 
-console.log('\nModular Level Core Template');
-test('Blank Level Core Template registers and runs Scar through TVs, rings, checkpoint, and Goal Post', () => {
+console.log('\nModular Level Core Template & 3-Act Zone Architecture');
+test('Blank Level Core Template registers and runs Scar through Shield TV, 1-Up TV, rings, checkpoint, and Goal Post', () => {
     require('../templates/level_template.js');
     assert(Terrain.LEVELS.template, 'template level registered');
     const lt = new Terrain('template');
     const p = new Player(lt);
-    assert(lt.monitors.length === 1 && lt.springs.length === 1 && lt.starPosts.length === 1 && lt.goalPost, 'common objects loaded');
+    assert(p.lives === 3, `initial lives=${p.lives}`);
+    assert(lt.monitors.length === 2 && lt.springs.length === 1 && lt.starPosts.length === 1 && lt.goalPost, 'common objects loaded');
     const f = sim(p, 15, 60, spinDashThenRight, () => lt.goalPost.spinning || lt.goalPost.cleared);
-    assert(f !== null && p.shield === true && lt.starPosts[0].active, `cleared template in f=${f}, shield=${p.shield}`);
+    assert(f !== null && p.shield === true && p.lives === 4 && lt.starPosts[0].active, `cleared template in f=${f}, shield=${p.shield}, lives=${p.lives}`);
+});
+
+test('Classic Lives System grants 1-Up every 100 rings and triggers GAME OVER / TIME OVER at 0 lives', () => {
+    const lt = new Terrain('template');
+    let oneUps = 0, gameOverReason = null;
+    const p = new Player(lt, {
+        oneUp: () => oneUps++,
+        gameOver: (reason) => { gameOverReason = reason; },
+    });
+    assert(p.lives === 3 && !p.gameOver, 'starts with 3 lives');
+    p.addRings(99);
+    assert(p.lives === 3 && oneUps === 0, '99 rings not yet 1-Up');
+    p.addRings(1);
+    assert(p.lives === 4 && oneUps === 1, '100 rings grants +1 life');
+    p.addRings(100);
+    assert(p.lives === 5 && oneUps === 2, '200 rings grants second +1 life');
+
+    // Lose 4 lives -> still alive at 1 life
+    p.loseLife('GAME OVER');
+    p.loseLife('GAME OVER');
+    p.loseLife('GAME OVER');
+    p.loseLife('GAME OVER');
+    assert(p.lives === 1 && !p.gameOver, `lives=${p.lives} gameOver=${p.gameOver}`);
+
+    // Final life lost via TIME OVER -> triggers gameOver
+    p.loseLife('TIME OVER');
+    assert(p.lives === 0 && p.gameOver === true && gameOverReason === 'TIME OVER', `gameOver=${p.gameOver} reason=${gameOverReason}`);
+});
+
+test('Zone 1 Act 2 and Act 3 (Boss Act Animal Capsule) register and complete 3-Act Zone progression', () => {
+    require('../public/levels/zone1_act2.js');
+    require('../public/levels/zone1_act3.js');
+    require('../templates/boss_act_template.js');
+    assert(Terrain.LEVELS.z1_act2 && Terrain.LEVELS.z1_act3 && Terrain.LEVELS.boss_template, 'Act 2, Act 3 & Boss Template registered');
+    assert(Terrain.LEVELS.z1_act2.act === 2 && !Terrain.LEVELS.z1_act2.isBossAct, 'Act 2 metadata');
+    assert(Terrain.LEVELS.z1_act3.act === 3 && Terrain.LEVELS.z1_act3.isBossAct === true, 'Act 3 Boss metadata');
+
+    // Run Act 2 through Goal Post
+    const t2 = new Terrain('z1_act2');
+    const p2 = new Player(t2);
+    const f2 = sim(p2, 15, 60, spinDashThenRight, () => t2.goalPost.spinning || t2.goalPost.cleared);
+    assert(f2 !== null && p2.lives === 4, `cleared z1_act2 in f=${f2}, lives=${p2.lives}`);
+
+    // Drop Scar onto Act 3's Animal Capsule plunger button and verify it opens & clears!
+    const t3 = new Terrain('z1_act3');
+    const p3 = new Player(t3);
+    assert(t3.goalPost === null && t3.capsule && !t3.capsule.opened, 'Act 3 uses Animal Capsule instead of Goal Post');
+    p3.x = t3.capsule.x;
+    p3.y = t3.capsule.y - 110;
+    p3.state = STATE.AIRBORNE;
+    p3.curl();
+    const f3 = sim(p3, 5, 60, () => ({}), () => t3.capsule.cleared);
+    assert(f3 !== null && t3.capsule.opened && t3.capsule.cleared, `opened & cleared Act 3 Animal Capsule in f=${f3}`);
 });
 
 console.log(failures ? `\n${failures} FAILED\n` : '\nAll tests passed\n');

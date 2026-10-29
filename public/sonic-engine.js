@@ -424,6 +424,7 @@
             this.spikeClusters = [];
             this.bigRing = null;
             this.goalPost = null;
+            this.capsule = null;
             this.boss = null;
             this.debris = [];
             this.splashes = [];
@@ -548,13 +549,29 @@
             }));
             this.spikeClusters = (src.spikeClusters || []).map((d) => ({ x: d.x, y: d.y }));
             this.bigRing = src.bigRing ? { x: src.bigRing.x, y: src.bigRing.y, collected: false, flashTimer: 0 } : null;
-            this.goalPost = src.goalPost !== null
+            this.goalPost = (src.goalPost !== null && !def.isBossAct) || (src.goalPost && typeof src.goalPost === 'object')
                 ? {
                     x: src.goalPost ? src.goalPost.x : (this.endX - 250),
                     y: src.goalPost ? src.goalPost.y : (this.mainFloor ? this.mainFloor.f(this.endX - 250) : 600),
                     spinning: false, cleared: false, spinTimer: 0, angle: 0,
                 }
                 : null;
+
+            // Optional Animal Capsule (used in Act 3 Boss Acts to finish the Zone after boss defeat)
+            if (src.capsule) {
+                const cx = src.capsule.x, cy = src.capsule.y;
+                const topSurf = addObjSurface(new LineSurface(cx - 28, cy - 60, cx + 28, cy - 60, 0, -1, -1, 'capsule top', { oneWay: true }));
+                const leftSurf = addObjSurface(new LineSurface(cx - 30, cy - 60, cx - 30, cy, -1, 0, -1, 'capsule L'));
+                const rightSurf = addObjSurface(new LineSurface(cx + 30, cy - 60, cx + 30, cy, 1, 0, -1, 'capsule R'));
+                this.capsule = {
+                    x: cx, y: cy,
+                    lockedUntilBoss: src.capsule.lockedUntilBoss !== undefined ? !!src.capsule.lockedUntilBoss : false,
+                    opened: false, cleared: false, openTimer: 0,
+                    topSurf, leftSurf, rightSurf,
+                };
+            } else {
+                this.capsule = null;
+            }
 
             // Rings (individual coordinates + convenience line/surface/loop helpers)
             this.rings = (src.rings || []).map((r) => ({ x: r.x, y: r.y, collected: false }));
@@ -1130,6 +1147,7 @@
             this.monitors = [
                 { x: 205,  y: 420, item: 'shield', broken: false },
                 { x: 640,  y: 250, item: 'rings',  broken: false },
+                { x: 1480, y: 250, item: '1up',    broken: false },
                 { x: 1580, y: 742, item: 'shoes',  broken: false },
                 { x: 2460, y: 540, item: 'shield', broken: false },
                 { x: 3240, y: 340, item: 'invinc', broken: false },
@@ -1138,6 +1156,7 @@
                 { x: 6140, y: 742, item: 'shield', broken: false },
                 { x: 7060, y: 300, item: 'rings',  broken: false },
                 { x: 8300, y: 530, item: 'shoes',  broken: false },
+                { x: 8580, y: 530, item: '1up',    broken: false },
                 { x: 9360, y: 574, item: 'rings',  broken: false },
             ];
             this.springs = [
@@ -1481,10 +1500,10 @@
             for (const r of this.rings) {
                 if (!r.collected && Math.hypot(player.x - r.x, player.y - r.y) < 22) {
                     r.collected = true;
-                    player.rings = (player.rings || 0) + 1;
                     player.score = (player.score || 0) + 10;
                     this.debris.push({ kind: 'ringSparkle', x: r.x, y: r.y, vx: 0, vy: 0, life: 16, maxLife: 16 });
-                    player.emit('ring', player.rings);
+                    if (player.addRings) player.addRings(1);
+                    else { player.rings = (player.rings || 0) + 1; player.emit('ring', player.rings); }
                 }
             }
             for (let i = this.scatteredRings.length - 1; i >= 0; i--) {
@@ -1499,9 +1518,9 @@
                     sr.vy = -sr.vy * 0.72;
                 }
                 if (sr.life < 130 && player.invulnTimer < 90 && Math.hypot(player.x - sr.x, player.y - sr.y) < 22) {
-                    player.rings = (player.rings || 0) + 1;
                     this.debris.push({ kind: 'ringSparkle', x: sr.x, y: sr.y, vx: 0, vy: 0, life: 16, maxLife: 16 });
-                    player.emit('ring', player.rings);
+                    if (player.addRings) player.addRings(1);
+                    else { player.rings = (player.rings || 0) + 1; player.emit('ring', player.rings); }
                     this.scatteredRings.splice(i, 1);
                     continue;
                 }
@@ -1563,9 +1582,9 @@
                             this.debris.push({ kind: 'explosion', x: mx, y: my, vx: 0, vy: 0, life: 20, maxLife: 20 });
                             this.debris.push({ kind: 'monitorIcon', item: m.item, x: mx, y: my - 4, vx: 0, vy: -1.1, life: 32, maxLife: 32 });
                             if (m.item === 'rings') {
-                                player.rings = (player.rings || 0) + 10;
                                 player.score = (player.score || 0) + 100;
-                                player.emit('ring', player.rings);
+                                if (player.addRings) player.addRings(10);
+                                else { player.rings = (player.rings || 0) + 10; player.emit('ring', player.rings); }
                             } else if (m.item === 'shield') {
                                 player.shield = true;
                                 player.score = (player.score || 0) + 100;
@@ -1578,6 +1597,9 @@
                                     player.gsp = (player.facing || 1) * 9.5;
                                 }
                                 player.score = (player.score || 0) + 100;
+                            } else if (m.item === '1up' || m.item === 'oneUp') {
+                                if (player.addLife) player.addLife();
+                                else player.lives = (player.lives || 3) + 1;
                             }
                             player.emit('enemyPop', m);
                         }
@@ -1613,10 +1635,44 @@
                 if (!br.collected && Math.hypot(player.x - br.x, player.y - br.y) < 38) {
                     br.collected = true;
                     br.flashTimer = 28;
-                    player.rings = (player.rings || 0) + 50;
                     player.score = (player.score || 0) + 10000;
                     this.popups.push({ x: br.x, y: br.y - 28, text: '+10000', life: 60 });
-                    player.emit('ring', player.rings);
+                    if (player.addRings) player.addRings(50);
+                    else { player.rings = (player.rings || 0) + 50; player.emit('ring', player.rings); }
+                }
+            }
+            if (this.capsule) {
+                const cap = this.capsule;
+                const unlocked = !cap.lockedUntilBoss || !this.boss || this.boss.defeated;
+                if (!cap.opened && unlocked) {
+                    if (Math.abs(player.x - cap.x) < 26 && feetY >= cap.y - 80 && feetY <= cap.y - 54 && player.ysp >= -1.0) {
+                        cap.opened = true;
+                        cap.openTimer = 85;
+                        player.ysp = -6.5;
+                        player.state = STATE.AIRBORNE;
+                        player.groundSurface = null;
+                        player.jumped = false;
+                        for (let k = 0; k < 4; k++) {
+                            this.debris.push({
+                                kind: 'explosion',
+                                x: cap.x + (k - 1.5) * 16,
+                                y: cap.y - 36 - (k % 2) * 16,
+                                vx: 0, vy: 0, delay: k * 6, life: 20, maxLife: 20,
+                            });
+                        }
+                        player.emit('goalPost', cap);
+                    }
+                }
+                if (cap.opened && !cap.cleared) {
+                    cap.openTimer -= h;
+                    if (cap.openTimer <= 55 && cap.topSurf && cap.topSurf.enabled) {
+                        cap.topSurf.enabled = false;
+                        cap.leftSurf.enabled = false;
+                        cap.rightSurf.enabled = false;
+                    }
+                    if (cap.openTimer <= 0) {
+                        cap.cleared = true;
+                    }
                 }
             }
 
@@ -1733,8 +1789,8 @@
                 player.ysp = -4.2;
                 player.emit('ringLoss', dropCount);
             } else {
-                player.emit('death');
-                player.respawn();
+                if (player.loseLife) player.loseLife('GAME OVER');
+                else { player.emit('death'); player.respawn(); }
             }
         }
 
@@ -1783,12 +1839,53 @@
             this.sensors = {};
             this.rings = 0;
             this.score = 0;
+            this.lives = 3;
+            this.nextLifeRings = 100;
+            this.gameOver = false;
+            this.gameOverReason = null;
             this.invulnTimer = 0;
             this.groundSurface = null;
             this.place(terrain.spawnX, 0, terrain.checkpoints[0] && terrain.checkpoints[0].y);
         }
 
         emit(name, data) { const fn = this.events[name]; if (fn) fn(data, this); }
+
+        addRings(n = 1) {
+            this.rings = (this.rings || 0) + n;
+            if (!this.nextLifeRings) this.nextLifeRings = 100;
+            while (this.rings >= this.nextLifeRings) {
+                this.nextLifeRings += 100;
+                this.addLife();
+            }
+            this.emit('ring', this.rings);
+        }
+
+        addLife() {
+            this.lives = (this.lives !== undefined ? this.lives : 3) + 1;
+            if (this.terrain && this.terrain.popups) {
+                this.terrain.popups.push({ x: this.x, y: this.y - 28, text: '1UP!', life: 55 });
+            }
+            this.emit('oneUp', this.lives);
+        }
+
+        loseLife(reason = 'GAME OVER') {
+            if (this.gameOver) return;
+            this.shield = false;
+            this.invincTimer = 0;
+            this.shoesTimer = 0;
+            this.rings = 0;
+            this.nextLifeRings = 100;
+            this.lives = Math.max(0, (this.lives !== undefined ? this.lives : 3) - 1);
+            this.emit('death', { lives: this.lives, reason });
+            if (this.lives <= 0) {
+                this.gameOver = true;
+                this.gameOverReason = reason;
+                this.gsp = 0; this.xsp = 0; this.ysp = 0;
+                this.emit('gameOver', reason);
+            } else {
+                this.respawn();
+            }
+        }
 
         get grounded() { return this.state !== STATE.AIRBORNE; }
         get radii() { return this.curled ? HITBOX.ROLL : HITBOX.STAND; }
@@ -1845,6 +1942,7 @@
         }
 
         step(inp, h, jumpPressed) {
+            if (this.gameOver) return;
             this.prevX = this.x;
             this.prevY = this.y;
             this.skidding = false;
@@ -1854,7 +1952,7 @@
             else this.stepGrounded(inp, h, jumpPressed);
             this.checkGates();
             this.updateCosmetics(h);
-            if (this.y > this.terrain.deathY) { this.emit('death'); this.respawn(); }
+            if (this.y > this.terrain.deathY) { this.loseLife('GAME OVER'); }
         }
 
         /* ---------- curl / uncurl (spec §2: ±5px toward the floor normal) ---------- */
