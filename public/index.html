@@ -51,7 +51,7 @@
     </div>
 </div>
 
-<div id="intro"><video id="intro-video" src="assets/intro.mp4" playsinline preload="auto"></video></div>
+<div id="intro"><video id="intro-video" src="assets/intro.mp4" playsinline preload="auto" autoplay></video></div>
 
 <audio id="bgm" src="assets/level1.mp3" loop preload="auto"></audio>
 <script>window.INTRO_ACTIVE = true; // level BGM stays silent until the intro is dismissed</script>
@@ -3318,15 +3318,14 @@ function crough(c) { return c * 0.6; }
 function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
 
 /* ==========================================================================
-   INTRO — plays the startup clip, then boots the game on PRESS START
-   (Enter / Space) or automatically when the clip ends.
+   INTRO — plays the startup clip with full audio, then boots the game on
+   PRESS START (Enter or Space) or automatically when the clip ends (~28s).
    ========================================================================== */
 function runIntro(onDone) {
     const wrap = document.getElementById('intro');
     const vid = document.getElementById('intro-video');
     const skip = new URLSearchParams(window.location.search).has('nointro');
     let finished = false;
-    let mutedFallback = false;
 
     const finish = () => {
         if (finished) return;
@@ -3343,7 +3342,27 @@ function runIntro(onDone) {
             setTimeout(() => { wrap.remove(); }, 500);
         }
     };
+
+    const playWithAudio = () => {
+        if (!vid) return;
+        vid.defaultMuted = false;
+        vid.muted = false;
+        vid.volume = 1.0;
+        const p = vid.play();
+        if (p && p.catch) {
+            p.catch(() => {
+                // If browser blocks unmuted autoplay on cold start, next key/click starts it with audio
+            });
+        }
+    };
+
     const onKey = (e) => {
+        // If the video was held paused due to browser autoplay restriction, start playing it with full audio
+        if (vid && vid.paused) {
+            playWithAudio();
+            if (vid.currentTime < 0.25) return;
+        }
+
         if (e.code === 'Space' || e.code === 'Enter' || e.code === 'NumpadEnter') {
             e.preventDefault();
             e.stopImmediatePropagation(); // don't let the start press leak into the game as a jump
@@ -3354,13 +3373,14 @@ function runIntro(onDone) {
             window.addEventListener('keydown', eatRepeat, true);
             window.addEventListener('keyup', release, true);
             finish();
-        } else if (mutedFallback && vid) {
-            vid.muted = false; mutedFallback = false; // any other key just turns the sound on
         }
     };
+
     const onPointer = (e) => {
-        // Touch/click: first tap un-mutes if the browser blocked sound, otherwise it's PRESS START.
-        if (mutedFallback && vid) { vid.muted = false; mutedFallback = false; return; }
+        if (vid && vid.paused) {
+            playWithAudio();
+            return;
+        }
         e.preventDefault();
         finish();
     };
@@ -3371,16 +3391,12 @@ function runIntro(onDone) {
     window.addEventListener('pointerdown', onPointer, true);
     vid.addEventListener('ended', finish, { once: true });
     vid.addEventListener('error', finish, { once: true });
+    vid.addEventListener('timeupdate', () => {
+        if (vid.currentTime >= 28.0) finish();
+    });
 
-    const p = vid.play();
-    if (p && p.catch) {
-        p.catch(() => {
-            // Browser blocked unmuted autoplay — play muted, sound comes on with first interaction.
-            vid.muted = true;
-            mutedFallback = true;
-            vid.play().catch(() => {});
-        });
-    }
+    // Ensure audio is unmuted and play
+    playWithAudio();
 }
 
 window.addEventListener('DOMContentLoaded', () => {
