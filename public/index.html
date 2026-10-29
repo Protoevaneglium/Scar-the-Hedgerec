@@ -23,6 +23,10 @@
                 color: #fff; font-size: 20px; font-weight: bold; touch-action: none; }
         .tbtn.active { background: rgba(40, 120, 240, 0.85); border-color: #fff; }
         .tbtn.jump { width: 76px; height: 76px; border-radius: 38px; background: rgba(220, 40, 40, 0.65); border-color: rgba(255, 140, 140, 0.8); font-size: 16px; }
+        /* Intro / startup sequence overlay (sits above everything until PRESS START) */
+        #intro { position: fixed; inset: 0; z-index: 100; background: #000; display: flex; align-items: center; justify-content: center; transition: opacity 0.45s ease; }
+        #intro.fade { opacity: 0; pointer-events: none; }
+        #intro video { width: 100%; height: 100%; object-fit: contain; background: #000; }
     </style>
 </head>
 <body>
@@ -47,7 +51,10 @@
     </div>
 </div>
 
-<audio id="bgm" src="assets/level1.mp3" loop autoplay preload="auto"></audio>
+<div id="intro"><video id="intro-video" src="assets/intro.mp4" playsinline preload="auto"></video></div>
+
+<audio id="bgm" src="assets/level1.mp3" loop preload="auto"></audio>
+<script>window.INTRO_ACTIVE = true; // level BGM stays silent until the intro is dismissed</script>
 
 <script src="sonic-engine.js"></script>
 <script src="levels/zone1_act2.js"></script>
@@ -166,6 +173,7 @@ class RetroAudio {
     }
     playBGM() {
         if (!this._enabled || !this.bgm || !this.bgm.getAttribute('src')) return;
+        if (window.INTRO_ACTIVE) return;
         if (this.bgm.paused) {
             const p = this.bgm.play();
             if (p && p.then) {
@@ -307,6 +315,14 @@ class RetroAudio {
         const notes = [392.00, 349.23, 329.63, 293.66, 261.63];
         notes.forEach((n, i) => this.tone('triangle', n, n * 0.96, i === 4 ? 0.55 : 0.24, 0.16, i * 0.24));
     }
+    faintWhistle() {
+        // Cartoon slide-whistle as Scar tips over
+        this.tone('sine', 1400, 260, 0.42, 0.13, 0);
+    }
+    faintThud() {
+        this.noise(0.16, 260, 0.2);
+        this.tone('triangle', 150, 55, 0.2, 0.22, 0);
+    }
 }
 const audio = new RetroAudio();
 
@@ -408,6 +424,15 @@ const SCAR_FRAMES = [
     { name: 'death1', sx: 240, anchorX: 23, anchorY: 47 }, // Shocked wide-eyed hands-up death leap
     { name: 'death2', sx: 288, anchorX: 23, anchorY: 47 }, // Head-back screaming hands-up death fall
 ];
+
+// Game Over fainting cutscene timeline (in 60 fps frames since GAME OVER began)
+const FAINT = {
+    standEnd: 24,     // stands dazed in the spotlight
+    toppleStart: 84,  // dizzy wobble ends, starts tipping over backwards
+    impact: 108,      // hits the ground (thud + dust)
+    settle: 126,      // finished bouncing, lies flat with dizzy stars
+};
+const GAME_OVER_CONTINUE_DELAY = 130;
 
 const ENEMY_FRAMES = {
     crab_idle:   { sx: 2,   sy: 2, w: 31, h: 22, ax: 16, ay: 22 },
@@ -728,6 +753,9 @@ class Game {
                 if (d && d.fromPit) {
                     this.camY = Math.max(this.camY, p.y - this.H + 44);
                 }
+                // Camera freezes on death: Scar must leap up and drop fully below the bottom
+                // edge of this frozen view (sprite is ~48px tall above his origin) before the life is lost.
+                p.deathOffscreenY = this.camY + this.H + 64;
             },
             oneUp: () => audio.oneUp(),
             gameOver: () => { this.gameOverTimer = 0; audio.gameOver(); },
@@ -1063,8 +1091,12 @@ class Game {
         }
 
         if (this.player.gameOver) {
-            this.gameOverTimer = (this.gameOverTimer || 0) + this.dt60;
-            if (this.gameOverTimer > 42 && snap.jumpPressed) {
+            const prevT = this.gameOverTimer || 0;
+            this.gameOverTimer = prevT + this.dt60;
+            // Fainting cutscene cues (see drawFaintingScar timeline)
+            if (prevT < FAINT.toppleStart && this.gameOverTimer >= FAINT.toppleStart) audio.faintWhistle();
+            if (prevT < FAINT.impact && this.gameOverTimer >= FAINT.impact) audio.faintThud();
+            if (this.gameOverTimer > GAME_OVER_CONTINUE_DELAY && snap.jumpPressed) {
                 this.input.endFrame();
                 this.loadStage(this.stageName);
                 this.render();
@@ -2963,11 +2995,12 @@ class Game {
         const ease = 1 - Math.pow(1 - t, 3);
 
         ctx.save();
-        ctx.fillStyle = `rgba(4, 8, 18, ${(0.64 * ease).toFixed(3)})`;
+        // Near-black Game Over screen (the frozen level fades out behind it)
+        ctx.fillStyle = `rgba(4, 6, 14, ${(0.97 * ease).toFixed(3)})`;
         ctx.fillRect(0, 0, this.W, this.H);
 
         const isTimeOver = p.gameOverReason === 'TIME OVER';
-        const cy = Math.round(this.H / 2 - 28);
+        const cy = Math.round(this.H * 0.24);
         const scale = 3.5;
 
         if (this.commonSheetLoaded) {
@@ -2994,14 +3027,138 @@ class Game {
             ctx.fillStyle = '#ff5252'; ctx.fillText(word, this.W / 2, cy + 13);
         }
 
-        if ((this.gameOverTimer || 0) > 42 && Math.floor(performance.now() / 320) % 2 === 0) {
+        this.drawFaintingScar(ctx, this.gameOverTimer || 0, ease);
+
+        if ((this.gameOverTimer || 0) > GAME_OVER_CONTINUE_DELAY && Math.floor(performance.now() / 320) % 2 === 0) {
+            const py = this.H - 26;
             ctx.textAlign = 'center';
             ctx.font = 'bold 15px Courier New';
             ctx.fillStyle = '#000';
-            ctx.fillText('PRESS JUMP OR R TO CONTINUE', this.W / 2 + 2, cy + 66);
+            ctx.fillText('PRESS JUMP OR R TO CONTINUE', this.W / 2 + 2, py + 2);
             ctx.fillStyle = '#ffeb3b';
-            ctx.fillText('PRESS JUMP OR R TO CONTINUE', this.W / 2, cy + 64);
+            ctx.fillText('PRESS JUMP OR R TO CONTINUE', this.W / 2, py);
         }
+        ctx.restore();
+    }
+
+    /**
+     * Lion King (Genesis)-style Game Over vignette: Scar stands dazed in a spotlight,
+     * wobbles with dizzy stars, then topples over backwards with a thud and lies there out cold.
+     * Timeline driven by FAINT (frames since GAME OVER began).
+     */
+    drawFaintingScar(ctx, T, alpha) {
+        const W = this.W, H = this.H;
+        const floorY = Math.round(H * 0.74);
+        const baseX = Math.round(W / 2);
+        const S = 2.5; // sprite scale
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+
+        // Spotlight cone + pool of light on the floor
+        const cone = ctx.createLinearGradient(0, 0, 0, floorY);
+        cone.addColorStop(0, 'rgba(255, 240, 190, 0.02)');
+        cone.addColorStop(1, 'rgba(255, 240, 190, 0.13)');
+        ctx.fillStyle = cone;
+        ctx.beginPath();
+        ctx.moveTo(baseX - 22, 0); ctx.lineTo(baseX + 22, 0);
+        ctx.lineTo(baseX + 150, floorY); ctx.lineTo(baseX - 150, floorY);
+        ctx.closePath(); ctx.fill();
+        const pool = ctx.createRadialGradient(baseX, floorY, 4, baseX, floorY, 160);
+        pool.addColorStop(0, 'rgba(255, 236, 170, 0.38)');
+        pool.addColorStop(1, 'rgba(255, 236, 170, 0)');
+        ctx.fillStyle = pool;
+        ctx.beginPath(); ctx.ellipse(baseX, floorY, 160, 32, 0, 0, TAU); ctx.fill();
+
+        // ---- Pose timeline ----
+        let angle = 0, frameIdx = 0, bob = 0;
+        if (T < FAINT.standEnd) {
+            frameIdx = 0;                                   // standing, stunned
+        } else if (T < FAINT.toppleStart) {
+            const k = (T - FAINT.standEnd) / (FAINT.toppleStart - FAINT.standEnd);
+            const ph = (T - FAINT.standEnd) * 0.22;
+            angle = Math.sin(ph) * (0.05 + 0.15 * k);       // growing woozy sway
+            bob = Math.abs(Math.sin(ph)) * 3 * k;
+            frameIdx = Math.floor(T / 12) % 2 === 0 ? 0 : 5; // blink between dazed & shocked
+        } else if (T < FAINT.impact) {
+            const k = (T - FAINT.toppleStart) / (FAINT.impact - FAINT.toppleStart);
+            angle = -(Math.PI / 2) * k * k;                 // accelerate like a falling plank
+            frameIdx = 0;                                   // stiff as a board - classic cartoon faint
+        } else {
+            const k = Math.min(1, (T - FAINT.impact) / (FAINT.settle - FAINT.impact));
+            angle = -Math.PI / 2 + Math.sin(k * Math.PI) * 0.18 * (1 - k); // little bounce
+            frameIdx = 0;
+            if (T > FAINT.settle) bob = -Math.sin(T * 0.06) * 0.8; // slow breathing
+        }
+
+        // As he tips back, lift the pivot so his back rests on the floor and recentre the body
+        const lie = Math.abs(Math.sin(angle));
+        const px = baseX + 20 * S * lie;
+        const py = floorY - 9 * S * lie - bob;
+
+        // Shadow stretches out as he lies down
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+        ctx.beginPath();
+        ctx.ellipse(px - 20 * S * lie, floorY + 2, 14 * S + 22 * S * lie, 4 * S, 0, 0, TAU);
+        ctx.fill();
+
+        // Scar sprite (pivot at feet)
+        if (this.scarSheetLoaded && this.scarSheet.naturalWidth > 0) {
+            const fr = SCAR_FRAMES[frameIdx] || SCAR_FRAMES[0];
+            ctx.save();
+            ctx.imageSmoothingEnabled = false;
+            ctx.translate(Math.round(px), Math.round(py));
+            ctx.rotate(angle);
+            ctx.scale(S, S);
+            ctx.drawImage(this.scarSheet, fr.sx, 0, 48, 48, -fr.anchorX, -fr.anchorY, 48, 48);
+            ctx.restore();
+        }
+
+        // Impact dust puffs
+        if (T >= FAINT.impact && T < FAINT.impact + 26) {
+            const k = (T - FAINT.impact) / 26;
+            ctx.fillStyle = `rgba(230, 220, 200, ${(0.55 * (1 - k)).toFixed(3)})`;
+            for (let i = 0; i < 6; i++) {
+                const dx = (i - 2.5) * 22 * (0.6 + k);
+                const r = (5 + i % 3 * 2) * (0.6 + k * 1.2);
+                ctx.beginPath();
+                ctx.arc(px - 20 * S + dx, floorY - 4 - k * 10 - (i % 2) * 4, r, 0, TAU);
+                ctx.fill();
+            }
+        }
+
+        // Dizzy stars circling his head (follows the head as he falls)
+        if (T >= FAINT.standEnd + 10) {
+            const hlx = 2 * S, hly = -42 * S;
+            const hx = px + hlx * Math.cos(angle) - hly * Math.sin(angle);
+            const hy = py + hlx * Math.sin(angle) + hly * Math.cos(angle) - 8;
+            for (let i = 0; i < 3; i++) {
+                const ph = T * 0.12 + i * TAU / 3;
+                const sx = hx + Math.cos(ph) * 18;
+                const sy = hy + Math.sin(ph) * 6;
+                const sz = 3.5 + (Math.sin(ph) + 1) * 1.2; // nearer stars look bigger
+                this.drawDizzyStar(ctx, sx, sy, sz, T * 0.1 + i);
+            }
+        }
+        ctx.restore();
+    }
+
+    drawDizzyStar(ctx, x, y, r, rot) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(rot);
+        ctx.fillStyle = '#ffeb3b';
+        ctx.strokeStyle = '#b8860b';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let i = 0; i < 10; i++) {
+            const rr = i % 2 === 0 ? r : r * 0.45;
+            const a = (i / 10) * TAU - Math.PI / 2;
+            if (i === 0) ctx.moveTo(Math.cos(a) * rr, Math.sin(a) * rr);
+            else ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+        }
+        ctx.closePath();
+        ctx.fill(); ctx.stroke();
         ctx.restore();
     }
 
@@ -3160,7 +3317,75 @@ class Game {
 function crough(c) { return c * 0.6; }
 function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
 
-window.addEventListener('DOMContentLoaded', () => { window.sonicGame = new Game(); });
+/* ==========================================================================
+   INTRO — plays the startup clip, then boots the game on PRESS START
+   (Enter / Space) or automatically when the clip ends.
+   ========================================================================== */
+function runIntro(onDone) {
+    const wrap = document.getElementById('intro');
+    const vid = document.getElementById('intro-video');
+    const skip = new URLSearchParams(window.location.search).has('nointro');
+    let finished = false;
+    let mutedFallback = false;
+
+    const finish = () => {
+        if (finished) return;
+        finished = true;
+        window.removeEventListener('keydown', onKey, true);
+        window.removeEventListener('pointerdown', onPointer, true);
+        window.INTRO_ACTIVE = false;
+        if (vid) { try { vid.pause(); } catch (e) {} }
+        onDone();
+        audio.unlock();
+        audio.playBGM();
+        if (wrap) {
+            wrap.classList.add('fade');
+            setTimeout(() => { wrap.remove(); }, 500);
+        }
+    };
+    const onKey = (e) => {
+        if (e.code === 'Space' || e.code === 'Enter' || e.code === 'NumpadEnter') {
+            e.preventDefault();
+            e.stopImmediatePropagation(); // don't let the start press leak into the game as a jump
+            // Also swallow auto-repeat of the held start key until it's released.
+            const code = e.code;
+            const eatRepeat = (ev) => { if (ev.code === code && ev.repeat) { ev.preventDefault(); ev.stopImmediatePropagation(); } };
+            const release = (ev) => { if (ev.code === code) { window.removeEventListener('keydown', eatRepeat, true); window.removeEventListener('keyup', release, true); } };
+            window.addEventListener('keydown', eatRepeat, true);
+            window.addEventListener('keyup', release, true);
+            finish();
+        } else if (mutedFallback && vid) {
+            vid.muted = false; mutedFallback = false; // any other key just turns the sound on
+        }
+    };
+    const onPointer = (e) => {
+        // Touch/click: first tap un-mutes if the browser blocked sound, otherwise it's PRESS START.
+        if (mutedFallback && vid) { vid.muted = false; mutedFallback = false; return; }
+        e.preventDefault();
+        finish();
+    };
+
+    if (skip || !wrap || !vid) { finish(); return; }
+
+    window.addEventListener('keydown', onKey, true);
+    window.addEventListener('pointerdown', onPointer, true);
+    vid.addEventListener('ended', finish, { once: true });
+    vid.addEventListener('error', finish, { once: true });
+
+    const p = vid.play();
+    if (p && p.catch) {
+        p.catch(() => {
+            // Browser blocked unmuted autoplay — play muted, sound comes on with first interaction.
+            vid.muted = true;
+            mutedFallback = true;
+            vid.play().catch(() => {});
+        });
+    }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    runIntro(() => { window.sonicGame = new Game(); });
+});
 </script>
 </body>
 </html>

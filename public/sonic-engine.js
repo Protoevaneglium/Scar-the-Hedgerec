@@ -1959,6 +1959,7 @@
             this.shoesTimer = 0;
             this.invulnTimer = 0;
             this.deathTimer = 0;
+            this.deathOffscreenY = null;
             this.deathReason = reason || 'GAME OVER';
             this.emit('deathStart', { reason: this.deathReason, fromPit });
         }
@@ -1967,7 +1968,14 @@
             this.deathTimer = (this.deathTimer || 0) + h;
             this.y += this.ysp * h;
             this.ysp = Math.min(this.ysp + PHYS.GRV * h, PHYS.MAX_SPEED);
-            if (this.deathTimer >= 68) {
+            // Classic Sonic: the life is only lost once Scar has fallen completely off the bottom
+            // of the (frozen) camera view. The renderer sets `deathOffscreenY`; headless sims fall
+            // back to the original 68-frame timer. A hard cap guarantees the death always resolves.
+            const offscreen = (this.deathOffscreenY != null)
+                ? this.y > this.deathOffscreenY
+                : this.deathTimer >= 68;
+            if (offscreen || this.deathTimer >= 300) {
+                this.deathOffscreenY = null;
                 this.loseLife(this.deathReason || 'GAME OVER');
             }
         }
