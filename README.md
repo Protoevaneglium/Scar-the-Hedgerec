@@ -20,16 +20,21 @@ Every platform uses a simple **2-step setup**:
 ### 1. Windows 🪟 (Command Prompt `cmd` or PowerShell)
 
 #### Step 1 — First-Time Install (Run Once)
-Open **Command Prompt (`cmd`)** or **PowerShell**, paste this single command, and press **Enter** *(automatically installs or updates `%USERPROFILE%\Scar-the-Hedgerec`, checks for Node.js, and creates `scar.bat` / `scar.cmd` on your PATH)*:
+Pick the box that matches the window you have open *(installs or updates `%USERPROFILE%\Scar-the-Hedgerec`, checks for Node.js, and creates the `scar` command)*.
+
+**Command Prompt (`cmd`)** — no PowerShell needed:
 
 ```cmd
-powershell -ExecutionPolicy Bypass -Command "iex (irm https://raw.githubusercontent.com/Protoevaneglium/Scar-the-Hedgerec/main/install-windows.ps1)"
+curl -fsSL -o "%TEMP%\scar-install.bat" https://raw.githubusercontent.com/Protoevaneglium/Scar-the-Hedgerec/main/install-windows.bat && "%TEMP%\scar-install.bat"
 ```
 
-*(Or directly inside a PowerShell window, you can run:)*
+**PowerShell** (the prompt starts with `PS`) — paste exactly this, do **not** wrap it in another `powershell ...` call:
+
 ```powershell
-iex (irm https://raw.githubusercontent.com/Protoevaneglium/Scar-the-Hedgerec/main/install-windows.ps1)
+irm https://raw.githubusercontent.com/Protoevaneglium/Scar-the-Hedgerec/main/install-windows.ps1 | iex
 ```
+
+> **Got `Access is denied` or a script-execution error?** Some antivirus / security policies block launching scripts. Use the Command Prompt box above instead, or use the manual ZIP install below.
 
 #### Step 2 — Start the Game Every Time
 Whenever you open **Command Prompt** or **PowerShell** in any folder, simply type:

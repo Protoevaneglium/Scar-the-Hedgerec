@@ -51,6 +51,8 @@ if ($ScriptDir -and (Test-Path (Join-Path $ScriptDir 'server.js'))) {
             Write-Host "Updating existing Scar the Hedgerec in $GameDir ..." -ForegroundColor Green
             try {
                 git -C $GameDir fetch origin
+                # Older installers overwrote the tracked launchers; restore them so pull can't conflict
+                git -C $GameDir checkout -- scar.bat scar.cmd start-windows.bat 2>$null
                 $CurrentBranch = (git -C $GameDir rev-parse --abbrev-ref HEAD 2>$null)
                 if (-not $CurrentBranch -or $CurrentBranch -eq 'HEAD') { $CurrentBranch = 'master' }
                 $Dirty = git -C $GameDir status --porcelain
@@ -123,8 +125,8 @@ if defined NODE_BIN (
 
 $TargetDirs = New-Object System.Collections.Generic.List[string]
 
-# A) Inside the game directory itself
-$TargetDirs.Add($GameDir)
+# (The game folder already ships its own tracked scar.bat / scar.cmd - don't overwrite
+#  them, or future `git pull` updates will conflict.)
 
 # B) In %LOCALAPPDATA%\Microsoft\WindowsApps (Standard on Windows 10 & 11 - already in User PATH by default!)
 if ($env:LOCALAPPDATA) {
@@ -170,13 +172,8 @@ if ($env:APPDATA) {
 foreach ($Dir in $TargetDirs) {
     if (Test-Path $Dir) {
         try {
-            $ContentToWrite = if ($Dir -ieq $GameDir) {
-                $BatContent -replace [regex]::Escape("cd /d `"$GameDir`""), 'cd /d "%~dp0"'
-            } else {
-                $BatContent
-            }
-            Set-Content -Path (Join-Path $Dir 'scar.bat') -Value $ContentToWrite -Encoding ASCII -Force
-            Set-Content -Path (Join-Path $Dir 'scar.cmd') -Value $ContentToWrite -Encoding ASCII -Force
+            Set-Content -Path (Join-Path $Dir 'scar.bat') -Value $BatContent -Encoding ASCII -Force
+            Set-Content -Path (Join-Path $Dir 'scar.cmd') -Value $BatContent -Encoding ASCII -Force
         } catch {}
     }
 }
