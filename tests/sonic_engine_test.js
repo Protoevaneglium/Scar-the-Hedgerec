@@ -399,6 +399,37 @@ test('Level 2 Character Mechanics: Super Peel-Out, Mid-Air Drop Dash, Super Spee
         `Dash Ring should rocket Scar forward with springTwirl, got xsp=${pRing.xsp.toFixed(2)} springTwirl=${pRing.springTwirl}`);
 });
 
+test('Classic Sonic Death Animation & Mechanic (0-ring damage and off-screen pit fall in Act 1 & Act 2)', () => {
+    for (const stage of ['palmtree', 'z1_act2']) {
+        const t = new Terrain(stage);
+        const p = new Player(t);
+        let deathStarts = 0, deaths = 0;
+        p.events.deathStart = () => deathStarts++;
+        p.events.death = () => deaths++;
+
+        // 1. Damaged at 0 rings (no shield) -> enters STATE.DYING with upward death leap (ysp = -7.0)
+        assert(p.rings === 0 && !p.shield && p.lives === 3, `${stage}: initial 0 rings, 3 lives`);
+        t.hurtPlayer(p, p.x + 20);
+        assert(p.state === STATE.DYING && !p.curled && p.ysp === -7.0 && deathStarts === 1 && deaths === 0,
+            `${stage}: 0-ring hit should enter STATE.DYING leap, got state=${p.state} ysp=${p.ysp}`);
+
+        // Simulate death arc (~68 frames) -> ignores ground collision, then decrements life and respawns!
+        sim(p, 1.3, 60, () => ({}), (pl) => pl.state !== STATE.DYING);
+        assert(deaths === 1 && p.lives === 2 && p.state === STATE.STANDING,
+            `${stage}: after death animation completes, lives=${p.lives} state=${p.state}`);
+
+        // 2. Falling off-screen past deathY -> enters STATE.DYING (fromPit = true, ysp = -7.6)
+        p.y = t.deathY + 25;
+        p.state = STATE.AIRBORNE;
+        sim(p, 1 / 60, 60, () => ({}));
+        assert(p.state === STATE.DYING && p.ysp < -6.5 && deathStarts === 2,
+            `${stage}: falling past deathY should enter STATE.DYING leap, got state=${p.state} ysp=${p.ysp}`);
+        sim(p, 1.3, 60, () => ({}), (pl) => pl.state !== STATE.DYING);
+        assert(deaths === 2 && p.lives === 1 && p.state === STATE.STANDING,
+            `${stage}: after pit death animation completes, lives=${p.lives} state=${p.state}`);
+    }
+});
+
 console.log(failures ? `\n${failures} FAILED\n` : '\nAll tests passed\n');
 process.exit(failures ? 1 : 0);
 

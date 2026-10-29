@@ -69,6 +69,7 @@
         SPINDASH: 'SPINDASH',
         PEELOUT: 'PEELOUT',
         AIRBORNE: 'AIRBORNE',
+        DYING: 'DYING',
     });
 
     /* ======================================================================
@@ -1842,7 +1843,8 @@
                 player.ysp = -4.2;
                 player.emit('ringLoss', dropCount);
             } else {
-                if (player.loseLife) player.loseLife('GAME OVER');
+                if (player.die) player.die('GAME OVER', false);
+                else if (player.loseLife) player.loseLife('GAME OVER');
                 else { player.emit('death'); player.respawn(); }
             }
         }
@@ -1921,6 +1923,55 @@
             this.emit('oneUp', this.lives);
         }
 
+        /**
+         * Classic Sonic Death Mechanic & Physics:
+         * Triggered when damaged at 0 rings (without a shield) or when falling into a gap off-screen (y > deathY).
+         * Scar pops straight up (`ysp = -7.0`), locks the camera, plays his shocked -> screaming death frames,
+         * and plummets off the bottom of the screen ignoring terrain collision before losing a life / respawning.
+         */
+        die(reason = 'GAME OVER', fromPit = false) {
+            if (this.gameOver || this.state === STATE.DYING) return;
+            this.state = STATE.DYING;
+            this.uncurl();
+            this.groundSurface = null;
+            this.gsp = 0;
+            this.xsp = 0;
+            this.ysp = fromPit ? -7.6 : -7.0;
+            if (fromPit && this.y > this.terrain.deathY) {
+                this.y = this.terrain.deathY;
+            }
+            this.angle = 0;
+            this.visualAngle = 0;
+            this.mode = 0;
+            this.jumped = false;
+            this.crouching = false;
+            this.lookingUp = false;
+            this.skidding = false;
+            this.springTwirl = false;
+            this.hurtPose = false;
+            this.onCoasterRail = false;
+            this.dropDashCharging = false;
+            this.dropDashCharge = 0;
+            this.dropDashReady = false;
+            this.boostTrailTimer = 0;
+            this.shield = false;
+            this.invincTimer = 0;
+            this.shoesTimer = 0;
+            this.invulnTimer = 0;
+            this.deathTimer = 0;
+            this.deathReason = reason || 'GAME OVER';
+            this.emit('deathStart', { reason: this.deathReason, fromPit });
+        }
+
+        stepDying(h) {
+            this.deathTimer = (this.deathTimer || 0) + h;
+            this.y += this.ysp * h;
+            this.ysp = Math.min(this.ysp + PHYS.GRV * h, PHYS.MAX_SPEED);
+            if (this.deathTimer >= 68) {
+                this.loseLife(this.deathReason || 'GAME OVER');
+            }
+        }
+
         loseLife(reason = 'GAME OVER') {
             if (this.gameOver) return;
             this.shield = false;
@@ -1928,6 +1979,7 @@
             this.shoesTimer = 0;
             this.rings = 0;
             this.nextLifeRings = 100;
+            this.deathTimer = 0;
             this.lives = Math.max(0, (this.lives !== undefined ? this.lives : 3) - 1);
             this.emit('death', { lives: this.lives, reason });
             if (this.lives <= 0) {
@@ -1940,7 +1992,7 @@
             }
         }
 
-        get grounded() { return this.state !== STATE.AIRBORNE; }
+        get grounded() { return this.state !== STATE.AIRBORNE && this.state !== STATE.DYING; }
         get radii() { return this.curled ? HITBOX.ROLL : HITBOX.STAND; }
 
         /** Drop the player onto the ground at x (standing). Optional targetY probes near a specific tier. */
@@ -1971,6 +2023,7 @@
             this.hurtPose = false;
             this.onCoasterRail = false;
             this.boostTrailTimer = 0;
+            this.deathTimer = 0;
             this.ballSpin = 0;
             this.runPhase = 0;
             this.airMotion = 'down';
@@ -2009,15 +2062,20 @@
             this.prevX = this.x;
             this.prevY = this.y;
             this.skidding = false;
+            if (this.state === STATE.DYING) {
+                this.stepDying(h);
+                return;
+            }
             if (this.boostTrailTimer > 0) this.boostTrailTimer = Math.max(0, this.boostTrailTimer - h);
             if (this.terrain.updateObjects) this.terrain.updateObjects(this, h);
+            if (this.state === STATE.DYING) return;
             if (this.state === STATE.SPINDASH) this.stepSpindash(inp, h, jumpPressed);
             else if (this.state === STATE.PEELOUT) this.stepPeelout(inp, h, jumpPressed);
             else if (this.state === STATE.AIRBORNE) this.stepAirborne(inp, h, jumpPressed);
             else this.stepGrounded(inp, h, jumpPressed);
             this.checkGates();
             this.updateCosmetics(h);
-            if (this.y > this.terrain.deathY) { this.loseLife('GAME OVER'); }
+            if (this.y > this.terrain.deathY) { this.die('GAME OVER', true); }
         }
 
         /* ---------- curl / uncurl (spec §2: ±5px toward the floor normal) ---------- */

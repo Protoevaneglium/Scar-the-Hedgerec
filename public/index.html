@@ -232,6 +232,11 @@ class RetroAudio {
     ringLoss() {
         for (let i = 0; i < 4; i++) this.tone('square', 900 - i * 140, 600 - i * 100, 0.06, 0.09, i * 0.05);
     }
+    death() {
+        this.tone('sawtooth', 520, 140, 0.28, 0.18, 0);
+        this.tone('square', 380, 95, 0.34, 0.14, 0.08);
+        this.noise(0.18, 420, 0.14);
+    }
     bouncePole() {
         this.tone('triangle', 260, 880, 0.22, 0.18, 0);
         this.tone('square', 420, 660, 0.14, 0.10, 0.04);
@@ -395,11 +400,13 @@ const BLUE = '#5c44e8', BLUE_D = '#341ca8', PEACH = '#f0a878', RED = '#d81020', 
 const ERAS = ['good_future', 'present', 'past'];
 const ERA_LABELS = { good_future: 'Good Future', present: 'Present', past: 'Past' };
 const SCAR_FRAMES = [
-    { name: 'idle',  sx: 0,   anchorX: 23, anchorY: 47 },
-    { name: 'walk1', sx: 48,  anchorX: 26, anchorY: 47 },
-    { name: 'walk2', sx: 96,  anchorX: 26, anchorY: 47 },
-    { name: 'run1',  sx: 144, anchorX: 27, anchorY: 47 },
-    { name: 'run2',  sx: 192, anchorX: 27, anchorY: 47 },
+    { name: 'idle',   sx: 0,   anchorX: 23, anchorY: 47 },
+    { name: 'walk1',  sx: 48,  anchorX: 26, anchorY: 47 },
+    { name: 'walk2',  sx: 96,  anchorX: 26, anchorY: 47 },
+    { name: 'run1',   sx: 144, anchorX: 27, anchorY: 47 },
+    { name: 'run2',   sx: 192, anchorX: 27, anchorY: 47 },
+    { name: 'death1', sx: 240, anchorX: 23, anchorY: 47 }, // Shocked wide-eyed hands-up death leap
+    { name: 'death2', sx: 288, anchorX: 23, anchorY: 47 }, // Head-back screaming hands-up death fall
 ];
 
 const ENEMY_FRAMES = {
@@ -715,6 +722,13 @@ class Game {
             },
             ring: () => audio.ring(),
             ringLoss: () => audio.ringLoss(),
+            deathStart: (d, p) => {
+                audio.death();
+                if (this.scarTrail) this.scarTrail.length = 0;
+                if (d && d.fromPit) {
+                    this.camY = Math.max(this.camY, p.y - this.H + 44);
+                }
+            },
             oneUp: () => audio.oneUp(),
             gameOver: () => { this.gameOverTimer = 0; audio.gameOver(); },
             bouncePole: (bp, p) => { audio.bouncePole(); this.dust(p, 6, 1, 2.2); },
@@ -1040,15 +1054,11 @@ class Game {
         const T = this.terrain;
         const stageCleared = !!((T.goalPost && T.goalPost.cleared) || (T.capsule && T.capsule.cleared));
 
-        if (!stageCleared && !this.player.gameOver) {
+        if (!stageCleared && !this.player.gameOver && this.player.state !== STATE.DYING) {
             this.stageTime += dt;
             if (this.stageTime >= 600) {
-                this.player.loseLife('TIME OVER');
-                if (!this.player.gameOver) {
-                    this.stageTime = 0;
-                } else {
-                    this.stageTime = 600;
-                }
+                this.player.die('TIME OVER', false);
+                this.stageTime = 0;
             }
         }
 
@@ -1149,6 +1159,8 @@ class Game {
     }
     updateCamera(dt) {
         const p = this.player;
+        // Classic Sonic camera lock on death: camera freezes in place while Scar leaps up and falls off-screen!
+        if (p.state === STATE.DYING) return;
         const def = this.terrain.levelDef;
         const minY = (def && def.cameraMinY !== undefined) ? def.cameraMinY : -140;
         const maxY = (def && def.cameraMaxY !== undefined) ? def.cameraMaxY : 420;
@@ -2573,11 +2585,14 @@ class Game {
                 ctx.restore();
             }
         }
-        if (p.invulnTimer > 0 && Math.floor(p.invulnTimer / 3) % 2 === 1) return;
+        if (p.state !== STATE.DYING && p.invulnTimer > 0 && Math.floor(p.invulnTimer / 3) % 2 === 1) return;
         ctx.save();
         ctx.translate(Math.round(p.x), Math.round(p.y));
-        if (p.curled) this.drawBall(ctx, p);
-        else {
+        if (p.state === STATE.DYING) {
+            this.drawBody(ctx, p);
+        } else if (p.curled) {
+            this.drawBall(ctx, p);
+        } else {
             ctx.rotate(-p.visualAngle);
             ctx.scale(p.facing, 1);
             this.drawBody(ctx, p);
@@ -2638,6 +2653,13 @@ class Game {
      * and transition cadence to use based on player state and ground/air speed.
      */
     selectScarFrame(p, speed) {
+        // Classic Sonic Death Animation: shocked wide-eyed hands-up pose (5) on initial leap,
+        // transitioning into head-back screaming fall pose (6) alternating with (5) on descent!
+        if (p.state === STATE.DYING) {
+            const t = p.deathTimer || 0;
+            if (t < 15 || p.ysp < -2.2) return 5; // death1: wide-eyed shocked leap
+            return (Math.floor((t - 15) / 6) % 2 === 0) ? 6 : 5; // death2 <-> death1 screaming fall!
+        }
         if (this.actClear && p.grounded && speed < 0.2) {
             return 0; // Victory stance on Act Clear
         }
