@@ -1086,11 +1086,14 @@ class Game {
     }
     updateCamera(dt) {
         const p = this.player;
+        const def = this.terrain.levelDef;
+        const minY = (def && def.cameraMinY !== undefined) ? def.cameraMinY : -140;
+        const maxY = (def && def.cameraMaxY !== undefined) ? def.cameraMaxY : 420;
         const vx = p.grounded ? p.gsp * Math.cos(p.angle) : p.xsp;
         const targetLook = Math.max(-150, Math.min(160, vx * 16));
         this.look += (targetLook - this.look) * (1 - Math.exp(-2.8 * dt));
         const tx = Math.max(0, Math.min(this.terrain.endX - this.W, p.x + this.look - this.W / 2));
-        const ty = Math.max(-140, Math.min(420, p.y - this.H / 2 + 25));
+        const ty = Math.max(minY, Math.min(maxY, p.y - this.H / 2 + 25));
         this.camX += (tx - this.camX) * (1 - Math.exp(-9 * dt));
         this.camY += (ty - this.camY) * (1 - Math.exp(-6.5 * dt));
     }
@@ -1125,8 +1128,10 @@ class Game {
             const def = this.terrain.levelDef;
             if (typeof def.drawBack === 'function') def.drawBack(ctx, this);
             this.drawTunnelsBack(ctx);
-            this.drawLoops(ctx);
-            for (const f of this.terrain.floors) this.drawFloor(ctx, f);
+            if (typeof def.drawLoops === 'function') def.drawLoops(ctx, this);
+            else this.drawLoops(ctx);
+            if (typeof def.drawTerrain === 'function') def.drawTerrain(ctx, this);
+            else for (const f of this.terrain.floors) this.drawFloor(ctx, f);
             this.drawTunnelsRock(ctx);
             this.drawPalmtreeObjects(ctx);
             if (typeof def.drawFront === 'function') def.drawFront(ctx, this);
@@ -1152,6 +1157,9 @@ class Game {
         if (this.showDebug) this.drawLoopDebug(ctx);
         this.drawParticles(ctx);
         this.drawPlayer(ctx);
+        if (this.terrain.levelDef && typeof this.terrain.levelDef.drawForeground === 'function') {
+            this.terrain.levelDef.drawForeground(ctx, this);
+        }
         if (this.showDebug) this.drawSensors(ctx);
         ctx.restore();
 
@@ -1162,6 +1170,9 @@ class Game {
 
         this.drawSonicCDHUD(ctx);
         if (this.terrain.stage === 'palmtree') this.drawZoneMapRadar(ctx);
+        else if (this.terrain.levelDef && typeof this.terrain.levelDef.drawRadar === 'function') {
+            this.terrain.levelDef.drawRadar(ctx, this);
+        }
         if (this.showDebug) this.drawHUD(ctx);
         this.drawControlsHint(ctx);
         this.drawActClearOverlay(ctx);

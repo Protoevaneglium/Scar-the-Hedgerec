@@ -329,21 +329,35 @@ test('Classic Lives System grants 1-Up every 100 rings and triggers GAME OVER / 
     assert(p.lives === 0 && p.gameOver === true && gameOverReason === 'TIME OVER', `gameOver=${p.gameOver} reason=${gameOverReason}`);
 });
 
-test('Zone 1 Act 2 and Act 3 (Boss Act Animal Capsule) register and complete 3-Act Zone progression', () => {
+test('Zone 1 Act 2 (Starlight Resort 11,400px high-speed Lower & Upper Coaster routes) and Act 3 Boss Capsule clear cleanly', () => {
     require('../public/levels/zone1_act2.js');
     require('../public/levels/zone1_act3.js');
     require('../templates/boss_act_template.js');
     assert(Terrain.LEVELS.z1_act2 && Terrain.LEVELS.z1_act3 && Terrain.LEVELS.boss_template, 'Act 2, Act 3 & Boss Template registered');
     assert(Terrain.LEVELS.z1_act2.act === 2 && !Terrain.LEVELS.z1_act2.isBossAct, 'Act 2 metadata');
+    assert(Terrain.LEVELS.z1_act2.endX === 11400 && Terrain.LEVELS.z1_act2.enemies.length === 0, 'Act 2 11,400px layout with empty enemies ready for next phase');
     assert(Terrain.LEVELS.z1_act3.act === 3 && Terrain.LEVELS.z1_act3.isBossAct === true, 'Act 3 Boss metadata');
 
-    // Run Act 2 through Goal Post
+    // 1. Lower Twin-Loop Expressway full Spin-Dash run -> clears all 11,400px with 0 deaths & 100+ rings (+1 life!)
     const t2 = new Terrain('z1_act2');
+    assert(t2.loops.length === 5, `expected 5 holo-coaster loops, got ${t2.loops.length}`);
     const p2 = new Player(t2);
-    const f2 = sim(p2, 15, 60, spinDashThenRight, () => t2.goalPost.spinning || t2.goalPost.cleared);
-    assert(f2 !== null && p2.lives === 4, `cleared z1_act2 in f=${f2}, lives=${p2.lives}`);
+    let deaths2 = 0; p2.events.death = () => deaths2++;
+    const f2 = sim(p2, 35, 60, spinDashThenRight, () => t2.goalPost.spinning || t2.goalPost.cleared);
+    assert(f2 !== null && deaths2 === 0 && p2.rings >= 100 && p2.lives === 4,
+        `cleared z1_act2 lower expressway in f=${f2}, deaths=${deaths2}, rings=${p2.rings}, lives=${p2.lives}`);
+    console.log(`      (cleared Starlight Resort Act 2 Lower Expressway in ${(f2 / 60).toFixed(2)}s with ${p2.rings} rings, score ${p2.score})`);
 
-    // Drop Scar onto Act 3's Animal Capsule plunger button and verify it opens & clears!
+    // 2. Upper Starlight Coaster Highway run (Red Spring -> Upper Twin Loops #3 & #4 -> 3-Wave Corkscrew -> Loop #5 -> Giant Ring -> Goal!)
+    const t2U = new Terrain('z1_act2');
+    const p2U = new Player(t2U);
+    p2U.place(4880, 0, 582);
+    const f2U = sim(p2U, 25, 60, () => ({ right: true }), () => t2U.goalPost.spinning || t2U.goalPost.cleared);
+    assert(f2U !== null && t2U.bigRing.collected && p2U.rings >= 120,
+        `cleared z1_act2 upper coaster in f=${f2U}, bigRing=${t2U.bigRing.collected}, rings=${p2U.rings}`);
+    console.log(`      (cleared Starlight Resort Act 2 Upper Coaster + Giant Ring in ${(f2U / 60).toFixed(2)}s with ${p2U.rings} rings, score ${p2U.score})`);
+
+    // 3. Drop Scar onto Act 3's Animal Capsule plunger button and verify it opens & clears!
     const t3 = new Terrain('z1_act3');
     const p3 = new Player(t3);
     assert(t3.goalPost === null && t3.capsule && !t3.capsule.opened, 'Act 3 uses Animal Capsule instead of Goal Post');
