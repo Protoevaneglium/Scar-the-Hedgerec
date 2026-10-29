@@ -133,16 +133,23 @@ const starterPkg = JSON.stringify({
     license: 'ISC',
 }, null, 2) + '\n';
 
+const toLF = (buf) => Buffer.from(buf.toString('utf8').replace(/\r\n/g, '\n'), 'utf8');
+
 const prefix = 'scar-level-core-template/';
 const entries = [
     { name: prefix + 'LEVEL_CORE_BLUEPRINT.md', data: fs.readFileSync(path.join(ROOT, 'templates', 'LEVEL_CORE_BLUEPRINT.md')) },
     { name: prefix + 'README.md',               data: fs.readFileSync(path.join(ROOT, 'templates', 'LEVEL_CORE_BLUEPRINT.md')) },
     { name: prefix + 'package.json',            data: starterPkg },
     { name: prefix + 'server.js',               data: fs.readFileSync(path.join(ROOT, 'server.js')) },
+    { name: prefix + 'install-windows.bat',     data: fs.readFileSync(path.join(ROOT, 'install-windows.bat')) },
+    { name: prefix + 'install-windows.ps1',     data: fs.readFileSync(path.join(ROOT, 'install-windows.ps1')) },
     { name: prefix + 'scar.bat',                data: fs.readFileSync(path.join(ROOT, 'scar.bat')) },
     { name: prefix + 'start-windows.bat',       data: fs.readFileSync(path.join(ROOT, 'start-windows.bat')) },
-    { name: prefix + 'start-linux-mac.sh',      data: fs.readFileSync(path.join(ROOT, 'start-linux-mac.sh')), executable: true },
-    { name: prefix + 'start-termux.sh',         data: fs.readFileSync(path.join(ROOT, 'start-termux.sh')), executable: true },
+    { name: prefix + 'install-linux.sh',        data: toLF(fs.readFileSync(path.join(ROOT, 'install-linux.sh'))), executable: true },
+    { name: prefix + 'scar.sh',                 data: toLF(fs.readFileSync(path.join(ROOT, 'scar.sh'))), executable: true },
+    { name: prefix + 'start-linux-mac.sh',      data: toLF(fs.readFileSync(path.join(ROOT, 'start-linux-mac.sh'))), executable: true },
+    { name: prefix + 'install-termux.sh',       data: toLF(fs.readFileSync(path.join(ROOT, 'install-termux.sh'))), executable: true },
+    { name: prefix + 'start-termux.sh',         data: toLF(fs.readFileSync(path.join(ROOT, 'start-termux.sh'))), executable: true },
     { name: prefix + 'public/index.html',       data: indexHtml },
     { name: prefix + 'public/sonic-engine.js',  data: fs.readFileSync(path.join(ROOT, 'public', 'sonic-engine.js')) },
     { name: prefix + 'public/levels/level_template.js',    data: fs.readFileSync(path.join(ROOT, 'templates', 'level_template.js')) },

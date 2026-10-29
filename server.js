@@ -117,22 +117,55 @@ function openBrowser(url) {
     }
 }
 
-const url = `http://localhost:${PORT}`;
 const shouldOpen = process.argv.includes('--open');
+let activePort = PORT;
+
+function startListening(portToTry) {
+    activePort = portToTry;
+    server.listen(activePort, HOST);
+}
+
+server.on('listening', () => {
+    const url = `http://localhost:${activePort}`;
+    console.log(`Scar the Hedgerec running at ${url}`);
+    console.log(`(Press Ctrl+C in this window anytime to stop the server)`);
+    if (shouldOpen) {
+        openBrowser(url);
+    }
+});
 
 server.on('error', (err) => {
-    if (err && err.code === 'EADDRINUSE' && shouldOpen) {
-        console.log(`Scar the Hedgerec is already running at ${url} — launching browser...`);
-        openBrowser(url);
-        setTimeout(() => process.exit(0), 600);
+    if (err && err.code === 'EADDRINUSE') {
+        const probeUrl = `http://localhost:${activePort}/sonic-engine.js`;
+        const req = http.get(probeUrl, (res) => {
+            res.resume();
+            if (res.statusCode === 200 && shouldOpen) {
+                const existingUrl = `http://localhost:${activePort}`;
+                console.log(`Scar the Hedgerec is already running at ${existingUrl} — launching browser...`);
+                openBrowser(existingUrl);
+                setTimeout(() => process.exit(0), 600);
+            } else if (activePort < PORT + 15) {
+                startListening(activePort + 1);
+            } else {
+                console.error(`Port ${activePort} is already in use.`);
+                process.exit(1);
+            }
+        });
+        req.on('error', () => {
+            if (activePort < PORT + 15) {
+                startListening(activePort + 1);
+            } else {
+                console.error(`Port ${activePort} is already in use.`);
+                process.exit(1);
+            }
+        });
+        req.setTimeout(600, () => {
+            req.destroy();
+            if (activePort < PORT + 15) startListening(activePort + 1);
+        });
         return;
     }
     throw err;
 });
 
-server.listen(PORT, HOST, () => {
-    console.log(`Scar the Hedgerec running at ${url}`);
-    if (shouldOpen) {
-        openBrowser(url);
-    }
-});
+startListening(PORT);
