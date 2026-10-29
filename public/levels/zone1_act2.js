@@ -721,9 +721,9 @@
             return {
                 // TV Item Monitors ('rings', 'shield', 'shoes', 'invinc', Scar '1up')
                 monitors: [
-                    { x: 290,  y: mf.f(290),             item: 'rings'  },
+                    { x: 290,  y: mf.f(290),             item: 'shield' },
                     { x: 980,  y: z.overlookA.f(980),    item: 'shoes'  },
-                    { x: 1760, y: z.overlookB.f(1760),   item: 'shield' },
+                    { x: 1760, y: z.overlookB.f(1760),   item: 'rings'  },
                     { x: 3750, y: z.skyLoopA.f(3750),    item: 'invinc' },
                     { x: 4380, y: z.skyLoopB.f(4380),    item: 'rings'  },
                     { x: 5220, y: mf.f(5220),            item: 'shoes'  },
@@ -761,7 +761,35 @@
                     { x: 6330, y: cs.f(6330),  boost: 12.4 }, // Launches through Upper Loop #4 & Corkscrew
                     { x: 7000, y: mf.f(7000),  boost: 12.0 }, // Lower Triple-Waterfall sprint
                     { x: 8090, y: cs.f(8090),  boost: 12.4 }, // Launches through Upper Loop #5
-                    { x: 9640, y: mf.f(9640),  boost: 13.0 }, // Full-throttle Holo-Palm Finale!
+                    { x: 9640, y: mf.f(9640),  boost: 13.0 }, // Lower Finale entry booster
+                    { x: 9995, y: mf.f(9995),  boost: 13.0 }, // Full-throttle Holo-Palm Colonnade Finale!
+                ],
+
+                // Sonic Colors Starlight Aerial Dash Rings (rocket Scar onto sky overlooks & coaster shortcuts when jumped into!)
+                dashRings: [
+                    { x: 795,  y: 382, angleDeg: -16, boost: 12.6 }, // Launches onto Overlook A (Speed Shoes TV!)
+                    { x: 1575, y: 382, angleDeg: -16, boost: 12.6 }, // Launches onto Overlook B (Rings TV!)
+                    { x: 4070, y: 310, angleDeg: -12, boost: 12.8 }, // Bridges Sky Island A -> Sky Island B
+                    { x: 6820, y: 205, angleDeg: -8,  boost: 12.8 }, // High aerial boost when jumping above the Corkscrew Skyway!
+                ],
+
+                // Level 1 Springy Bounce Poles (optional vertical shortcuts to sky islands)
+                bouncePoles: [
+                    { x: 1545, y: mf.f(1545) - 24, dir: 1, power: -11.8 },
+                    { x: 3515, y: mf.f(3515) - 28, dir: 1, power: -12.4 },
+                ],
+
+                // Level 1 Pinball Spinners (airborne bumper cluster above the Grand Downhill Canyon Cascade)
+                spinners: [
+                    { x: 2850, y: 340, variant: 'silver' },
+                    { x: 2910, y: 315, variant: 'dark'   },
+                    { x: 2970, y: 340, variant: 'silver' },
+                ],
+
+                // Level 1 Shimmering Water/Plasma Surface Basins (kick up 16-bit splash plumes at high speed!)
+                waterZones: [
+                    { x0: 4960, x1: 5460, y: 660 },
+                    { x0: 6980, x1: 7780, y: 670 },
                 ],
 
                 // Sparing hazards tucked on back corners of optional sky ledges (zero cheap highway roadblocks)
@@ -780,6 +808,52 @@
 
                 // Classic Spinning Goal Signpost at the end of the Holo-Palm Straightaway
                 goalPost: { x: 10950, y: mf.f(10950) },
+
+                // 28 Sonic the Hedgehog 2 Badniks across all routes (Lower Expressway, Waterfalls, Sky Islands, Upper Coaster & Finale)
+                enemies: [
+                    // 1. Opening Runway & Overlook A (Coconuts near Holo-Palm, Buzzer wasp, Masher in Waterfall #1, Sping on Overlook A)
+                    { kind: 'crab', type: 'coconuts', x: 360,  y: mf.f(360),          minX: 320,  maxX: 430,  vx: 0.85 },
+                    { kind: 'buzz', type: 'buzzer',   x: 620,  y: 385,                baseX: 620, baseY: 385, phase: 0.2 },
+                    { kind: 'buzz', type: 'masher',   x: 980,  y: 525,                baseX: 980, baseY: 525, leapHeight: 86, phase: 0.4 },
+                    { kind: 'crab', type: 'sping',    x: 1010, y: z.overlookA.f(1010), minX: 880, maxX: 1085, vx: 1.15 },
+
+                    // 2. Second Crest & Cascade Bridge #2 (Grounder, Buzzer, Masher in Waterfall #2, Shellcracker on Overlook B, Crawl in Valley)
+                    { kind: 'crab', type: 'grounder', x: 1320, y: mf.f(1320),         minX: 1200, maxX: 1460, vx: 1.05 },
+                    { kind: 'buzz', type: 'buzzer',   x: 1520, y: 380,                baseX: 1520, baseY: 380, phase: 1.3 },
+                    { kind: 'buzz', type: 'masher',   x: 1760, y: 525,                baseX: 1760, baseY: 525, leapHeight: 86, phase: 1.9 },
+                    { kind: 'crab', type: 'shell',    x: 1790, y: z.overlookB.f(1790), minX: 1660, maxX: 1870, vx: 0.95 },
+                    { kind: 'crab', type: 'crawl',    x: 2120, y: mf.f(2120),         minX: 1980, maxX: 2260, vx: 1.10 },
+
+                    // 3. Grand Downhill Starlight Slide & Canyon Cascade (Balkiry jet swoop, Masher in Canyon Waterfall, Sping at bottom)
+                    { kind: 'buzz', type: 'balkiry',  x: 2680, y: 385,                baseX: 2680, baseY: 385, span: 95, phase: 0.6 },
+                    { kind: 'buzz', type: 'masher',   x: 2910, y: 560,                baseX: 2910, baseY: 560, leapHeight: 92, phase: 0.8 },
+                    { kind: 'crab', type: 'sping',    x: 3340, y: mf.f(3340),         minX: 3220, maxX: 3460, vx: 1.25 },
+
+                    // 4. Twin-Loop Sky Islands & Connector (Octus on Sky Island A, Slicer between Twin Loops, Asteron on Sky Island B)
+                    { kind: 'crab', type: 'octus',    x: 3820, y: z.skyLoopA.f(3820), minX: 3680, maxX: 3930, vx: 0.90 },
+                    { kind: 'crab', type: 'slicer',   x: 4160, y: mf.f(4160),         minX: 4080, maxX: 4280, vx: 1.15 },
+                    { kind: 'buzz', type: 'asteron',  x: 4340, y: 270,                baseX: 4340, baseY: 270, phase: 1.1 },
+
+                    // 5. Route-Split Starlight Cascade & Lower Expressway (Masher in Waterfall #4, Shellcracker, Crawl, Mashers in Triple Waterfalls, Slicer)
+                    { kind: 'buzz', type: 'masher',   x: 5190, y: 650,                baseX: 5190, baseY: 650, leapHeight: 88, phase: 2.1 },
+                    { kind: 'crab', type: 'shell',    x: 5760, y: mf.f(5760),         minX: 5600, maxX: 5940, vx: 1.05 },
+                    { kind: 'crab', type: 'crawl',    x: 6480, y: mf.f(6480),         minX: 6320, maxX: 6680, vx: 1.15 },
+                    { kind: 'buzz', type: 'masher',   x: 7112, y: 660,                baseX: 7112, baseY: 660, leapHeight: 84, phase: 0.5 },
+                    { kind: 'crab', type: 'grounder', x: 7440, y: mf.f(7440),         minX: 7260, maxX: 7540, vx: 1.15 },
+                    { kind: 'buzz', type: 'masher',   x: 7642, y: 660,                baseX: 7642, baseY: 660, leapHeight: 84, phase: 2.4 },
+                    { kind: 'crab', type: 'slicer',   x: 8840, y: mf.f(8840),         minX: 8680, maxX: 9020, vx: 1.20 },
+
+                    // 6. Upper Starlight Coaster & 3-Wave Corkscrew Skyway (Buzzer, Balkiry, Nebula, Turtloid, Chop patrolling overhead)
+                    { kind: 'buzz', type: 'buzzer',   x: 5230, y: 268,                baseX: 5230, baseY: 268, phase: 0.9 },
+                    { kind: 'buzz', type: 'balkiry',  x: 6140, y: 260,                baseX: 6140, baseY: 260, span: 90, phase: 1.7 },
+                    { kind: 'buzz', type: 'nebula',   x: 7020, y: 210,                baseX: 7020, baseY: 210, phase: 0.3 },
+                    { kind: 'buzz', type: 'turtloid', x: 7580, y: 210,                baseX: 7580, baseY: 210, phase: 1.5 },
+                    { kind: 'buzz', type: 'chop',     x: 8680, y: 270,                baseX: 8680, baseY: 270, phase: 2.0 },
+
+                    // 7. Finale Holo-Palm Colonnade Straightaway (Coconuts & Crawl guarding the final sprint!)
+                    { kind: 'crab', type: 'coconuts', x: 10140, y: mf.f(10140),       minX: 10060, maxX: 10240, vx: 1.0 },
+                    { kind: 'crab', type: 'crawl',    x: 10520, y: mf.f(10520),       minX: 10380, maxX: 10680, vx: 1.2 },
+                ],
             };
         },
 
@@ -830,10 +904,147 @@
             rings.addSurfaceRings(mf, 9900, 46, 20, 20);
         },
 
-        // Intentionally empty for now — owner will design main character & Act 2 enemies next!
-        enemySheet: null,
-        enemyFrames: {},
-        enemies: [],
+        // ====================================================================
+        // SONIC THE HEDGEHOG 2 BADNIKS SPRITE SHEET & ANIMATION ATLAS
+        // ====================================================================
+        enemySheet: 'assets/enemies_act2.png',
+        enemyFrames: {
+            buzzer_1:   { sx: 2,    sy: 2, w: 40, h: 14, ax: 20, ay: 7  },
+            buzzer_2:   { sx: 46,   sy: 2, w: 40, h: 14, ax: 20, ay: 7  },
+            buzzer_3:   { sx: 90,   sy: 2, w: 40, h: 14, ax: 20, ay: 7  },
+            buzzer_aim: { sx: 134,  sy: 2, w: 33, h: 26, ax: 17, ay: 13 },
+            masher_1:   { sx: 171,  sy: 2, w: 20, h: 27, ax: 10, ay: 14 },
+            masher_2:   { sx: 195,  sy: 2, w: 26, h: 27, ax: 13, ay: 14 },
+            coconuts_1: { sx: 225,  sy: 2, w: 22, h: 37, ax: 11, ay: 37 },
+            coconuts_2: { sx: 251,  sy: 2, w: 22, h: 37, ax: 11, ay: 37 },
+            coconuts_3: { sx: 277,  sy: 2, w: 26, h: 39, ax: 13, ay: 39 },
+            coconuts_4: { sx: 307,  sy: 2, w: 27, h: 40, ax: 14, ay: 40 },
+            sping_1:    { sx: 338,  sy: 2, w: 40, h: 20, ax: 20, ay: 20 },
+            sping_2:    { sx: 382,  sy: 2, w: 36, h: 19, ax: 18, ay: 19 },
+            sping_3:    { sx: 422,  sy: 2, w: 40, h: 20, ax: 20, ay: 20 },
+            sping_4:    { sx: 466,  sy: 2, w: 39, h: 20, ax: 20, ay: 20 },
+            grounder_1: { sx: 509,  sy: 2, w: 27, h: 30, ax: 14, ay: 30 },
+            grounder_2: { sx: 540,  sy: 2, w: 27, h: 33, ax: 14, ay: 33 },
+            grounder_3: { sx: 571,  sy: 2, w: 27, h: 33, ax: 14, ay: 33 },
+            grounder_4: { sx: 602,  sy: 2, w: 27, h: 33, ax: 14, ay: 33 },
+            crawl_1:    { sx: 633,  sy: 2, w: 39, h: 27, ax: 20, ay: 27 },
+            crawl_2:    { sx: 676,  sy: 2, w: 53, h: 27, ax: 27, ay: 27 },
+            crawl_3:    { sx: 733,  sy: 2, w: 34, h: 27, ax: 17, ay: 27 },
+            crawl_4:    { sx: 771,  sy: 2, w: 40, h: 27, ax: 20, ay: 27 },
+            shell_1:    { sx: 815,  sy: 2, w: 39, h: 20, ax: 20, ay: 20 },
+            shell_2:    { sx: 858,  sy: 2, w: 47, h: 26, ax: 24, ay: 26 },
+            shell_3:    { sx: 909,  sy: 2, w: 47, h: 27, ax: 24, ay: 27 },
+            shell_4:    { sx: 960,  sy: 2, w: 47, h: 27, ax: 24, ay: 27 },
+            slicer_1:   { sx: 1011, sy: 2, w: 27, h: 27, ax: 14, ay: 27 },
+            slicer_2:   { sx: 1042, sy: 2, w: 27, h: 27, ax: 14, ay: 27 },
+            slicer_3:   { sx: 1073, sy: 2, w: 27, h: 27, ax: 14, ay: 27 },
+            slicer_4:   { sx: 1104, sy: 2, w: 40, h: 27, ax: 20, ay: 27 },
+            octus_1:    { sx: 1148, sy: 2, w: 36, h: 22, ax: 18, ay: 22 },
+            octus_2:    { sx: 1188, sy: 2, w: 34, h: 22, ax: 17, ay: 22 },
+            octus_3:    { sx: 1226, sy: 2, w: 35, h: 22, ax: 18, ay: 22 },
+            balkiry_1:  { sx: 1265, sy: 2, w: 60, h: 21, ax: 30, ay: 11 },
+            balkiry_2:  { sx: 1329, sy: 2, w: 58, h: 29, ax: 29, ay: 15 },
+            balkiry_3:  { sx: 1391, sy: 2, w: 60, h: 27, ax: 30, ay: 14 },
+            nebula_1:   { sx: 1455, sy: 2, w: 41, h: 34, ax: 21, ay: 17 },
+            nebula_2:   { sx: 1500, sy: 2, w: 27, h: 34, ax: 14, ay: 17 },
+            nebula_3:   { sx: 1531, sy: 2, w: 27, h: 34, ax: 14, ay: 17 },
+            nebula_4:   { sx: 1562, sy: 2, w: 27, h: 34, ax: 14, ay: 17 },
+            chop_1:     { sx: 1593, sy: 2, w: 26, h: 20, ax: 13, ay: 10 },
+            chop_2:     { sx: 1623, sy: 2, w: 26, h: 20, ax: 13, ay: 10 },
+            asteron_1:  { sx: 1653, sy: 2, w: 27, h: 26, ax: 14, ay: 13 },
+            asteron_2:  { sx: 1684, sy: 2, w: 27, h: 26, ax: 14, ay: 13 },
+            turtloid_1: { sx: 1715, sy: 2, w: 47, h: 26, ax: 24, ay: 26 },
+            turtloid_2: { sx: 1766, sy: 2, w: 47, h: 26, ax: 24, ay: 26 },
+        },
+
+        drawEnemy(ctx, en, info) {
+            const { idx, clock, player, sheet, frames } = info;
+            if (!sheet) {
+                const x = en.x, y = en.kind === 'crab' ? en.y - 12 : en.y;
+                ctx.fillStyle = en.kind === 'crab' ? '#ff2a85' : '#00e5ff';
+                ctx.beginPath(); ctx.ellipse(x, y, 14, 10, 0, 0, TAU); ctx.fill();
+                return;
+            }
+            const t = en.type || 'buzzer';
+            const dist = Math.hypot((player ? player.x : 0) - en.x, (player ? player.y : 0) - en.y);
+            let key = 'buzzer_1';
+
+            if (t === 'buzzer') {
+                if (dist < 165 && player && player.y > en.y) {
+                    key = 'buzzer_aim';
+                } else {
+                    const seq = ['buzzer_1', 'buzzer_2', 'buzzer_3', 'buzzer_2'];
+                    key = seq[Math.floor(clock * 0.34 + idx) % 4];
+                }
+            } else if (t === 'masher') {
+                // Opens jaws wide while leaping up, snaps shut on descent
+                const velPhase = Math.cos(clock * 0.055 + (en.phase || 0));
+                key = (velPhase > -0.15 && Math.floor(clock * 0.28) % 2 === 0) ? 'masher_2' : 'masher_1';
+            } else if (t === 'coconuts') {
+                if (dist < 175) {
+                    key = (Math.floor(clock * 0.2) % 2 === 0) ? 'coconuts_3' : 'coconuts_4';
+                } else {
+                    key = (Math.floor(clock * 0.16 + idx) % 2 === 0) ? 'coconuts_1' : 'coconuts_2';
+                }
+            } else if (t === 'sping') {
+                const seq = ['sping_1', 'sping_2', 'sping_3', 'sping_4'];
+                key = seq[Math.floor(clock * 0.22 + idx) % 4];
+            } else if (t === 'grounder') {
+                const seq = ['grounder_1', 'grounder_2', 'grounder_3', 'grounder_4'];
+                key = seq[Math.floor(clock * 0.20 + idx) % 4];
+            } else if (t === 'crawl') {
+                const nearTurn = (en.minX !== undefined && (en.x - en.minX < 20 || en.maxX - en.x < 20));
+                if (nearTurn || dist < 110) {
+                    key = 'crawl_2';
+                } else {
+                    const seq = ['crawl_1', 'crawl_3', 'crawl_4', 'crawl_3'];
+                    key = seq[Math.floor(clock * 0.18 + idx) % 4];
+                }
+            } else if (t === 'shell') {
+                if (dist < 140) {
+                    key = (Math.floor(clock * 0.22) % 2 === 0) ? 'shell_3' : 'shell_4';
+                } else {
+                    key = (Math.floor(clock * 0.18 + idx) % 2 === 0) ? 'shell_1' : 'shell_2';
+                }
+            } else if (t === 'slicer') {
+                if (dist < 150) {
+                    key = 'slicer_4';
+                } else {
+                    const seq = ['slicer_1', 'slicer_2', 'slicer_3', 'slicer_2'];
+                    key = seq[Math.floor(clock * 0.20 + idx) % 4];
+                }
+            } else if (t === 'octus') {
+                const seq = ['octus_1', 'octus_2', 'octus_3', 'octus_2'];
+                key = seq[Math.floor(clock * 0.18 + idx) % 4];
+            } else if (t === 'balkiry') {
+                const seq = ['balkiry_1', 'balkiry_2', 'balkiry_3', 'balkiry_2'];
+                key = seq[Math.floor(clock * 0.35 + idx) % 4];
+            } else if (t === 'nebula') {
+                const seq = ['nebula_1', 'nebula_2', 'nebula_3', 'nebula_4'];
+                key = seq[Math.floor(clock * 0.22 + idx) % 4];
+            } else if (t === 'chop') {
+                key = (Math.floor(clock * 0.26 + idx) % 2 === 0) ? 'chop_1' : 'chop_2';
+            } else if (t === 'asteron') {
+                key = (Math.floor(clock * 0.2 + idx) % 2 === 0) ? 'asteron_1' : 'asteron_2';
+            } else if (t === 'turtloid') {
+                key = (Math.floor(clock * 0.22 + idx) % 2 === 0) ? 'turtloid_1' : 'turtloid_2';
+            }
+
+            const frame = frames[key] || frames.buzzer_1;
+            // All sprites in enemies_act2.png natively face LEFT; flip horizontally when moving right or facing Scar on the right
+            let movingRight = false;
+            if (en.kind === 'crab') movingRight = en.vx > 0;
+            else if (t === 'balkiry') movingRight = Math.cos(clock * 0.05 + (en.phase || 0)) > 0;
+            else movingRight = player ? (player.x > en.x) : false;
+            const flipX = movingRight ? -1 : 1;
+
+            ctx.save();
+            ctx.imageSmoothingEnabled = false;
+            ctx.translate(Math.round(en.x), Math.round(en.y));
+            ctx.scale(flipX, 1);
+            ctx.drawImage(sheet, frame.sx, frame.sy, frame.w, frame.h, -frame.ax, -frame.ay, frame.w, frame.h);
+            ctx.restore();
+        },
 
         // ====================================================================
         // 3. 2.5D / 3D-SHADED SONIC COLORS × LEVEL 1 STARLIGHT RENDERERS

@@ -39,6 +39,7 @@
     <div id="touch">
         <div class="tgroup">
             <button class="tbtn" data-key="left">◀</button>
+            <button class="tbtn" data-key="up">▲</button>
             <button class="tbtn" data-key="down">▼</button>
             <button class="tbtn" data-key="right">▶</button>
         </div>
@@ -247,6 +248,29 @@ class RetroAudio {
         this.tone('sawtooth', 300, 1100, 0.24, 0.16, 0);
         this.noise(0.18, 1200, 0.12);
     }
+    peeloutRev(r = 10) {
+        const f = 320 + Math.min(30, r) * 26;
+        this.tone('sawtooth', f, f * 1.38, 0.085, 0.12, 0);
+        this.tone('square', f * 0.5, f * 0.75, 0.07, 0.08, 0.02);
+    }
+    peeloutRelease() {
+        this.tone('sawtooth', 520, 1560, 0.24, 0.18, 0);
+        this.tone('triangle', 880, 320, 0.22, 0.16, 0.03);
+        this.noise(0.22, 1600, 0.13);
+    }
+    dropDashReady() {
+        this.tone('square', 540, 1180, 0.13, 0.14, 0);
+        this.tone('triangle', 760, 1480, 0.11, 0.12, 0.04);
+    }
+    dropDashRelease() {
+        this.tone('sawtooth', 680, 180, 0.20, 0.18, 0);
+        this.noise(0.18, 950, 0.15);
+    }
+    dashRing() {
+        this.tone('sine', 659.25, 1318.5, 0.11, 0.15, 0);
+        this.tone('triangle', 987.77, 1975.5, 0.18, 0.15, 0.05);
+        this.noise(0.14, 1800, 0.10);
+    }
     timePost() {
         this.tone('square', 523.25, 1046.5, 0.12, 0.14, 0);
         this.tone('square', 659.25, 1318.5, 0.16, 0.14, 0.08);
@@ -286,15 +310,16 @@ const audio = new RetroAudio();
    ========================================================================== */
 class InputHandler {
     constructor() {
-        this.left = this.right = this.down = this.jumpHeld = false;
+        this.left = this.right = this.up = this.down = this.jumpHeld = false;
         this.jumpPressed = false;
         this.debugToggle = false;
         this.actions = [];
         const KEY = {
-            ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowDown: 'down', KeyS: 'down',
+            ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right',
+            ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down',
             Space: 'jump', KeyZ: 'jump', KeyX: 'jump', KeyC: 'jump', Enter: 'jump',
         };
-        const SWALLOW = new Set([...Object.keys(KEY), 'ArrowUp', 'Tab']);
+        const SWALLOW = new Set([...Object.keys(KEY), 'Tab']);
         window.addEventListener('keydown', (e) => {
             audio.unlock();
             if (SWALLOW.has(e.code)) e.preventDefault();
@@ -313,7 +338,7 @@ class InputHandler {
             const k = KEY[e.code];
             if (k) this.press(k, false);
         });
-        window.addEventListener('blur', () => { this.left = this.right = this.down = this.jumpHeld = false; });
+        window.addEventListener('blur', () => { this.left = this.right = this.up = this.down = this.jumpHeld = false; });
         window.addEventListener('pointerdown', () => audio.unlock());
         const touchBar = document.getElementById('touch');
         if (touchBar && ('ontouchstart' in window || navigator.maxTouchPoints > 0)) {
@@ -357,7 +382,7 @@ class InputHandler {
         if (k === 'jump') { if (down && !this.jumpHeld) this.jumpPressed = true; this.jumpHeld = down; }
         else this[k] = down;
     }
-    snapshot() { return { left: this.left, right: this.right, down: this.down, jumpHeld: this.jumpHeld, jumpPressed: this.jumpPressed }; }
+    snapshot() { return { left: this.left, right: this.right, up: this.up, down: this.down, jumpHeld: this.jumpHeld, jumpPressed: this.jumpPressed }; }
     endFrame() { this.jumpPressed = false; this.debugToggle = false; this.actions.length = 0; }
 }
 
@@ -663,6 +688,7 @@ class Game {
         this.unlockStageProgress(stageName);
         this.terrain = new Terrain(stageName);
         this.particles = [];
+        this.scarTrail = [];
         this.cpIndex = 0;
         this.stageTime = 0;
         this.actClear = null;
@@ -675,6 +701,12 @@ class Game {
             bonk: () => audio.bonk(),
             spindashRev: (rev, p) => { audio.rev(rev); this.dust(p, 5, -p.facing, 2.5); },
             spindashRelease: (v, p) => { audio.release(); this.dust(p, 8, -p.facing, 3.5); },
+            peeloutRev: (charge, p) => { audio.peeloutRev(charge); this.dust(p, 2, -p.facing, 2.2, '#00e5ff'); },
+            peeloutRelease: (v, p) => { audio.peeloutRelease(); this.dust(p, 12, -p.facing, 4.4, '#ff2a85'); },
+            dropDashReady: (p) => { audio.dropDashReady(); this.dust(p, 6, -p.facing, 2.5, '#00e5ff'); },
+            dropDash: (v, p) => { audio.dropDashRelease(); this.dust(p, 11, -p.facing, 4.2, '#00e5ff'); },
+            dashRing: (dr, p) => { audio.dashRing(); this.dust(p, 12, -p.facing, 4.6, '#ff2a85'); },
+            coasterRail: (p) => { this.dust(p, 1, -p.facing, 2.6, '#ffd740'); },
             land: (d, p) => { audio.land(); if (d.ysp > 4) { this.dust(p, 3, 1, 1.5); this.dust(p, 3, -1, 1.5); } },
             respawn: (cp) => {
                 this.cpIndex = Math.max(0, this.terrain.checkpoints.indexOf(cp));
@@ -692,7 +724,7 @@ class Game {
             breakFloor: () => audio.shatter(),
             houdini: () => audio.spinner(),
             enemyPop: () => audio.spinner(),
-            boost: (sb, p) => { audio.boost(); this.dust(p, 10, -p.facing, 3.8); },
+            boost: (sb, p) => { audio.boost(); this.dust(p, 10, -p.facing, 3.8, '#00e5ff'); },
             timePost: () => audio.timePost(),
             checkpoint: () => audio.timePost(),
             timeWarp: () => { audio.timeWarp(); this.updateEraButton(); },
@@ -1042,7 +1074,7 @@ class Game {
         }
 
         const playerInput = (stageCleared || this.player.gameOver)
-            ? { left: false, right: false, down: false, jumpHeld: false, jumpPressed: false }
+            ? { left: false, right: false, up: false, down: false, jumpHeld: false, jumpPressed: false }
             : snap;
         this.player.update(playerInput, dt);
         this.input.endFrame();
@@ -1050,6 +1082,36 @@ class Game {
         const p = this.player;
         if (p.skidding) { audio.skid(now); if (Math.random() < 0.5 * this.dt60) this.dust(p, 1, p.facing, 1.5); }
         if (p.state === STATE.SPINDASH && Math.random() < 0.4 * this.dt60) this.dust(p, 1, -p.facing, 2);
+        if (p.state === STATE.PEELOUT && Math.random() < 0.55 * this.dt60) {
+            this.dust(p, 1, -p.facing, 2.6, p.peeloutCharge >= 24 ? '#ff2a85' : '#00e5ff');
+        }
+        if (p.onCoasterRail && Math.random() < 0.45 * this.dt60) {
+            this.dust(p, 1, -p.facing, 2.8, '#ffd740');
+        }
+        // Record high-speed afterimage echoes for Super Peel-Out, Speed Shoes, Boost Pads, Dash Rings & Coaster Rails
+        const absSpd = Math.hypot(p.xsp, p.ysp);
+        if (absSpd >= PHYS.TOP || p.boostTrailTimer > 0 || (p.shoesTimer && p.shoesTimer > 0) || p.state === STATE.PEELOUT) {
+            if (!this.scarTrail) this.scarTrail = [];
+            this.scarTrail.push({
+                x: p.x,
+                y: p.y,
+                facing: p.facing,
+                visualAngle: p.visualAngle,
+                curled: p.curled,
+                ballSpin: p.ballSpin,
+                frameIdx: this.selectScarFrame(p, Math.abs(p.grounded ? p.gsp : p.xsp)),
+                tint: (p.shoesTimer && p.shoesTimer > 0) ? '#ff2a85' : (p.boostTrailTimer > 0 ? '#00e5ff' : '#7c4dff'),
+                life: 8,
+                max: 8,
+            });
+            if (this.scarTrail.length > 6) this.scarTrail.shift();
+        }
+        if (this.scarTrail) {
+            for (let i = this.scarTrail.length - 1; i >= 0; i--) {
+                this.scarTrail[i].life -= this.dt60;
+                if (this.scarTrail[i].life <= 0) this.scarTrail.splice(i, 1);
+            }
+        }
         this.updateParticles(this.dt60);
         this.updateCamera(dt);
         this.render();
@@ -1057,7 +1119,7 @@ class Game {
     }
 
     /* ---------------- particles ---------------- */
-    dust(p, n, dir, speed) {
+    dust(p, n, dir, speed, color = null) {
         const fr = MODE_FRAMES[p.mode], h = p.radii.height;
         const fx = p.x + fr.dx * (h - 2), fy = p.y + fr.dy * (h - 2);
         for (let i = 0; i < n; i++) {
@@ -1066,6 +1128,7 @@ class Game {
                 x: fx, y: fy,
                 vx: fr.rx * dir * s - fr.dx * Math.random(), vy: fr.ry * dir * s - fr.dy * Math.random(),
                 life: 14 + Math.random() * 10, max: 24, size: 2 + Math.random() * 3,
+                color,
             });
         }
     }
@@ -1133,6 +1196,7 @@ class Game {
             if (typeof def.drawTerrain === 'function') def.drawTerrain(ctx, this);
             else for (const f of this.terrain.floors) this.drawFloor(ctx, f);
             this.drawTunnelsRock(ctx);
+            this.drawWaterSurface(ctx);
             this.drawPalmtreeObjects(ctx);
             if (typeof def.drawFront === 'function') def.drawFront(ctx, this);
         } else if (this.terrain.stage === 'palmtree') {
@@ -1903,7 +1967,7 @@ class Game {
             this.drawSprite(ctx, S.rock, rk.x - 20, rk.y - 32);
         }
 
-        // 10. Speed Boosters
+        // 10. Speed Boosters & Sonic Colors Starlight Dash Rings
         for (const sb of T.speedBoosters) {
             if (sb.x + 30 < this.view.x0 || sb.x - 30 > this.view.x1) continue;
             ctx.save();
@@ -1914,6 +1978,31 @@ class Game {
                 ctx.beginPath(); ctx.moveTo(i, -6); ctx.lineTo(i + 6, -3); ctx.lineTo(i, 0); ctx.closePath(); ctx.fill();
             }
             ctx.restore();
+        }
+        if (T.dashRings) {
+            for (const dr of T.dashRings) {
+                if (dr.x + 36 < this.view.x0 || dr.x - 36 > this.view.x1) continue;
+                ctx.save();
+                ctx.translate(Math.round(dr.x), Math.round(dr.y));
+                const rad = (dr.angleDeg || 0) * Math.PI / 180;
+                ctx.rotate(-rad);
+                const pulse = Math.sin(T.clock * 0.22 + dr.x * 0.01) * 2;
+                // 3D extruded back rim
+                ctx.strokeStyle = '#6a1b9a';
+                ctx.lineWidth = 5;
+                ctx.beginPath(); ctx.ellipse(-5, 2, 10, 22 + pulse * 0.4, 0, 0, TAU); ctx.stroke();
+                // Glowing Sonic Colors Starlight front hoop
+                ctx.strokeStyle = dr.cooldown > 0 ? '#00e5ff' : (Math.floor(T.clock / 3) % 2 === 0 ? '#ff2a85' : '#ffd740');
+                ctx.lineWidth = 4.5;
+                ctx.beginPath(); ctx.ellipse(0, 0, 10, 22 + pulse * 0.4, 0, 0, TAU); ctx.stroke();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath(); ctx.ellipse(0, 0, 8, 19 + pulse * 0.3, 0, -0.8, 0.8); ctx.stroke();
+                // Directional chevron inside hoop
+                ctx.fillStyle = '#00e5ff';
+                ctx.beginPath(); ctx.moveTo(4, 0); ctx.lineTo(-4, -6); ctx.lineTo(-1, 0); ctx.lineTo(-4, 6); ctx.closePath(); ctx.fill();
+                ctx.restore();
+            }
         }
 
         // 11. Sonic CD Time Posts, Checkpoint Star Posts, Springs, Monitors, Spikes, Big Ring & Goal Signpost
@@ -2444,14 +2533,46 @@ class Game {
     drawParticles(ctx) {
         for (const q of this.particles) {
             const a = Math.max(0, q.life / q.max);
-            ctx.fillStyle = `rgba(245,245,255,${a.toFixed(2)})`;
-            ctx.beginPath(); ctx.arc(q.x, q.y, q.size * (0.4 + 0.6 * a), 0, TAU); ctx.fill();
+            if (q.color) {
+                ctx.save();
+                ctx.globalAlpha = a;
+                ctx.fillStyle = q.color;
+                ctx.beginPath(); ctx.arc(q.x, q.y, q.size * (0.45 + 0.65 * a), 0, TAU); ctx.fill();
+                ctx.restore();
+            } else {
+                ctx.fillStyle = `rgba(245,245,255,${a.toFixed(2)})`;
+                ctx.beginPath(); ctx.arc(q.x, q.y, q.size * (0.4 + 0.6 * a), 0, TAU); ctx.fill();
+            }
         }
     }
 
     /* ---------------- Scar the Hedgerec sprite & animation machine ---------------- */
     drawPlayer(ctx) {
         const p = this.player;
+        // Render multi-echo high-speed afterimage trail behind Scar
+        if (this.scarTrail && this.scarTrail.length && this.scarSheetLoaded) {
+            for (const tr of this.scarTrail) {
+                const alpha = Math.max(0, (tr.life / tr.max) * 0.34);
+                if (alpha <= 0.02) continue;
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.translate(Math.round(tr.x), Math.round(tr.y));
+                if (tr.curled) {
+                    const R = HITBOX.ROLL.height;
+                    ctx.fillStyle = tr.tint || '#00e5ff';
+                    ctx.beginPath(); ctx.arc(0, 0, R - 1, 0, TAU); ctx.fill();
+                } else {
+                    ctx.rotate(-tr.visualAngle);
+                    ctx.scale(tr.facing, 1);
+                    const frame = SCAR_FRAMES[tr.frameIdx] || SCAR_FRAMES[3];
+                    const dx = -frame.anchorX;
+                    const dy = HITBOX.STAND.height - frame.anchorY;
+                    ctx.imageSmoothingEnabled = false;
+                    ctx.drawImage(this.scarSheet, frame.sx, 0, 48, 48, dx, dy, 48, 48);
+                }
+                ctx.restore();
+            }
+        }
         if (p.invulnTimer > 0 && Math.floor(p.invulnTimer / 3) % 2 === 1) return;
         ctx.save();
         ctx.translate(Math.round(p.x), Math.round(p.y));
@@ -2482,6 +2603,14 @@ class Game {
             ctx.fillStyle = 'rgba(136, 128, 255, 0.38)';
             for (let i = 1; i <= 3; i++) { ctx.beginPath(); ctx.arc(-p.facing * i * 4, 0, R - i, 0, TAU); ctx.fill(); }
         }
+        if (p.dropDashReady) {
+            // Blazing Drop Dash armed halo around Scar's spinball!
+            ctx.save();
+            ctx.strokeStyle = (Math.floor(this.terrain.clock * 0.5) % 2 === 0) ? '#00e5ff' : '#ffd740';
+            ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.arc(0, 0, R + 3.5, 0, TAU); ctx.stroke();
+            ctx.restore();
+        }
         ctx.rotate(p.ballSpin);
         ctx.fillStyle = BLUE_D; ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.fill();
         ctx.fillStyle = BLUE;
@@ -2509,8 +2638,26 @@ class Game {
      * and transition cadence to use based on player state and ground/air speed.
      */
     selectScarFrame(p, speed) {
+        if (this.actClear && p.grounded && speed < 0.2) {
+            return 0; // Victory stance on Act Clear
+        }
+        // Super Peel-Out stationary Figure-8 revving!
+        if (p.state === STATE.PEELOUT) {
+            const chargeRatio = Math.min(1, (p.peeloutCharge || 0) / 30);
+            const rate = 0.25 + chargeRatio * 0.55;
+            this._scarPeelPhase = (this._scarPeelPhase || 0) + rate * (this.dt60 || 1);
+            if (chargeRatio < 0.35) {
+                return (Math.floor(this._scarPeelPhase) % 2 === 0) ? 1 : 2;
+            }
+            return (Math.floor(this._scarPeelPhase * 1.4) % 2 === 0) ? 3 : 4;
+        }
         if (!p.grounded) {
-            this._scarAirPhase = (this._scarAirPhase || 0) + Math.max(0.12, speed * 0.08) * (this.dt60 || 1);
+            if (p.hurtPose) return 1;
+            this._scarAirPhase = (this._scarAirPhase || 0) + Math.max(0.14, speed * 0.085) * (this.dt60 || 1);
+            if (p.springTwirl) {
+                const seq = [1, 3, 2, 4];
+                return seq[Math.floor(this._scarAirPhase * 2.2) % 4];
+            }
             if (speed >= 5.2) {
                 return (Math.floor(this._scarAirPhase * 1.8) % 2 === 0) ? 3 : 4;
             }
@@ -2526,7 +2673,7 @@ class Game {
 
         // Advance continuous stride phase proportional to ground speed
         const dt = this.dt60 || 1;
-        const rate = 0.09 + Math.min(speed, 10) * 0.055;
+        const rate = 0.09 + Math.min(speed, 12) * 0.055;
         this._scarStepPhase = (this._scarStepPhase || 0) + rate * dt;
 
         if (p.skidding) {
@@ -2567,10 +2714,21 @@ class Game {
             ctx.save();
             ctx.imageSmoothingEnabled = false;
 
-            // Crouch feedback when holding Down while standing
+            // Crouch / Look-Up / Super Peel-Out / Spring Twirl / Hurt posture transforms
             if (p.crouching) {
                 ctx.translate(0, 3);
                 ctx.scale(1.06, 0.86);
+            } else if (p.lookingUp && p.grounded && speed <= 0.06) {
+                ctx.translate(0, -2);
+                ctx.rotate(-0.08);
+            } else if (p.state === STATE.PEELOUT) {
+                const chargeRatio = Math.min(1, (p.peeloutCharge || 0) / 30);
+                ctx.rotate(0.14 * chargeRatio);
+            } else if (!p.grounded && p.hurtPose) {
+                ctx.rotate(-0.28);
+            } else if (!p.grounded && p.springTwirl) {
+                const wobble = Math.sin((this.terrain.clock || 0) * 0.45) * 0.14;
+                ctx.rotate(wobble);
             } else if (frameIdx === 0 && p.grounded) {
                 // Subtle 1px retro idle breathing bob
                 const bob = Math.floor(performance.now() / 420) % 2;
@@ -2586,8 +2744,26 @@ class Game {
             const dx = -frame.anchorX;
             const dy = footBottomY - frame.anchorY;  // aligns sprite foot y=47 to local y=+19
 
+            // Super Peel-Out Figure-8 infinity vortex at Scar's feet while charging!
+            if (p.state === STATE.PEELOUT) {
+                const chargeRatio = Math.min(1, (p.peeloutCharge || 0) / 30);
+                ctx.save();
+                ctx.strokeStyle = chargeRatio >= 0.8 ? '#ff2a85' : '#00e5ff';
+                ctx.lineWidth = 2.4;
+                const t = (this.terrain.clock || 0) * 0.55;
+                ctx.beginPath();
+                ctx.ellipse(-6, footBottomY - 5, 10 + chargeRatio * 5, 5, 0.25 * Math.sin(t), 0, TAU);
+                ctx.stroke();
+                ctx.strokeStyle = '#ffd740';
+                ctx.lineWidth = 1.6;
+                ctx.beginPath();
+                ctx.ellipse(5, footBottomY - 5, 8 + chargeRatio * 4, 4.5, -0.25 * Math.cos(t), 0, TAU);
+                ctx.stroke();
+                ctx.restore();
+            }
+
             // High-speed Scar afterimage echo when running at or above TOP speed
-            if (speed >= PHYS.TOP) {
+            if (speed >= PHYS.TOP || p.state === STATE.PEELOUT) {
                 ctx.save();
                 ctx.globalAlpha = 0.28;
                 const altFrame = SCAR_FRAMES[frameIdx === 3 ? 4 : 3];
@@ -2684,6 +2860,24 @@ class Game {
         ctx.font = 'bold 14px Courier New';
         ctx.fillStyle = '#000'; ctx.fillText(livesVal, 51, 129);
         ctx.fillStyle = '#fff'; ctx.fillText(livesVal, 50, 128);
+
+        // Active Power-Up / High-Speed Technique Badges next to Lives
+        const badges = [];
+        if (p.shoesTimer && p.shoesTimer > 0) badges.push({ label: `SPEED ${Math.ceil(p.shoesTimer / 60)}s`, col: '#ff2a85' });
+        if (p.invincTimer && p.invincTimer > 0) badges.push({ label: `STAR ${Math.ceil(p.invincTimer / 60)}s`, col: '#ffd740' });
+        if (p.shield) badges.push({ label: 'SHIELD', col: '#00e5ff' });
+        if (p.state === STATE.PEELOUT) badges.push({ label: 'PEEL-OUT!', col: '#ff2a85' });
+        else if (p.dropDashReady) badges.push({ label: 'DROP DASH', col: '#00e5ff' });
+        else if (p.onCoasterRail) badges.push({ label: 'RAIL SURGE', col: '#ffd740' });
+        let bx = 152;
+        ctx.font = 'bold 10px Courier New';
+        for (const b of badges) {
+            const bw = ctx.measureText(b.label).width + 14;
+            this.panel(ctx, bx, 104, bw, 26);
+            ctx.fillStyle = b.col;
+            ctx.fillText(b.label, bx + 7, 121);
+            bx += bw + 6;
+        }
     }
 
     drawActClearOverlay(ctx) {
@@ -2933,7 +3127,7 @@ class Game {
     }
 
     drawControlsHint(ctx) {
-        const txt = '←/→ run  ↓ roll  Space/Z jump  ↓+Jump spin dash  1–7 checkpoints  T time era  M zone  Tab debug  R reset';
+        const txt = '←/→ run  ↑+Jump peel-out  ↓+Jump spin dash  Air-Jump hold drop dash  1–7 checkpoints  M zone  Tab debug  R reset';
         ctx.font = '11px Courier New';
         const w = ctx.measureText(txt).width + 20;
         this.panel(ctx, (this.W - w) / 2, this.H - 30, w, 22);

@@ -25,7 +25,7 @@ function sim(player, seconds, hz, script, observe) {
         const f = i * 60 / hz;
         const k = script(f, player) || {};
         const jump = !!k.jump;
-        player.update({ left: !!k.left, right: !!k.right, down: !!k.down, jumpHeld: jump, jumpPressed: jump && !prevJump }, dt);
+        player.update({ left: !!k.left, right: !!k.right, up: !!k.up, down: !!k.down, jumpHeld: jump, jumpPressed: jump && !prevJump }, dt);
         prevJump = jump;
         if (observe && observe(player, f)) return f;
     }
@@ -329,24 +329,28 @@ test('Classic Lives System grants 1-Up every 100 rings and triggers GAME OVER / 
     assert(p.lives === 0 && p.gameOver === true && gameOverReason === 'TIME OVER', `gameOver=${p.gameOver} reason=${gameOverReason}`);
 });
 
-test('Zone 1 Act 2 (Starlight Resort 11,400px high-speed Lower & Upper Coaster routes) and Act 3 Boss Capsule clear cleanly', () => {
+test('Zone 1 Act 2 (Starlight Resort 11,400px high-speed Lower & Upper Coaster routes + 28 Sonic 2 Badniks) and Act 3 Boss Capsule clear cleanly', () => {
     require('../public/levels/zone1_act2.js');
     require('../public/levels/zone1_act3.js');
     require('../templates/boss_act_template.js');
     assert(Terrain.LEVELS.z1_act2 && Terrain.LEVELS.z1_act3 && Terrain.LEVELS.boss_template, 'Act 2, Act 3 & Boss Template registered');
     assert(Terrain.LEVELS.z1_act2.act === 2 && !Terrain.LEVELS.z1_act2.isBossAct, 'Act 2 metadata');
-    assert(Terrain.LEVELS.z1_act2.endX === 11400 && Terrain.LEVELS.z1_act2.enemies.length === 0, 'Act 2 11,400px layout with empty enemies ready for next phase');
+    assert(Terrain.LEVELS.z1_act2.endX === 11400 && Terrain.LEVELS.z1_act2.enemySheet === 'assets/enemies_act2.png', 'Act 2 11,400px layout + Sonic 2 Badniks sheet');
+    assert(Object.keys(Terrain.LEVELS.z1_act2.enemyFrames).length === 46, '46 Sonic 2 Badnik animation frames registered');
     assert(Terrain.LEVELS.z1_act3.act === 3 && Terrain.LEVELS.z1_act3.isBossAct === true, 'Act 3 Boss metadata');
 
-    // 1. Lower Twin-Loop Expressway full Spin-Dash run -> clears all 11,400px with 0 deaths & 100+ rings (+1 life!)
+    // 1. Lower Twin-Loop Expressway full Spin-Dash run -> clears all 11,400px with 0 deaths, smashing Badniks & collecting 100+ rings!
     const t2 = new Terrain('z1_act2');
     assert(t2.loops.length === 5, `expected 5 holo-coaster loops, got ${t2.loops.length}`);
+    assert(t2.enemies.length === 29 && t2.dashRings.length === 4, `enemies=${t2.enemies.length} dashRings=${t2.dashRings.length}`);
     const p2 = new Player(t2);
-    let deaths2 = 0; p2.events.death = () => deaths2++;
+    let deaths2 = 0, popped2 = 0;
+    p2.events.death = () => deaths2++;
+    p2.events.enemyPop = () => popped2++;
     const f2 = sim(p2, 35, 60, spinDashThenRight, () => t2.goalPost.spinning || t2.goalPost.cleared);
-    assert(f2 !== null && deaths2 === 0 && p2.rings >= 100 && p2.lives === 4,
-        `cleared z1_act2 lower expressway in f=${f2}, deaths=${deaths2}, rings=${p2.rings}, lives=${p2.lives}`);
-    console.log(`      (cleared Starlight Resort Act 2 Lower Expressway in ${(f2 / 60).toFixed(2)}s with ${p2.rings} rings, score ${p2.score})`);
+    assert(f2 !== null && deaths2 === 0 && popped2 >= 4 && p2.rings >= 100 && p2.lives === 4,
+        `cleared z1_act2 lower expressway in f=${f2}, deaths=${deaths2}, popped=${popped2}, rings=${p2.rings}, lives=${p2.lives}`);
+    console.log(`      (cleared Starlight Resort Act 2 Lower Expressway in ${(f2 / 60).toFixed(2)}s, popped ${popped2} Badniks/TVs, ${p2.rings} rings, score ${p2.score})`);
 
     // 2. Upper Starlight Coaster Highway run (Red Spring -> Upper Twin Loops #3 & #4 -> 3-Wave Corkscrew -> Loop #5 -> Giant Ring -> Goal!)
     const t2U = new Terrain('z1_act2');
@@ -367,6 +371,32 @@ test('Zone 1 Act 2 (Starlight Resort 11,400px high-speed Lower & Upper Coaster r
     p3.curl();
     const f3 = sim(p3, 5, 60, () => ({}), () => t3.capsule.cleared);
     assert(f3 !== null && t3.capsule.opened && t3.capsule.cleared, `opened & cleared Act 3 Animal Capsule in f=${f3}`);
+});
+
+test('Level 2 Character Mechanics: Super Peel-Out, Mid-Air Drop Dash, Super Speed Shoes & Starlight Dash Rings', () => {
+    const t2 = new Terrain('z1_act2');
+
+    // 1. Super Peel-Out: Hold Up + press Jump to charge Figure-8 legs, release Up -> launches at supersonic speed (12.0) uncurled!
+    const pPeel = new Player(t2);
+    sim(pPeel, 0.8, 60, (f) => ({ up: f < 36, jump: f >= 2 && f < 4 }), (pl, f) => f >= 36 && pl.state === STATE.RUNNING);
+    assert(pPeel.state === STATE.RUNNING && !pPeel.curled && pPeel.gsp >= 11.4,
+        `Super Peel-Out should launch uncurled at ~12.0, got state=${pPeel.state} curled=${pPeel.curled} gsp=${pPeel.gsp.toFixed(2)}`);
+
+    // 2. Mid-Air Drop Dash: Jump, release Jump, then hold Jump in mid-air until landing -> instant rolling burst!
+    const pDrop = new Player(t2);
+    sim(pDrop, 1.5, 60, (f) => ({ right: true, jump: (f >= 1 && f < 4) || f >= 8 }), (pl) => pl.grounded && pl.state === STATE.ROLLING && pl.gsp >= 8.0);
+    assert(pDrop.grounded && pDrop.curled && pDrop.state === STATE.ROLLING && pDrop.gsp >= 8.0,
+        `Drop Dash should land in ROLLING state at >=8.0, got state=${pDrop.state} gsp=${pDrop.gsp.toFixed(2)}`);
+
+    // 3. Starlight Dash Ring: touching an aerial Dash Ring launches Scar along its angle with springTwirl & boostTrailTimer!
+    const pRing = new Player(t2);
+    const dr = t2.dashRings[0];
+    pRing.x = dr.x;
+    pRing.y = dr.y;
+    pRing.state = STATE.AIRBORNE;
+    sim(pRing, 2 / 60, 60, () => ({}));
+    assert(pRing.springTwirl === true && pRing.boostTrailTimer > 0 && pRing.xsp > 11.0,
+        `Dash Ring should rocket Scar forward with springTwirl, got xsp=${pRing.xsp.toFixed(2)} springTwirl=${pRing.springTwirl}`);
 });
 
 console.log(failures ? `\n${failures} FAILED\n` : '\nAll tests passed\n');

@@ -67,6 +67,7 @@
         RUNNING: 'RUNNING',
         ROLLING: 'ROLLING',
         SPINDASH: 'SPINDASH',
+        PEELOUT: 'PEELOUT',
         AIRBORNE: 'AIRBORNE',
     });
 
@@ -414,6 +415,7 @@
             this.trapDoors = [];
             this.rocks = [];
             this.speedBoosters = [];
+            this.dashRings = [];
             this.rings = [];
             this.scatteredRings = [];
             this.enemies = [];
@@ -536,6 +538,15 @@
             this.trapDoors = [];
             this.rocks = [];
             this.speedBoosters = (src.speedBoosters || []).map((d) => ({ boost: 11.5, ...d, cooldown: 0 }));
+            this.dashRings = (src.dashRings || []).map((d) => ({
+                x: d.x, y: d.y,
+                angleDeg: d.angleDeg !== undefined ? d.angleDeg : 0,
+                boost: d.boost !== undefined ? d.boost : 12.6,
+                color: d.color || 'starlight',
+                cooldown: 0,
+                flash: 0,
+            }));
+            this.waterZones = (src.waterZones || []).map((d) => ({ x0: d.x0, x1: d.x1, y: d.y }));
             this.timePosts = (src.timePosts || []).map((d) => ({ spin: 0, active: false, ...d }));
 
             // Common Sonic Foundation Objects (TV Monitors, Checkpoint Star Posts, Springs, Spikes, Big Ring, Goal Post)
@@ -1473,7 +1484,35 @@
                     player.facing = dir;
                     player.xsp = player.gsp * Math.cos(player.angle);
                     player.ysp = -player.gsp * Math.sin(player.angle);
+                    player.boostTrailTimer = Math.max(player.boostTrailTimer || 0, 36);
                     player.emit('boost', sb);
+                }
+            }
+
+            // 8b. Starlight / Sonic Colors Aerial Dash Rings
+            if (this.dashRings) {
+                for (const dr of this.dashRings) {
+                    if (dr.cooldown > 0) dr.cooldown = Math.max(0, dr.cooldown - h);
+                    if (dr.flash > 0) dr.flash = Math.max(0, dr.flash - h);
+                    if (dr.cooldown <= 0 && Math.hypot(player.x - dr.x, player.y - dr.y) < 30) {
+                        dr.cooldown = 22;
+                        dr.flash = 16;
+                        const rad = (dr.angleDeg || 0) * DEG;
+                        player.x = dr.x;
+                        player.y = dr.y;
+                        player.xsp = Math.cos(rad) * dr.boost;
+                        player.ysp = Math.sin(rad) * dr.boost;
+                        player.gsp = player.xsp;
+                        player.facing = player.xsp >= 0 ? 1 : -1;
+                        player.state = STATE.AIRBORNE;
+                        player.jumped = false;
+                        player.crouching = false;
+                        player.springTwirl = true;
+                        player.boostTrailTimer = Math.max(player.boostTrailTimer || 0, 42);
+                        player.score = (player.score || 0) + 100;
+                        this.popups.push({ x: dr.x, y: dr.y - 22, text: '+100', life: 36 });
+                        player.emit('dashRing', dr);
+                    }
                 }
             }
 
@@ -1527,7 +1566,7 @@
                 if (sr.life <= 0) this.scatteredRings.splice(i, 1);
             }
 
-            // 11. Badniks (Motobug, Crabmeat, Buzz Bomber, Spikes, Caterkiller, Burrobot, Batbrain, Chopper)
+            // 11. Badniks (Level 1 + Sonic 2 Act 2 Badniks: Buzzer, Masher, Coconuts, Sping, Grounder, Crawl, Shellcracker, Slicer, Octus, Balkiry, Nebula, Chop, Asteron, Turtloid)
             for (const en of this.enemies) {
                 if (!en.alive) continue;
                 if (en.kind === 'crab') {
@@ -1536,16 +1575,25 @@
                     if (en.x >= en.maxX) { en.x = en.maxX; en.vx = -Math.abs(en.vx); }
                     const surf = this.getSurfaceAt(en.x, en.y - 24, 0);
                     if (surf && Math.abs(surf.y - en.y) < 30) en.y = surf.y;
-                } else if (en.type === 'chopper') {
+                } else if (en.type === 'chopper' || en.type === 'masher') {
                     en.x = en.baseX;
-                    en.y = en.baseY - Math.abs(Math.sin(this.clock * 0.055 + (en.phase || 0))) * 75;
+                    const leapAmp = en.leapHeight || 82;
+                    en.y = en.baseY - Math.abs(Math.sin(this.clock * 0.055 + (en.phase || 0))) * leapAmp;
+                } else if (en.type === 'balkiry') {
+                    const span = en.span || 95;
+                    en.x = en.baseX + Math.sin(this.clock * 0.05 + (en.phase || 0)) * span;
+                    en.y = en.baseY + Math.sin(this.clock * 0.09 + (en.phase || 0)) * 12;
                 } else {
                     en.x = en.baseX + Math.sin(this.clock * 0.035 + en.phase) * 55;
                     en.y = en.baseY + Math.sin(this.clock * 0.07 + en.phase) * 18;
                 }
                 const ex = en.x, ey = en.kind === 'crab' ? en.y - 14 : en.y;
                 if (Math.hypot(player.x - ex, player.y - ey) < 24) {
-                    const attacking = player.curled || (player.invincTimer && player.invincTimer > 0) || (player.state === STATE.AIRBORNE && player.ysp > 0 && player.y < ey);
+                    const fastBoost = (player.boostTrailTimer && player.boostTrailTimer > 0)
+                        || player.onCoasterRail
+                        || (player.shoesTimer && player.shoesTimer > 0 && Math.abs(player.grounded ? player.gsp : player.xsp) >= 6.5)
+                        || Math.abs(player.grounded ? player.gsp : player.xsp) >= 7.5;
+                    const attacking = player.curled || fastBoost || (player.invincTimer && player.invincTimer > 0) || (player.state === STATE.AIRBORNE && player.ysp > 0 && player.y < ey);
                     if (attacking) {
                         en.alive = false;
                         if (!player.grounded && player.ysp > 0) player.ysp = -Math.max(6.5, Math.abs(player.ysp));
@@ -1576,7 +1624,9 @@
                     if (m.broken) continue;
                     const mx = m.x, my = m.y - 15;
                     if (Math.hypot(player.x - mx, player.y - my) < 24) {
-                        if (player.curled || (player.state === STATE.AIRBORNE && player.ysp > 0 && player.y < my)) {
+                        const fastMonitorSmash = (player.boostTrailTimer && player.boostTrailTimer > 0)
+                            || Math.abs(player.grounded ? player.gsp : player.xsp) >= 8.5;
+                        if (player.curled || fastMonitorSmash || (player.state === STATE.AIRBORNE && player.ysp > 0 && player.y < my)) {
                             m.broken = true;
                             if (!player.grounded && player.ysp > 0) player.ysp = -Math.max(5.5, Math.abs(player.ysp));
                             this.debris.push({ kind: 'explosion', x: mx, y: my, vx: 0, vy: 0, life: 20, maxLife: 20 });
@@ -1616,6 +1666,7 @@
                         player.state = STATE.AIRBORNE;
                         player.jumped = false;
                         player.crouching = false;
+                        player.springTwirl = true;
                         player.emit('bouncePole', sp);
                     }
                 }
@@ -1760,6 +1811,7 @@
                 player.state = STATE.AIRBORNE;
                 player.curled = false;
                 player.jumped = false;
+                player.hurtPose = true;
                 player.xsp = dir * 2.5;
                 player.ysp = -4.2;
                 player.emit('ringLoss', 0);
@@ -1785,6 +1837,7 @@
                 player.state = STATE.AIRBORNE;
                 player.curled = false;
                 player.jumped = false;
+                player.hurtPose = true;
                 player.xsp = dir * 2.5;
                 player.ysp = -4.2;
                 player.emit('ringLoss', dropCount);
@@ -1906,8 +1959,18 @@
             this.layer = layer;
             this.controlLock = 0;
             this.spindashRev = 0;
+            this.peeloutRev = 0;
+            this.lookingUp = false;
             this.crouching = false;
             this.skidding = false;
+            this.dropDashCharging = false;
+            this.dropDashCharge = 0;
+            this.dropDashReady = false;
+            this.springTwirl = false;
+            this.springTwirlPhase = 0;
+            this.hurtPose = false;
+            this.onCoasterRail = false;
+            this.boostTrailTimer = 0;
             this.ballSpin = 0;
             this.runPhase = 0;
             this.airMotion = 'down';
@@ -1930,7 +1993,7 @@
         }
 
         /**
-         * input: { left, right, down, jumpHeld, jumpPressed }  (jumpPressed = edge this render frame)
+         * input: { left, right, up, down, jumpHeld, jumpPressed }  (jumpPressed = edge this render frame)
          * dtSeconds: real elapsed time. Scaled to 60 FPS frames and sub-stepped (each step <= 1 frame).
          */
         update(input, dtSeconds) {
@@ -1946,9 +2009,11 @@
             this.prevX = this.x;
             this.prevY = this.y;
             this.skidding = false;
+            if (this.boostTrailTimer > 0) this.boostTrailTimer = Math.max(0, this.boostTrailTimer - h);
             if (this.terrain.updateObjects) this.terrain.updateObjects(this, h);
             if (this.state === STATE.SPINDASH) this.stepSpindash(inp, h, jumpPressed);
-            else if (this.state === STATE.AIRBORNE) this.stepAirborne(inp, h);
+            else if (this.state === STATE.PEELOUT) this.stepPeelout(inp, h, jumpPressed);
+            else if (this.state === STATE.AIRBORNE) this.stepAirborne(inp, h, jumpPressed);
             else this.stepGrounded(inp, h, jumpPressed);
             this.checkGates();
             this.updateCosmetics(h);
@@ -1959,6 +2024,7 @@
         curl() {
             if (this.curled) return;
             this.curled = true;
+            this.springTwirl = false;
             this.x += Math.sin(this.angle) * PHYS.CURL_OFFSET;
             this.y += Math.cos(this.angle) * PHYS.CURL_OFFSET;
         }
@@ -1972,6 +2038,10 @@
         /* ---------- GROUNDED: STANDING / RUNNING / ROLLING ---------- */
         stepGrounded(inp, h, jumpPressed) {
             const P = PHYS;
+            const hasShoes = !!(this.shoesTimer && this.shoesTimer > 0);
+            const top = hasShoes ? P.TOP * 2 : P.TOP;
+            const acc = hasShoes ? P.ACC * 2 : P.ACC;
+            const frc = hasShoes ? P.FRC * 2 : P.FRC;
 
             // Control lock: left/right are ignored while > 0 (friction etc. still apply).
             const locked = this.controlLock > 0;
@@ -1988,7 +2058,21 @@
                 this.state = STATE.SPINDASH;
                 this.spindashRev = 0;
                 this.crouching = false;
+                this.lookingUp = false;
                 this.emit('spindashRev', 0);
+                this.groundSensors();
+                return;
+            }
+
+            // Sonic CD Super Peel-Out: grounded, |gsp| < 0.5, holding Up, pressing Jump -> Figure-8 charge on feet!
+            if (!rolling && inp.up && !inp.down && jumpPressed && Math.abs(this.gsp) < P.SPINDASH_MAX_GSP) {
+                this.gsp = 0; this.xsp = 0; this.ysp = 0;
+                this.uncurl();
+                this.state = STATE.PEELOUT;
+                this.peeloutRev = 6;
+                this.crouching = false;
+                this.lookingUp = false;
+                this.emit('peeloutRev', this.peeloutRev);
                 this.groundSensors();
                 return;
             }
@@ -2020,8 +2104,8 @@
                         this.skidding = this.gsp >= 4;
                         this.gsp -= P.DEC * h;
                         if (this.gsp <= 0) this.gsp = -P.SKID_SNAP;
-                    } else if (this.gsp > -P.TOP) {
-                        this.gsp = Math.max(this.gsp - P.ACC * h, -P.TOP);
+                    } else if (this.gsp > -top) {
+                        this.gsp = Math.max(this.gsp - acc * h, -top);
                     }
                     if (this.gsp <= 0) this.facing = -1;
                 } else if (right) {
@@ -2029,12 +2113,12 @@
                         this.skidding = this.gsp <= -4;
                         this.gsp += P.DEC * h;
                         if (this.gsp >= 0) this.gsp = P.SKID_SNAP;
-                    } else if (this.gsp < P.TOP) {
-                        this.gsp = Math.min(this.gsp + P.ACC * h, P.TOP);
+                    } else if (this.gsp < top) {
+                        this.gsp = Math.min(this.gsp + acc * h, top);
                     }
                     if (this.gsp >= 0) this.facing = 1;
                 } else {
-                    this.gsp -= Math.min(Math.abs(this.gsp), P.FRC * h) * sign(this.gsp);
+                    this.gsp -= Math.min(Math.abs(this.gsp), frc * h) * sign(this.gsp);
                 }
                 // Enter ROLLING: grounded, Down, |gsp| >= 1.0
                 if (inp.down && Math.abs(this.gsp) >= P.ROLL_MIN_SPEED) {
@@ -2042,6 +2126,24 @@
                     this.state = STATE.ROLLING;
                     this.emit('roll');
                 }
+            }
+
+            // Level 2 Coaster Rail Surge: low-friction magnetic rail tailwind on tubular coaster bridges
+            this.onCoasterRail = false;
+            if (this.groundSurface && this.groundSurface.coasterSpans) {
+                for (let i = 0; i < this.groundSurface.coasterSpans.length; i++) {
+                    const sp = this.groundSurface.coasterSpans[i];
+                    if (this.x >= sp[0] && this.x <= sp[1]) {
+                        this.onCoasterRail = true;
+                        break;
+                    }
+                }
+            }
+            if (this.onCoasterRail && this.curled && Math.abs(this.gsp) >= 2.0 && Math.abs(this.gsp) < 10.5) {
+                this.gsp += sign(this.gsp) * 0.05 * h;
+                this.emit('coasterRail', this.gsp);
+            } else if (this.onCoasterRail && Math.abs(this.gsp) >= P.TOP) {
+                this.emit('coasterRail', this.gsp);
             }
 
             this.gsp = clamp(this.gsp, -P.MAX_SPEED, P.MAX_SPEED);
@@ -2067,6 +2169,7 @@
 
             if (this.state !== STATE.ROLLING) this.state = this.gsp === 0 ? STATE.STANDING : STATE.RUNNING;
             this.crouching = this.state === STATE.STANDING && !!inp.down;
+            this.lookingUp = this.state === STATE.STANDING && !!inp.up && !inp.down;
         }
 
         jump() {
@@ -2080,6 +2183,11 @@
             this.curl(); // AIRBORNE + ROLLING hitbox (same +5px rule so the ball starts on the ground)
             this.jumped = true;
             this.crouching = false;
+            this.lookingUp = false;
+            this.onCoasterRail = false;
+            this.dropDashCharging = false;
+            this.dropDashCharge = 0;
+            this.dropDashReady = false;
             this.groundSurface = null;
             this.state = STATE.AIRBORNE;
             this.emit('jump');
@@ -2089,9 +2197,15 @@
             this.state = STATE.AIRBORNE;
             this.jumped = false; // walked/rolled off or slipped: no variable-jump clamp
             this.crouching = false;
+            this.lookingUp = false;
+            this.onCoasterRail = false;
             this.groundSurface = null;
             this.xsp = this.gsp * Math.cos(this.angle);
             this.ysp = -this.gsp * Math.sin(this.angle);
+            // Launching off a steep ski-jump ramp uncurled triggers Scar's aerial corkscrew twirl!
+            if (!this.curled && this.ysp < -3.6) {
+                this.springTwirl = true;
+            }
         }
 
         /* ---------- SPINDASH (§4) ---------- */
@@ -2104,6 +2218,7 @@
                 this.spindashRev = 0;
                 this.xsp = this.gsp * Math.cos(this.angle);
                 this.ysp = -this.gsp * Math.sin(this.angle);
+                this.boostTrailTimer = Math.max(this.boostTrailTimer || 0, 28);
                 this.emit('spindashRelease', Math.abs(this.gsp));
                 return;
             }
@@ -2116,18 +2231,70 @@
             this.groundSensors();
         }
 
-        /* ---------- AIRBORNE (§5) ---------- */
-        stepAirborne(inp, h) {
+        /* ---------- SONIC CD SUPER PEEL-OUT (Up + Jump -> Figure-8 Launch on Feet!) ---------- */
+        stepPeelout(inp, h, jumpPressed) {
             const P = PHYS;
+            this.gsp = 0; this.xsp = 0; this.ysp = 0;
+            if (!inp.up) { // release Up -> launch forward on feet in full Figure-8 Peel-Out Run!
+                const chargeRatio = Math.min(1, (this.peeloutRev || 0) / 30);
+                const launchSpd = 8 + chargeRatio * 4; // 8.0 .. 12.0 px/frame!
+                this.gsp = clamp(launchSpd * this.facing, -P.MAX_SPEED, P.MAX_SPEED);
+                this.uncurl();
+                this.state = STATE.RUNNING;
+                this.peeloutRev = 0;
+                this.xsp = this.gsp * Math.cos(this.angle);
+                this.ysp = -this.gsp * Math.sin(this.angle);
+                this.boostTrailTimer = Math.max(this.boostTrailTimer || 0, 45);
+                this.emit('peeloutRelease', Math.abs(this.gsp));
+                return;
+            }
+            const prevTier = Math.floor((this.peeloutRev || 0) / 6);
+            this.peeloutRev = Math.min(30, (this.peeloutRev || 0) + 0.65 * h + (jumpPressed ? 6 : 0));
+            const newTier = Math.floor(this.peeloutRev / 6);
+            if (jumpPressed || newTier > prevTier) {
+                this.emit('peeloutRev', this.peeloutRev);
+            }
+            this.groundSensors();
+        }
+
+        /* ---------- AIRBORNE (§5 + Mid-Air Drop Dash) ---------- */
+        stepAirborne(inp, h, jumpPressed = false) {
+            const P = PHYS;
+            const hasShoes = !!(this.shoesTimer && this.shoesTimer > 0);
+            const top = hasShoes ? P.TOP * 2 : P.TOP;
+            const airAcc = hasShoes ? P.AIR_ACC * 2 : P.AIR_ACC;
+
             // Variable jump height: jump not held while Ysp < -4 -> clamp (only for real jumps)
             if (this.jumped && !inp.jumpHeld && this.ysp < P.JMP_RELEASE_CAP) this.ysp = P.JMP_RELEASE_CAP;
 
+            // Mid-Air Drop Dash: press & hold Jump again while curled in mid-air to charge instant landing roll!
+            if (this.curled && !this.hurtPose) {
+                if (jumpPressed && !this.dropDashCharging) {
+                    this.dropDashCharging = true;
+                    this.dropDashCharge = 0;
+                }
+                if (this.dropDashCharging) {
+                    if (inp.jumpHeld) {
+                        const wasReady = this.dropDashReady;
+                        this.dropDashCharge += h;
+                        if (this.dropDashCharge >= 14) {
+                            this.dropDashReady = true;
+                            if (!wasReady) this.emit('dropDashReady');
+                        }
+                    } else {
+                        this.dropDashCharging = false;
+                        this.dropDashCharge = 0;
+                        this.dropDashReady = false;
+                    }
+                }
+            }
+
             // Air acceleration (never pulls speed back down to TOP)
             if (inp.left) {
-                if (this.xsp > -P.TOP) this.xsp = Math.max(this.xsp - P.AIR_ACC * h, -P.TOP);
+                if (this.xsp > -top) this.xsp = Math.max(this.xsp - airAcc * h, -top);
                 this.facing = -1;
             } else if (inp.right) {
-                if (this.xsp < P.TOP) this.xsp = Math.min(this.xsp + P.AIR_ACC * h, P.TOP);
+                if (this.xsp < top) this.xsp = Math.min(this.xsp + airAcc * h, top);
                 this.facing = 1;
             }
 
@@ -2261,12 +2428,32 @@
             this.y += hit.t - r.height;
             this.angle = hit.angle;
             this.gsp = clamp(landingGroundSpeed(xsp, ysp, this.angle), -PHYS.MAX_SPEED, PHYS.MAX_SPEED);
-            this.uncurl();                 // back to the standing hitbox (-5px)
             this.jumped = false;
-            this.state = this.gsp === 0 ? STATE.STANDING : STATE.RUNNING;
+            this.springTwirl = false;
+            this.hurtPose = false;
+
+            const executeDropDash = !!(this.dropDashReady && this.curled);
+            this.dropDashCharging = false;
+            this.dropDashCharge = 0;
+            this.dropDashReady = false;
+
+            if (executeDropDash) {
+                const sameDir = sign(this.gsp) === this.facing || Math.abs(this.gsp) < 0.5;
+                const ddSpeed = sameDir
+                    ? clamp(this.gsp * 0.5 + 8.5 * this.facing, -12, 12)
+                    : clamp(8.5 * this.facing, -12, 12);
+                this.gsp = ddSpeed;
+                this.curl();
+                this.state = STATE.ROLLING;
+                this.boostTrailTimer = Math.max(this.boostTrailTimer || 0, 36);
+                this.emit('dropDash', Math.abs(this.gsp));
+            } else {
+                this.uncurl();                 // back to the standing hitbox (-5px)
+                this.state = this.gsp === 0 ? STATE.STANDING : STATE.RUNNING;
+            }
             this.xsp = this.gsp * Math.cos(this.angle);
             this.ysp = -this.gsp * Math.sin(this.angle);
-            // Spawn water splash if landing in a Palmtree Panic water zone
+            // Spawn water splash if landing in a Palmtree Panic or Level 2 plasma water zone
             if (this.terrain.waterZones) {
                 const feetY = this.y + this.radii.height;
                 for (const wz of this.terrain.waterZones) {
@@ -2300,14 +2487,20 @@
         updateCosmetics(h) {
             if (this.state === STATE.AIRBORNE) {
                 this.visualAngle = this.angle;
+                if (this.springTwirl) {
+                    this.springTwirlPhase = (this.springTwirlPhase || 0) + 0.34 * h;
+                }
             } else {
                 const diff = wrapSigned(this.angle - this.visualAngle);
                 this.visualAngle = wrapAngle(this.visualAngle + diff * (1 - Math.pow(0.4, h)));
+                this.springTwirlPhase = 0;
             }
             const roll = this.state === STATE.SPINDASH ? 0.8 * this.facing * 14
+                : this.dropDashReady ? 1.15 * this.facing * 14
                 : (this.grounded ? this.gsp : this.xsp);
             this.ballSpin += (roll / 14) * h;
-            this.runPhase += Math.abs(this.gsp) * h * 0.13;
+            const runSpd = this.state === STATE.PEELOUT ? (6 + (this.peeloutRev || 0) * 0.25) : Math.abs(this.gsp);
+            this.runPhase += runSpd * h * 0.13;
         }
     }
 
