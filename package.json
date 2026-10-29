@@ -11,6 +11,7 @@
     "start:open": "node server.js --open",
     "termux": "node server.js --open",
     "install:termux": "sh install-termux.sh",
+    "build:template": "node scripts/build-template-zip.js",
     "test": "node tests/sonic_engine_test.js"
   },
   "keywords": [

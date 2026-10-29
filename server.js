@@ -21,6 +21,8 @@ const MIME_TYPES = {
     '.wav':  'audio/wav',
     '.mp3':  'audio/mpeg',
     '.ogg':  'audio/ogg',
+    '.zip':  'application/zip',
+    '.md':   'text/markdown; charset=utf-8',
 };
 
 function createNativeStaticHandler(rootDir) {

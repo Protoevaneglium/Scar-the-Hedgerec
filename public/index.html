@@ -162,13 +162,27 @@ class RetroAudio {
         return false;
     }
     playBGM() {
-        if (!this._enabled || !this.bgm) return;
+        if (!this._enabled || !this.bgm || !this.bgm.getAttribute('src')) return;
         if (this.bgm.paused) {
             const p = this.bgm.play();
             if (p && p.then) {
                 p.then(() => { this.bgmStarted = true; }).catch(() => {});
             }
         }
+    }
+    setBGM(src) {
+        if (!this.bgm) return;
+        if (!src) {
+            this.pauseBGM();
+            this.bgm.removeAttribute('src');
+            return;
+        }
+        const cur = this.bgm.getAttribute('src');
+        if (cur !== src) {
+            this.bgm.setAttribute('src', src);
+            this.bgm.load();
+        }
+        if (this._enabled) this.playBGM();
     }
     pauseBGM() {
         if (this.bgm && !this.bgm.paused) {
@@ -534,7 +548,11 @@ class Game {
             rock: this.makeChecker('#6b3a17', '#5a3013', 20),
         };
 
-        this.loadStage('palmtree');
+        const urlStage = new URLSearchParams(window.location.search).get('stage');
+        const defaultStage = (urlStage && (urlStage === 'palmtree' || urlStage === 'test' || Terrain.LEVELS[urlStage]))
+            ? urlStage
+            : (window.DEFAULT_STAGE || 'palmtree');
+        this.loadStage(defaultStage);
         this.setupUI();
 
         this.fps = 60; this.fpsFrames = 0; this.fpsTime = 0; this.dt60 = 1;
@@ -578,6 +596,30 @@ class Game {
         });
 
         this.camX = 0; this.camY = 0; this.look = 0;
+        const def = this.terrain.levelDef;
+        if (def) {
+            if (def.bgm !== undefined) audio.setBGM(def.bgm);
+            const th = def.theme || {};
+            this.customPatterns = {
+                ground: this.makeChecker(th.groundA || '#5c3c20', th.groundB || '#422814', 16),
+                loop: this.makeChecker(th.loopA || th.groundA || '#704824', th.loopB || th.groundB || '#4e3016', 12),
+                rock: this.makeChecker(th.rockA || '#3e2412', th.rockB || '#2e1a0c', 20),
+            };
+            if (def.enemySheet) {
+                this.customEnemySheet = new Image();
+                this.customEnemySheetLoaded = false;
+                this.customEnemySheet.onload = () => { this.customEnemySheetLoaded = true; };
+                this.customEnemySheet.src = def.enemySheet;
+            } else {
+                this.customEnemySheet = null;
+                this.customEnemySheetLoaded = false;
+            }
+        } else {
+            this.customPatterns = null;
+            this.customEnemySheet = null;
+            this.customEnemySheetLoaded = false;
+            if (stageName === 'palmtree') audio.setBGM('assets/level1.mp3');
+        }
         this.snapCamera();
         this.updateStageButtons();
     }
@@ -656,14 +698,23 @@ class Game {
         blurAfter(aud, () => { audio.enabled = !audio.enabled; aud.textContent = `Audio: ${audio.enabled ? 'ON' : 'OFF'}`; aud.classList.toggle('on', audio.enabled); });
         blurAfter(cp, () => this.gotoCheckpoint((this.cpIndex + 1) % this.terrain.checkpoints.length));
         blurAfter(rst, () => {
-            if (this.terrain.stage === 'palmtree') this.terrain.setupPalmtreeObjects();
+            if (this.terrain.resetObjects) this.terrain.resetObjects();
+            else if (this.terrain.stage === 'palmtree') this.terrain.setupPalmtreeObjects();
             this.player.rings = 0; this.player.score = 0; this.stageTime = 0;
             this.gotoCheckpoint(0);
         });
     }
 
+    getStageOrder() {
+        const customIds = Object.keys(Terrain.LEVELS || {});
+        if (window.STAGE_ORDER && window.STAGE_ORDER.length) return window.STAGE_ORDER;
+        return ['palmtree', ...customIds, 'test'];
+    }
+
     toggleStage() {
-        this.loadStage(this.stageName === 'palmtree' ? 'test' : 'palmtree');
+        const list = this.getStageOrder();
+        const idx = list.indexOf(this.stageName);
+        this.loadStage(list[(idx + 1) % list.length]);
     }
     cycleEra() {
         const idx = (ERAS.indexOf(this.terrain.timeEra) + 1) % ERAS.length;
@@ -674,7 +725,10 @@ class Game {
     }
     updateStageButtons() {
         const stg = document.getElementById('btn-stage');
-        if (stg) stg.textContent = `Stage: ${this.stageName === 'palmtree' ? 'Act 1' : 'Physics Test'}`;
+        const label = this.terrain.levelDef
+            ? (this.terrain.levelDef.title || this.stageName)
+            : (this.stageName === 'palmtree' ? 'Act 1' : 'Physics Test');
+        if (stg) stg.textContent = `Stage: ${label}`;
         this.updateEraButton();
         this.updateCpButton();
     }
@@ -712,7 +766,8 @@ class Game {
         if (this.input.debugToggle) this.toggleDebug();
         for (const a of this.input.actions) {
             if (a.type === 'reset') {
-                if (this.terrain.stage === 'palmtree') this.terrain.setupPalmtreeObjects();
+                if (this.terrain.resetObjects) this.terrain.resetObjects();
+                else if (this.terrain.stage === 'palmtree') this.terrain.setupPalmtreeObjects();
                 this.player.rings = 0; this.player.score = 0; this.stageTime = 0;
                 this.gotoCheckpoint(0);
             }
@@ -802,7 +857,16 @@ class Game {
         ctx.translate(-Math.round(this.camX), -Math.round(this.camY));
         this.view = { x0: this.camX - 80, x1: this.camX + this.W + 80, y0: this.camY - 80, y1: this.camY + this.H + 80 };
 
-        if (this.terrain.stage === 'palmtree') {
+        if (this.terrain.levelDef) {
+            const def = this.terrain.levelDef;
+            if (typeof def.drawBack === 'function') def.drawBack(ctx, this);
+            this.drawTunnelsBack(ctx);
+            this.drawLoops(ctx);
+            for (const f of this.terrain.floors) this.drawFloor(ctx, f);
+            this.drawTunnelsRock(ctx);
+            this.drawPalmtreeObjects(ctx);
+            if (typeof def.drawFront === 'function') def.drawFront(ctx, this);
+        } else if (this.terrain.stage === 'palmtree') {
             this.drawWaterfallsBack(ctx);
             this.drawTunnelsBack(ctx);
             this.drawSceneryProps(ctx);
@@ -839,6 +903,21 @@ class Game {
     }
 
     drawBackground(mainCtx) {
+        const def = this.terrain.levelDef;
+        if (def) {
+            if (typeof def.drawBackground === 'function') {
+                def.drawBackground(mainCtx, this);
+                return;
+            }
+            const th = def.theme || {};
+            const grad = mainCtx.createLinearGradient(0, 0, 0, this.H);
+            grad.addColorStop(0, th.skyTop || '#0d1b3e');
+            grad.addColorStop(0.65, th.skyMid || '#1b3b6f');
+            grad.addColorStop(1, th.skyBottom || '#28588e');
+            mainCtx.fillStyle = grad;
+            mainCtx.fillRect(0, 0, this.W, this.H);
+            return;
+        }
         const W = this.W, H = this.H;
         const PIXEL_SCALE = 3; // 320x180 classic Sega Genesis / Sega CD / 32X horizontal resolution
         const lowW = Math.floor(W / PIXEL_SCALE);
@@ -1254,6 +1333,8 @@ class Game {
 
     drawFloor(ctx, s) {
         const isPalm = this.terrain.stage === 'palmtree';
+        const def = this.terrain.levelDef;
+        const th = (def && def.theme) || {};
         // Elevated oneWay tiers draw as thick Sonic CD cliff shelves (68px deep) so lower caverns remain visible underneath!
         const thickness = s.oneWay ? (s.tier === 'high' ? 54 : 68) : 0;
         ctx.beginPath();
@@ -1268,19 +1349,19 @@ class Game {
             ctx.lineTo(b, bottom); ctx.lineTo(a, bottom);
         }
         ctx.closePath();
-        ctx.fillStyle = isPalm ? this.patterns.palmtreeRock : this.patterns.checker;
+        ctx.fillStyle = def ? this.customPatterns.ground : (isPalm ? this.patterns.palmtreeRock : this.patterns.checker);
         ctx.fill();
 
         if (s.oneWay) {
             ctx.strokeStyle = '#381400'; ctx.lineWidth = 2; ctx.stroke();
         }
 
-        // Vibrant Sonic CD grass band + yellow/green jagged turf teeth along the surface
+        // Top turf / trim band along the surface
         ctx.beginPath();
         this.traceField(ctx, s);
         for (let x = b; x > a; x -= 4) ctx.lineTo(x, s.f(x) + 12);
         ctx.lineTo(a, s.f(a) + 12); ctx.closePath();
-        ctx.fillStyle = isPalm ? '#00b400' : '#25b52a';
+        ctx.fillStyle = def ? (th.trimColor || '#25b52a') : (isPalm ? '#00b400' : '#25b52a');
         ctx.fill();
 
         if (isPalm) {
@@ -1295,7 +1376,7 @@ class Game {
         }
 
         ctx.beginPath(); this.traceField(ctx, s);
-        ctx.strokeStyle = isPalm ? '#58fc40' : '#7dff6a';
+        ctx.strokeStyle = def ? (th.trimHighlight || '#7dff6a') : (isPalm ? '#58fc40' : '#7dff6a');
         ctx.lineWidth = 2.5; ctx.stroke();
     }
 
@@ -1378,17 +1459,19 @@ class Game {
 
     drawLoops(ctx) {
         const isPalm = this.terrain.stage === 'palmtree';
+        const def = this.terrain.levelDef;
+        const th = (def && def.theme) || {};
         const loops = this.terrain.loops && this.terrain.loops.length ? this.terrain.loops : [this.terrain.loop];
         for (const L of loops) {
             if (!L || L.cx + L.r + 40 < this.view.x0 || L.cx - L.r - 40 > this.view.x1) continue;
             ctx.beginPath(); ctx.arc(L.cx, L.cy, L.r + 28, 0, TAU); ctx.arc(L.cx, L.cy, L.r, 0, TAU, true);
-            ctx.fillStyle = isPalm ? this.patterns.palmtreeLoop : this.patterns.loopChecker;
+            ctx.fillStyle = def ? this.customPatterns.loop : (isPalm ? this.patterns.palmtreeLoop : this.patterns.loopChecker);
             ctx.fill();
             ctx.beginPath(); ctx.arc(L.cx, L.cy, L.r + 9, 0, TAU); ctx.arc(L.cx, L.cy, L.r, 0, TAU, true);
-            ctx.fillStyle = isPalm ? '#00b400' : '#25b52a';
+            ctx.fillStyle = def ? (th.trimColor || '#25b52a') : (isPalm ? '#00b400' : '#25b52a');
             ctx.fill();
             ctx.beginPath(); ctx.arc(L.cx, L.cy, L.r + 1, 0, TAU);
-            ctx.strokeStyle = '#7dff6a'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.strokeStyle = def ? (th.trimHighlight || '#7dff6a') : '#7dff6a'; ctx.lineWidth = 2; ctx.stroke();
             ctx.beginPath(); ctx.arc(L.cx, L.cy, L.r + 28, 0, TAU);
             ctx.strokeStyle = '#5b2f10'; ctx.lineWidth = 2; ctx.stroke();
         }
@@ -1749,6 +1832,33 @@ class Game {
     }
 
     drawEnemy(ctx, en, idx = 0) {
+        const def = this.terrain.levelDef;
+        if (def && typeof def.drawEnemy === 'function') {
+            def.drawEnemy(ctx, en, {
+                idx,
+                clock: this.terrain.clock,
+                player: this.player,
+                sheet: this.customEnemySheetLoaded ? this.customEnemySheet : null,
+                frames: def.enemyFrames || {},
+            });
+            return;
+        }
+        if (def && def.enemyFrames && this.customEnemySheetLoaded && en.frames && en.frames.length) {
+            const rate = en.animRate || 0.2;
+            const key = en.frames[Math.floor(this.terrain.clock * rate + idx) % en.frames.length];
+            const frame = def.enemyFrames[key];
+            if (frame) {
+                const nativeFacesLeft = en.nativeFacesLeft !== false;
+                const movingRight = en.kind === 'crab' ? (en.vx > 0) : (this.player.x > en.x);
+                const flipX = nativeFacesLeft ? (movingRight ? -1 : 1) : (movingRight ? 1 : -1);
+                ctx.save();
+                ctx.translate(Math.round(en.x), Math.round(en.y));
+                ctx.scale(flipX, 1);
+                ctx.drawImage(this.customEnemySheet, frame.sx, frame.sy, frame.w, frame.h, -frame.ax, -frame.ay, frame.w, frame.h);
+                ctx.restore();
+                return;
+            }
+        }
         if (!this.enemySheetLoaded) {
             const x = en.x, y = en.kind === 'crab' ? en.y - 12 : en.y;
             ctx.fillStyle = en.kind === 'crab' ? '#e53935' : '#fdd835';

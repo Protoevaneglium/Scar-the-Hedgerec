@@ -290,6 +290,17 @@ test('Full Palmtree Panic Act 1 run reaches and spins the Goal Signpost', () => 
     console.log(`      (cleared Palmtree Panic Act 1 in ${(f / 60).toFixed(2)}s with ${p.rings} rings, score ${p.score})`);
 });
 
+console.log('\nModular Level Core Template');
+test('Blank Level Core Template registers and runs Scar through TVs, rings, checkpoint, and Goal Post', () => {
+    require('../templates/level_template.js');
+    assert(Terrain.LEVELS.template, 'template level registered');
+    const lt = new Terrain('template');
+    const p = new Player(lt);
+    assert(lt.monitors.length === 1 && lt.springs.length === 1 && lt.starPosts.length === 1 && lt.goalPost, 'common objects loaded');
+    const f = sim(p, 15, 60, spinDashThenRight, () => lt.goalPost.spinning || lt.goalPost.cleared);
+    assert(f !== null && p.shield === true && lt.starPosts[0].active, `cleared template in f=${f}, shield=${p.shield}`);
+});
+
 console.log(failures ? `\n${failures} FAILED\n` : '\nAll tests passed\n');
 process.exit(failures ? 1 : 0);
 

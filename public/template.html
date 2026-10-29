@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scar the Hedgerec — Level Core Blueprint & Downloadable Starter Kit</title>
+    <link rel="icon" href="data:,">
+    <style>
+        :root {
+            --bg: #070d1a;
+            --panel: #0e182e;
+            --panel-hi: #142342;
+            --border: rgba(90, 165, 255, 0.35);
+            --accent: #38bdf8;
+            --gold: #ffd54f;
+            --green: #4ade80;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: radial-gradient(circle at top, #102040 0%, var(--bg) 60%);
+            color: var(--text);
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            line-height: 1.6;
+            padding: 32px 20px 64px;
+        }
+        .wrap { max-width: 1040px; margin: 0 auto; }
+        .hero {
+            background: linear-gradient(135deg, rgba(20, 40, 82, 0.92), rgba(10, 20, 42, 0.96));
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 28px 30px;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+            margin-bottom: 26px;
+        }
+        .badge {
+            display: inline-block;
+            background: rgba(56, 189, 248, 0.16);
+            color: var(--accent);
+            border: 1px solid rgba(56, 189, 248, 0.45);
+            font: bold 11px 'Courier New', monospace;
+            padding: 3px 10px;
+            border-radius: 999px;
+            letter-spacing: 0.6px;
+            margin-bottom: 10px;
+        }
+        h1 { font-size: 28px; color: #fff; margin-bottom: 8px; }
+        .sub { color: var(--muted); font-size: 15px; max-width: 780px; margin-bottom: 20px; }
+        .btns { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            padding: 11px 18px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 14px;
+            transition: transform 0.1s, filter 0.15s;
+        }
+        .btn:hover { filter: brightness(1.12); transform: translateY(-1px); }
+        .btn.primary { background: linear-gradient(135deg, #2563eb, #0284c7); color: #fff; border: 1px solid #7dd3fc; }
+        .btn.gold { background: rgba(202, 138, 4, 0.25); color: var(--gold); border: 1px solid rgba(255, 213, 79, 0.6); }
+        .btn.ghost { background: rgba(15, 28, 56, 0.8); color: #cbd5e1; border: 1px solid var(--border); }
+
+        .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: 20px; margin-bottom: 24px; }
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 22px;
+        }
+        .card h2 { font-size: 18px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .card h2.locked { color: var(--green); }
+        .card h2.owner { color: var(--gold); }
+        ul.clean { list-style: none; display: grid; gap: 9px; font-size: 14px; }
+        ul.clean li { padding-left: 20px; position: relative; color: #dbeafe; }
+        ul.clean li::before { content: '▸'; position: absolute; left: 2px; color: var(--accent); font-weight: bold; }
+        ul.clean.owner-list li::before { content: '★'; color: var(--gold); font-size: 12px; top: 2px; }
+
+        .showcase {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 22px;
+            margin-bottom: 24px;
+        }
+        .showcase h2 { font-size: 18px; color: #fff; margin-bottom: 6px; }
+        .showcase p { font-size: 13.5px; color: var(--muted); margin-bottom: 16px; }
+        .sprite-strip {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+            gap: 12px;
+        }
+        .sbox {
+            background: var(--panel-hi);
+            border: 1px solid rgba(90, 165, 255, 0.22);
+            border-radius: 9px;
+            padding: 12px 8px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 112px;
+        }
+        .sbox canvas { image-rendering: pixelated; margin: auto 0; }
+        .sbox span { font: bold 11px 'Courier New', monospace; color: #bae6fd; margin-top: 8px; }
+
+        pre {
+            background: #050a14;
+            border: 1px solid rgba(90, 165, 255, 0.28);
+            border-radius: 9px;
+            padding: 15px 16px;
+            overflow-x: auto;
+            font: 12.5px/1.55 'Courier New', monospace;
+            color: #bfdbfe;
+            margin-top: 10px;
+        }
+        .code-title { font: bold 13px 'Courier New', monospace; color: var(--gold); margin-top: 14px; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="hero">
+        <div class="badge">LEVEL CORE FOUNDATION KIT • v1.0</div>
+        <h1>Scar the Hedgerec — Blank Level Core Blueprint</h1>
+        <p class="sub">
+            All core physics, Scar's 5-state animations, Spin Dash, WAV sound effects, touch/keyboard controls, and
+            universal Sonic stage objects (Rings, TV Monitors, Checkpoints, Springs, Spikes, Giant Ring, Goal Post) are
+            locked in and ready to reuse — leaving map layout, music, enemies, and bosses 100% open for your creative design on each level.
+        </p>
+        <div class="btns">
+            <a class="btn primary" href="downloads/scar-level-core-template.zip" download>⬇ Download Starter Core Kit (.zip)</a>
+            <a class="btn gold" href="downloads/level_template.js" download>⬇ Download level_template.js</a>
+            <a class="btn ghost" href="downloads/LEVEL_CORE_BLUEPRINT.md" download>📄 Download Blueprint Guide (.md)</a>
+            <a class="btn ghost" href="index.html">▶ Back to Level 1</a>
+        </div>
+    </div>
+
+    <div class="grid2">
+        <div class="card">
+            <h2 class="locked">✓ Locked-In Core Guts (Included Automatically)</h2>
+            <ul class="clean">
+                <li><strong>360° 6-Sensor Physics</strong>: Slopes, rolling, variable jump, Spin Dash &amp; dual-layer 360° Loops.</li>
+                <li><strong>Scar Animation Rig</strong>: 5-frame speed-reactive walk/peel-out run, Spin Dash ball, Shield bubble &amp; Invincibility sparkles.</li>
+                <li><strong>TV Item Monitors</strong>: <code>'rings'</code> (+10), <code>'shield'</code>, <code>'invinc'</code>, and <code>'shoes'</code> with static flicker &amp; broken shells.</li>
+                <li><strong>Universal Stage Objects</strong>: Spinning Rings + collection sparkles, Checkpoint Star Posts, Red/Yellow Springs, Spikes, Giant Ring (+10,000), and Robotnik/Sonic Goal Post.</li>
+                <li><strong>Core Audio &amp; Controls</strong>: <code>jump.wav</code>, <code>rings.wav</code>, <code>goalpost.wav</code>, looping BGM loader, Keyboard + Android/Termux multi-touch.</li>
+            </ul>
+        </div>
+        <div class="card">
+            <h2 class="owner">★ Owner Creative Decisions (Per Level)</h2>
+            <ul class="clean owner-list">
+                <li><strong>Zone Theme &amp; Music</strong>: Sky/ground palette (or custom background renderer) + level BGM MP3 track.</li>
+                <li><strong>Map Terrain Sculpting</strong>: Build flat runs, hills, steep drops, shelves, tunnels, and 360° loops piece-by-piece with <code>PathBuilder</code>.</li>
+                <li><strong>Common Object Placement</strong>: Choose where Rings, TVs, Checkpoints, Springs, Spikes, and the Goal Post sit.</li>
+                <li><strong>Level-Specific Enemies</strong>: Plug in a dedicated enemy sprite sheet &amp; frame atlas for that zone's Badniks.</li>
+                <li><strong>Unique Gimmicks &amp; Act Boss</strong>: Optional <code>createBoss</code>, <code>onUpdate</code>, <code>drawBack</code>, and <code>drawFront</code> hooks.</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="showcase">
+        <h2>Included Core Sprites &amp; Objects Preview (Live from Core Assets)</h2>
+        <p>Every asset below is bundled inside the Starter Core Kit and works immediately in any new level:</p>
+        <div class="sprite-strip" id="strip"></div>
+    </div>
+
+    <div class="card">
+        <h2 style="color:#fff">Quick Copy-Paste Recipes for Your Next Level</h2>
+
+        <div class="code-title">1. Spin Up Level 2 Inside This Game (or Use the Downloaded Starter ZIP)</div>
+        <pre>// 1. Copy templates/level_template.js -> public/levels/level2.js
+// 2. Set LEVEL_ID = 'level2' and add &lt;script src="levels/level2.js"&gt;&lt;/script&gt; in public/index.html
+// 3. Test live at: http://localhost:3000/?stage=level2  (or press M in-game)</pre>
+
+        <div class="code-title">2. Sculpt Terrain Piece-by-Piece (`buildTerrain(b, terrain)`)</div>
+        <pre>buildTerrain(b, terrain) {
+    const main = b.path(0, 580)
+        .flat(480)                  // Flat start runway
+        .bump(420, 28, +1)          // Smooth 28° hill
+        .ease(120, 0, 0.35)         // Ease into downhill slope
+        .line(320, 0.35)            // Straight downhill ramp
+        .ease(120, 0.35, 0)         // Level out smoothly
+        .flat(1400);                // Straightaway
+    b.addFloor(main, { name: 'main floor' });
+
+    // Elevated jump-through platform shelf + 360° Loop:
+    b.addShelf(b.path(700, 420).flat(360), { tier: 'high' });
+    b.addLoop(1900, 692 - 128, 128, 'Loop #1');
+}</pre>
+
+        <div class="code-title">3. Drop In Common Objects &amp; Level-Specific Enemies</div>
+        <pre>objects: {
+    monitors:  [{ x: 340, y: 580, item: 'shield' }, { x: 860, y: 420, item: 'invinc' }],
+    springs:   [{ x: 640, y: 580, color: 'red' }],
+    starPosts: [{ x: 1450, y: 692 }],
+    bigRing:   { x: 2550, y: 650 },
+    goalPost:  { x: 2750, y: 692 },
+},
+enemySheet: 'assets/level2_enemies.png',
+enemyFrames: {
+    bot_1: { sx: 0, sy: 0, w: 32, h: 24, ax: 16, ay: 24 },
+    bot_2: { sx: 34, sy: 0, w: 32, h: 24, ax: 16, ay: 24 },
+},
+enemies: [
+    { kind: 'crab', x: 1150, y: 692, minX: 1020, maxX: 1300, vx: 1.2, frames: ['bot_1', 'bot_2'] },
+]</pre>
+    </div>
+</div>
+
+<script>
+(function () {
+    const scar = new Image();
+    const common = new Image();
+    let loaded = 0;
+    const onLoad = () => { if (++loaded === 2) startPreview(); };
+    scar.onload = onLoad;
+    common.onload = onLoad;
+    scar.src = 'assets/scar_sheet.png';
+    common.src = 'assets/common_objects.png';
+
+    const ITEMS = [
+        { label: 'Scar (5-State)', w: 64, h: 64, draw: (g, t) => {
+            const idx = Math.floor(t * 6) % 5;
+            g.drawImage(scar, idx * 48, 0, 48, 48, 8, 12, 48, 48);
+        }},
+        { label: 'Spinning Ring', w: 48, h: 48, draw: (g, t) => {
+            const frames = [{x:24,y:198,w:16,h:16},{x:50,y:198,w:12,h:16},{x:73,y:198,w:6,h:16},{x:90,y:198,w:12,h:16}];
+            const f = frames[Math.floor(t * 8) % 4];
+            g.drawImage(common, f.x, f.y, f.w, f.h, Math.round(24 - f.w), 8, f.w * 2, f.h * 2);
+        }},
+        { label: 'TV: Shield', w: 60, h: 60, draw: (g) => {
+            g.drawImage(common, 25, 487, 30, 30, 0, 0, 60, 60);
+            g.drawImage(common, 48, 564, 16, 16, 14, 10, 32, 32);
+        }},
+        { label: 'TV: Invincibility', w: 60, h: 60, draw: (g) => {
+            g.drawImage(common, 25, 487, 30, 30, 0, 0, 60, 60);
+            g.drawImage(common, 72, 564, 16, 16, 14, 10, 32, 32);
+        }},
+        { label: 'TV: +10 Rings', w: 60, h: 60, draw: (g) => {
+            g.drawImage(common, 25, 487, 30, 30, 0, 0, 60, 60);
+            g.drawImage(common, 96, 540, 16, 16, 14, 10, 32, 32);
+        }},
+        { label: 'TV: Speed Shoes', w: 60, h: 60, draw: (g) => {
+            g.drawImage(common, 25, 487, 30, 30, 0, 0, 60, 60);
+            g.drawImage(common, 24, 564, 16, 16, 14, 10, 32, 32);
+        }},
+        { label: 'Checkpoint Post', w: 40, h: 68, draw: (g, t) => {
+            g.drawImage(common, 132, 534, 16, 48, 12, 20, 16, 48);
+            const red = Math.floor(t * 4) % 2 === 0;
+            g.drawImage(common, 132, red ? 510 : 486, 16, 16, 12, 4, 16, 16);
+        }},
+        { label: 'Red & Yellow Springs', w: 68, h: 48, draw: (g) => {
+            g.drawImage(common, 530, 486, 28, 16, 4, 24, 28, 16);
+            g.drawImage(common, 570, 486, 28, 16, 36, 24, 28, 16);
+        }},
+        { label: '3-Prong Spikes', w: 48, h: 48, draw: (g) => {
+            g.drawImage(common, 324, 198, 31, 32, 8, 12, 31, 32);
+        }},
+        { label: 'Blue Shield Aura', w: 56, h: 52, draw: (g, t) => {
+            const frames = [{x:473,y:286,w:46,h:42},{x:530,y:286,w:45,h:42},{x:585,y:286,w:46,h:42}];
+            const f = frames[Math.floor(t * 10) % 3];
+            g.drawImage(common, f.x, f.y, f.w, f.h, 5, 5, f.w, f.h);
+        }},
+        { label: 'Giant Ring', w: 64, h: 64, draw: (g, t) => {
+            const frames = [{x:24,y:240,w:64,h:63},{x:96,y:240,w:48,h:63},{x:152,y:240,w:24,h:63},{x:184,y:240,w:48,h:63}];
+            const f = frames[Math.floor(t * 6) % 4];
+            g.drawImage(common, f.x, f.y, f.w, f.h, Math.round(32 - f.w / 2), 0, f.w, f.h);
+        }},
+        { label: 'Goal Post', w: 56, h: 56, draw: (g, t) => {
+            const showSonic = Math.floor(t * 1.5) % 2 === 1;
+            if (!showSonic) {
+                g.drawImage(common, 244, 678, 48, 48, 4, 4, 48, 48);
+            } else {
+                g.drawImage(common, 340, 738, 8, 16, 24, 36, 8, 16);
+                g.drawImage(common, 244, 734, 48, 32, 4, 4, 48, 32);
+            }
+        }},
+    ];
+
+    function startPreview() {
+        const strip = document.getElementById('strip');
+        const canvases = ITEMS.map((it) => {
+            const box = document.createElement('div');
+            box.className = 'sbox';
+            const cv = document.createElement('canvas');
+            cv.width = it.w; cv.height = it.h;
+            const lbl = document.createElement('span');
+            lbl.textContent = it.label;
+            box.appendChild(cv);
+            box.appendChild(lbl);
+            strip.appendChild(box);
+            return { cv, ctx: cv.getContext('2d'), it };
+        });
+
+        function tick(now) {
+            const t = now / 1000;
+            for (const c of canvases) {
+                c.ctx.clearRect(0, 0, c.cv.width, c.cv.height);
+                c.ctx.imageSmoothingEnabled = false;
+                c.it.draw(c.ctx, t);
+            }
+            requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+    }
+})();
+</script>
+</body>
+</html>

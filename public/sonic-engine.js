@@ -418,7 +418,13 @@
             this.scatteredRings = [];
             this.enemies = [];
             this.timePosts = [];
+            this.starPosts = [];
+            this.monitors = [];
+            this.springs = [];
+            this.spikeClusters = [];
+            this.bigRing = null;
             this.goalPost = null;
+            this.boss = null;
             this.debris = [];
             this.splashes = [];
             this.popups = [];
@@ -427,8 +433,170 @@
             this.timeWarpCharge = 0;
             this.timeWarpFlash = 0;
             this.clock = 0;
-            if (stage === 'palmtree') this.buildPalmtree();
+            this.levelDef = Terrain.LEVELS[stage] || null;
+            this.hasObjects = (stage === 'palmtree') || Boolean(this.levelDef);
+            if (this.levelDef) this.buildCustomLevel(this.levelDef);
+            else if (stage === 'palmtree') this.buildPalmtree();
             else this.build();
+        }
+
+        resetObjects() {
+            if (this.levelDef) this.setupCustomObjects(this.levelDef);
+            else if (this.stage === 'palmtree') this.setupPalmtreeObjects();
+        }
+
+        buildCustomLevel(def) {
+            this.probeY = def.probeY !== undefined ? def.probeY : -400;
+            this.startX = def.startX !== undefined ? def.startX : 0;
+            this.endX = def.endX !== undefined ? def.endX : 4000;
+            this.deathY = def.deathY !== undefined ? def.deathY : 1020;
+
+            const builder = {
+                path: (x0, y0) => new PathBuilder(x0, y0),
+                addFloor: (pathOrSurf, opts = {}) => {
+                    const surf = (pathOrSurf instanceof PathBuilder) ? pathOrSurf.toSurface(opts) : pathOrSurf;
+                    if (!this.mainFloor && !surf.oneWay && !surf.ceiling) this.mainFloor = surf;
+                    return this.add(surf);
+                },
+                addShelf: (pathOrSurf, opts = {}) => {
+                    const merged = { oneWay: true, tier: 'mid', ...opts };
+                    const surf = (pathOrSurf instanceof PathBuilder) ? pathOrSurf.toSurface(merged) : pathOrSurf;
+                    return this.add(surf);
+                },
+                addCeiling: (pathOrSurf, opts = {}) => {
+                    const merged = { ceiling: true, ...opts };
+                    const surf = (pathOrSurf instanceof PathBuilder) ? pathOrSurf.toSurface(merged) : pathOrSurf;
+                    return this.add(surf);
+                },
+                addWall: (x0, y0, x1, y1, nx, ny, name = 'wall', opts = {}) => {
+                    return this.add(new LineSurface(x0, y0, x1, y1, nx, ny, -1, name, opts));
+                },
+                addLoop: (cx, cy, r, name = 'Loop') => this.addLoop(cx, cy, r, name),
+                addTunnel: (tunnelDef) => {
+                    this.tunnels.push(tunnelDef);
+                    if (!this.tunnel) this.tunnel = tunnelDef;
+                    return tunnelDef;
+                },
+            };
+
+            if (typeof def.buildTerrain === 'function') {
+                def.buildTerrain(builder, this);
+            }
+            if (!this.mainFloor) {
+                const fallback = new PathBuilder(this.startX, 600).flat(this.endX - this.startX);
+                this.mainFloor = this.add(fallback.toSurface({ name: 'starter floor' }));
+            }
+
+            // Course boundary walls
+            this.add(new LineSurface(this.startX, -600, this.startX, this.deathY + 100, 1, 0, -1, 'start wall'));
+            this.add(new LineSurface(this.endX, -600, this.endX, this.deathY + 100, -1, 0, -1, 'end wall'));
+
+            const defaultStartY = this.mainFloor ? this.mainFloor.f(this.startX + 120) : 600;
+            this.checkpoints = (def.checkpoints && def.checkpoints.length)
+                ? def.checkpoints.map((cp) => ({ ...cp }))
+                : [{ name: def.title || 'Start', x: this.startX + 120, y: defaultStartY }];
+            this.spawnX = this.checkpoints[0].x;
+
+            this.setupCustomObjects(def);
+        }
+
+        setupCustomObjects(def) {
+            this.surfaces = this.surfaces.filter((s) => !s.dynamicObject);
+            this.lines = this.lines.filter((s) => !s.dynamicObject);
+            const addObjSurface = (s) => { s.dynamicObject = true; return this.add(s); };
+
+            this.debris = [];
+            this.splashes = [];
+            this.popups = [];
+            this.scatteredRings = [];
+            this.activeCheckpoint = null;
+            this.clock = 0;
+
+            const src = (typeof def.objects === 'function' ? def.objects(this) : def.objects) || {};
+
+            // Moving platforms
+            this.platforms = (src.platforms || []).map((d) => {
+                const w = d.w || (d.large ? 64 : 48), h = d.h || 24;
+                const surf = addObjSurface(new LineSurface(d.x - w / 2, d.y, d.x + w / 2, d.y, 0, -1, -1, 'platform', { oneWay: true }));
+                const obj = {
+                    ampX: 0, ampY: 0, speed: 0.035, phase: 0,
+                    ...d, baseX: d.x, baseY: d.y, w, h, dx: 0, dy: 0, surface: surf,
+                };
+                surf.ownerPlatform = obj;
+                return obj;
+            });
+
+            this.swingPlatforms = [];
+            this.bouncePoles = (src.bouncePoles || []).map((d) => ({ dir: 1, power: -11.5, ...d, state: 'straight', timer: 0 }));
+            this.spinners = (src.spinners || []).map((d) => ({ variant: 'silver', ...d, cooldown: 0, spinTimer: 0 }));
+            this.houdiniGroups = [];
+            this.breakableWalls = [];
+            this.breakableFloors = [];
+            this.trapDoors = [];
+            this.rocks = [];
+            this.speedBoosters = (src.speedBoosters || []).map((d) => ({ boost: 11.5, ...d, cooldown: 0 }));
+            this.timePosts = (src.timePosts || []).map((d) => ({ spin: 0, active: false, ...d }));
+
+            // Common Sonic Foundation Objects (TV Monitors, Checkpoint Star Posts, Springs, Spikes, Big Ring, Goal Post)
+            this.starPosts = (src.starPosts || []).map((d) => ({ x: d.x, y: d.y, active: false, spinTimer: 0 }));
+            this.monitors = (src.monitors || []).map((d) => ({ x: d.x, y: d.y, item: d.item || 'rings', broken: false }));
+            this.springs = (src.springs || []).map((d) => ({
+                x: d.x, y: d.y,
+                color: d.color || 'yellow',
+                power: d.power !== undefined ? d.power : (d.color === 'red' ? -13.5 : -10.8),
+                timer: 0,
+            }));
+            this.spikeClusters = (src.spikeClusters || []).map((d) => ({ x: d.x, y: d.y }));
+            this.bigRing = src.bigRing ? { x: src.bigRing.x, y: src.bigRing.y, collected: false, flashTimer: 0 } : null;
+            this.goalPost = src.goalPost !== null
+                ? {
+                    x: src.goalPost ? src.goalPost.x : (this.endX - 250),
+                    y: src.goalPost ? src.goalPost.y : (this.mainFloor ? this.mainFloor.f(this.endX - 250) : 600),
+                    spinning: false, cleared: false, spinTimer: 0, angle: 0,
+                }
+                : null;
+
+            // Rings (individual coordinates + convenience line/surface/loop helpers)
+            this.rings = (src.rings || []).map((r) => ({ x: r.x, y: r.y, collected: false }));
+            const ringHelpers = {
+                addRing: (x, y) => this.rings.push({ x, y, collected: false }),
+                addRingLine: (x0, y0, dx, dy, count) => {
+                    for (let i = 0; i < count; i++) this.rings.push({ x: x0 + dx * i, y: y0 + dy * i, collected: false });
+                },
+                addSurfaceRings: (surf, x0, step, count, offset = 18) => {
+                    const target = surf || this.mainFloor;
+                    if (!target) return;
+                    for (let i = 0; i < count; i++) {
+                        const rx = x0 + i * step;
+                        this.rings.push({ x: rx, y: target.f(rx) - offset, collected: false });
+                    }
+                },
+                addLoopRings: (lp, n = 12) => {
+                    if (!lp) return;
+                    for (let i = 0; i < n; i++) {
+                        const a = (i / n) * TAU;
+                        this.rings.push({ x: lp.cx + (lp.r - 22) * Math.sin(a), y: lp.cy + (lp.r - 22) * Math.cos(a), collected: false });
+                    }
+                },
+            };
+
+            // Level-specific enemies (owner decides per level)
+            this.enemies = (def.enemies || src.enemies || []).map((en) => ({
+                kind: en.kind || 'crab',
+                alive: true,
+                vx: en.vx !== undefined ? en.vx : 1.0,
+                baseX: en.baseX !== undefined ? en.baseX : en.x,
+                baseY: en.baseY !== undefined ? en.baseY : en.y,
+                phase: en.phase || 0,
+                ...en,
+            }));
+
+            // Optional Boss state (owner decides per level)
+            this.boss = (def.createBoss && typeof def.createBoss === 'function') ? def.createBoss(this) : null;
+
+            if (typeof def.setupObjects === 'function') {
+                def.setupObjects(ringHelpers, this, addObjSurface);
+            }
         }
 
         add(s) {
@@ -1152,9 +1320,9 @@
             this.splashes.push({ x, y, type, frame: 0, timer: 0 });
         }
 
-        /** Step all dynamic Palmtree Panic objects for substep `h` (in 60Hz frames). */
+        /** Step all dynamic stage & common Sonic objects for substep `h` (in 60Hz frames). */
         updateObjects(player, h) {
-            if (this.stage !== 'palmtree') return;
+            if (this.stage !== 'palmtree' && !this.hasObjects) return;
             this.clock += h;
 
             // 1. Moving Platforms
@@ -1522,6 +1690,9 @@
                 pp.life -= h;
                 if (pp.life <= 0) this.popups.splice(i, 1);
             }
+            if (this.levelDef && typeof this.levelDef.onUpdate === 'function') {
+                this.levelDef.onUpdate(this, player, h);
+            }
         }
 
         hurtPlayer(player, hazardX) {
@@ -1595,6 +1766,12 @@
             return { x: h.x, y: h.y, angle: h.angle, angleDeg: toDeg(h.angle), nx: h.nx, ny: h.ny, surface: h.surface };
         }
     }
+
+    Terrain.LEVELS = {};
+    Terrain.registerLevel = function (id, def) {
+        Terrain.LEVELS[id] = { id, ...def };
+        return Terrain.LEVELS[id];
+    };
 
     /* ======================================================================
        PART 3/4 — PLAYER: 6-SENSOR RIG + STATE MACHINE

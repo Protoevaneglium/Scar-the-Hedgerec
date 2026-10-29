@@ -2,7 +2,8 @@
 
 **Scar the Hedgerec** is a high-speed 16-bit retro platformer built on an authentic 360-degree fixed-point physics engine. Designed as a clean, cross-platform (**Windows, Linux, macOS, and Termux / Android**) HTML5 Canvas & JavaScript game with zero external runtime dependencies required.
 
-📄 **[Read the Full Physics Specification (`SONIC_PHYSICS_SPEC.md`)](SONIC_PHYSICS_SPEC.md)**
+📄 **[Read the Full Physics Specification (`SONIC_PHYSICS_SPEC.md`)](SONIC_PHYSICS_SPEC.md)**  
+📐 **[Level Core Foundation Blueprint (`templates/LEVEL_CORE_BLUEPRINT.md`)](templates/LEVEL_CORE_BLUEPRINT.md)** • **[Downloadable Starter Core Kit (`.zip`)](public/downloads/scar-level-core-template.zip)** *(or open `/template.html` when running locally)*
 
 ---
 
