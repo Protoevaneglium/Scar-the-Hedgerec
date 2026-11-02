@@ -1726,11 +1726,24 @@ class Game {
         const isPalm = this.terrain.stage === 'palmtree';
         const def = this.terrain.levelDef;
         const th = (def && def.theme) || {};
+        // Reveal the lower loop where it passes behind the top-solid shelf.
+        const loop = isPalm && s === this.terrain.corkscrewFloor && this.terrain.loops[1];
+        const p = this.player;
+        const revealLoop = loop && p && p.x >= s.x0 && p.x <= s.x1 && p.y > s.f(p.x)
+            && Math.hypot(p.x - loop.cx, p.y - loop.cy) < loop.r + 28;
+        if (revealLoop) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(this.view.x0, this.view.y0, this.view.x1 - this.view.x0, this.view.y1 - this.view.y0);
+            ctx.moveTo(loop.cx + loop.r + 29, loop.cy);
+            ctx.arc(loop.cx, loop.cy, loop.r + 29, 0, TAU);
+            ctx.clip('evenodd');
+        }
         // Elevated oneWay tiers draw as thick Sonic CD cliff shelves (68px deep) so lower caverns remain visible underneath!
         const thickness = s.oneWay ? (s.tier === 'high' ? 54 : 68) : 0;
         ctx.beginPath();
         const r = this.traceField(ctx, s);
-        if (!r) return;
+        if (!r) { if (revealLoop) ctx.restore(); return; }
         const [a, b] = r;
         if (s.oneWay) {
             for (let x = b; x > a; x -= 6) ctx.lineTo(x, s.f(x) + thickness);
@@ -1769,6 +1782,7 @@ class Game {
         ctx.beginPath(); this.traceField(ctx, s);
         ctx.strokeStyle = def ? (th.trimHighlight || '#7dff6a') : (isPalm ? '#58fc40' : '#7dff6a');
         ctx.lineWidth = 2.5; ctx.stroke();
+        if (revealLoop) ctx.restore();
     }
 
     drawWaterfallsBack(ctx) {

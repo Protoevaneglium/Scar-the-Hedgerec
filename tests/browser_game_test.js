@@ -96,3 +96,21 @@ for (let frame = 0; frame < 90; frame++) {
 }
 assert(ready, 'drop dash must invoke the actual browser callback');
 console.log('  ✓ Drop dash invokes the browser callback without freezing');
+
+game.loadStage('palmtree', { skipTitleCard: true, skipFade: true });
+const loop = game.terrain.loops[1];
+const shelf = game.terrain.corkscrewFloor;
+game.view = { x0: loop.cx - 500, x1: loop.cx + 500, y0: loop.cy - 400, y1: loop.cy + 400 };
+let clips = 0;
+ctx.clip = rule => { assert.strictEqual(rule, 'evenodd'); clips++; };
+game.player.x = loop.cx;
+game.player.y = loop.cy - loop.r + 19;
+game.drawFloor(ctx, shelf);
+assert.strictEqual(clips, 1, 'loop should be visible through the overlapping shelf');
+game.player.y = shelf.f(loop.cx) - 19;
+game.drawFloor(ctx, shelf);
+assert.strictEqual(clips, 1, 'upper-route shelf should remain visible when the player is above it');
+game.player.y = loop.cy - loop.r + 19;
+game.drawFloor(ctx, game.terrain.mainFloor);
+assert.strictEqual(clips, 1, 'unrelated terrain must not be clipped');
+console.log('  ✓ Act 1 loop is revealed beneath the shelf without hiding the upper route');

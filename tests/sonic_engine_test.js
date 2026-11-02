@@ -241,6 +241,26 @@ test('refresh-rate independence: 30 / 60 / 144 Hz finish within 2% of each other
 });
 
 console.log('\nPalmtree Panic Zone Act 1 (Sonic CD)');
+test('second loop remains traversable beneath the corkscrew shelf', () => {
+    const pt = new Terrain('palmtree');
+    pt.enemies = [];
+    const p = new Player(pt);
+    p.place(6470, 0, 742);
+    p.gsp = 10;
+    const modes = new Set();
+    let apex = false;
+    sim(p, 3, 60, () => ({ right: true }), pl => {
+        if (pl.groundSurface === pt.loops[1].arc0 || pl.groundSurface === pt.loops[1].arc1) {
+            modes.add(pl.mode);
+            if (pl.y < pt.loops[1].cy && pl.y > pt.corkscrewFloor.f(pl.x)) apex = true;
+        }
+        return apex && pl.x > pt.loops[1].cx + pt.loops[1].r;
+    });
+    assert(apex && modes.size === 4 && p.x > pt.loops[1].cx + pt.loops[1].r,
+        `loop traversal: apex=${apex}, modes=${[...modes]}, x=${p.x}`);
+    const hit = pt.getSurfaceAt(pt.loops[1].cx, pt.corkscrewFloor.f(pt.loops[1].cx) - 30, 0);
+    assert(hit && hit.surface === pt.corkscrewFloor, 'upper route remains solid from above');
+});
 test('Palmtree Panic course builds multi-tiered floors, 2 loops, and all Good Future objects', () => {
     const pt = new Terrain('palmtree');
     assert(pt.loops.length === 2, `loops=${pt.loops.length}`);
