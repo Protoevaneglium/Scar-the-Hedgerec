@@ -12,7 +12,7 @@
     "termux": "node server.js --open",
     "install:termux": "sh install-termux.sh",
     "build:template": "node scripts/build-template-zip.js",
-    "test": "node tests/sonic_engine_test.js"
+    "test": "node tests/sonic_engine_test.js && node tests/browser_game_test.js"
   },
   "keywords": [
     "sonic",
