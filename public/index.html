@@ -735,10 +735,10 @@ class Game {
             spindashRelease: (v, p) => { audio.release(); this.dust(p, 8, -p.facing, 3.5); },
             peeloutRev: (charge, p) => { audio.peeloutRev(charge); this.dust(p, 2, -p.facing, 2.2, '#00e5ff'); },
             peeloutRelease: (v, p) => { audio.peeloutRelease(); this.dust(p, 12, -p.facing, 4.4, '#ff2a85'); },
-            dropDashReady: (p) => { audio.dropDashReady(); this.dust(p, 6, -p.facing, 2.5, '#00e5ff'); },
+            dropDashReady: (_data, p) => { audio.dropDashReady(); this.dust(p, 6, -p.facing, 2.5, '#00e5ff'); },
             dropDash: (v, p) => { audio.dropDashRelease(); this.dust(p, 11, -p.facing, 4.2, '#00e5ff'); },
             dashRing: (dr, p) => { audio.dashRing(); this.dust(p, 12, -p.facing, 4.6, '#ff2a85'); },
-            coasterRail: (p) => { this.dust(p, 1, -p.facing, 2.6, '#ffd740'); },
+            coasterRail: (_speed, p) => { this.dust(p, 1, -p.facing, 2.6, '#ffd740'); },
             land: (d, p) => { audio.land(); if (d.ysp > 4) { this.dust(p, 3, 1, 1.5); this.dust(p, 3, -1, 1.5); } },
             respawn: (cp) => {
                 this.cpIndex = Math.max(0, this.terrain.checkpoints.indexOf(cp));
