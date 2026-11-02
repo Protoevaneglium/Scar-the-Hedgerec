@@ -102,15 +102,25 @@ const loop = game.terrain.loops[1];
 const shelf = game.terrain.corkscrewFloor;
 game.view = { x0: loop.cx - 500, x1: loop.cx + 500, y0: loop.cy - 400, y1: loop.cy + 400 };
 let clips = 0;
-ctx.clip = rule => { assert.strictEqual(rule, 'evenodd'); clips++; };
+ctx.clip = () => { clips++; };
 game.player.x = loop.cx;
 game.player.y = loop.cy - loop.r + 19;
 game.drawFloor(ctx, shelf);
-assert.strictEqual(clips, 1, 'loop should be visible through the overlapping shelf');
+assert.strictEqual(clips, 0, 'the shelf must not be cut out when Scar is on the loop');
 game.player.y = shelf.f(loop.cx) - 19;
 game.drawFloor(ctx, shelf);
-assert.strictEqual(clips, 1, 'upper-route shelf should remain visible when the player is above it');
-game.player.y = loop.cy - loop.r + 19;
-game.drawFloor(ctx, game.terrain.mainFloor);
-assert.strictEqual(clips, 1, 'unrelated terrain must not be clipped');
-console.log('  ✓ Act 1 loop is revealed beneath the shelf without hiding the upper route');
+assert.strictEqual(clips, 0, 'the shelf must remain intact on the upper route');
+
+const order = [];
+for (const name of ['drawBackground', 'drawWaterfallsBack', 'drawTunnelsBack', 'drawSceneryProps',
+    'drawTunnelsRock', 'drawWaterSurface', 'drawPalmtreeObjects', 'drawParticles', 'drawSonicCDHUD',
+    'drawZoneMapRadar', 'drawControlsHint', 'drawActClearOverlay', 'drawGameOverOverlay', 'drawTitleCard']) {
+    game[name] = noop;
+}
+game.drawFloor = (_, surface) => { if (surface === shelf) order.push('shelf'); };
+game.drawLoops = (_, loops) => { if (loops && loops.includes(loop)) order.push('loop'); };
+game.drawPlayer = () => order.push('player');
+game.render();
+assert(order.indexOf('shelf') >= 0 && order.indexOf('shelf') < order.indexOf('loop')
+    && order.indexOf('loop') < order.indexOf('player'), `expected shelf, loop, player; got ${order}`);
+console.log('  ✓ Act 1 draws the intact shelf behind the loop and Scar');
