@@ -58,6 +58,7 @@
 
 <script src="sonic-engine.js"></script>
 <script src="levels/zone1_act2.js"></script>
+<script src="levels/kitt_boss.js"></script>
 <script src="levels/zone1_act3.js"></script>
 <script>
 'use strict';
@@ -729,6 +730,12 @@ class Game {
 
         this.player = new Player(this.terrain, {
             jump: () => audio.jump(),
+            wallJump: (wall, p) => { audio.jump(); this.dust(p, 9, -p.facing, 3.5, '#ffd95d'); },
+            wallSlide: (_wall, p) => { this.dust(p, 2, -p.facing, 0.8, '#ffb76b'); },
+            bossAttack: () => audio.boost(),
+            bossHit: (_boss, p) => { audio.shatter(); this.dust(p, 12, -p.facing, 4.2, '#ffd740'); },
+            bossDefeat: () => audio.goalPost(),
+            missileReflect: () => audio.spinner(),
             roll: () => audio.roll(),
             bonk: () => audio.bonk(),
             spindashRev: (rev, p) => { audio.rev(rev); this.dust(p, 5, -p.facing, 2.5); },
@@ -781,6 +788,7 @@ class Game {
 
         this.camX = 0; this.camY = 0; this.look = 0;
         const def = this.terrain.levelDef;
+        this.canvas.style.imageRendering = def && def.smoothPresentation ? 'auto' : 'pixelated';
         if (def) {
             if (def.bgm !== undefined) audio.setBGM(def.bgm);
             else audio.setBGM('assets/level1.mp3');
@@ -1184,10 +1192,19 @@ class Game {
     }
 
     /* ---------------- smooth look-ahead camera ---------------- */
+    arenaCameraTarget() {
+        const b = this.terrain.boss;
+        if (!b || !b.active || !Number.isFinite(b.left) || !Number.isFinite(b.right) || !Number.isFinite(b.floorY)) return null;
+        return {
+            x: Math.max(b.left, Math.min(Math.max(b.left, b.right - this.W), this.player.x + (this.look || 0) - this.W / 2)),
+            y: b.floorY - this.H + 125,
+        };
+    }
     snapCamera() {
         this.look = 0;
-        this.camX = Math.max(0, this.player.x - this.W / 2);
-        this.camY = this.player.y - this.H / 2 + 25;
+        const arena = this.arenaCameraTarget();
+        this.camX = arena ? arena.x : Math.max(0, this.player.x - this.W / 2);
+        this.camY = arena ? arena.y : this.player.y - this.H / 2 + 25;
     }
     updateCamera(dt) {
         const p = this.player;
@@ -1199,8 +1216,9 @@ class Game {
         const vx = p.grounded ? p.gsp * Math.cos(p.angle) : p.xsp;
         const targetLook = Math.max(-150, Math.min(160, vx * 16));
         this.look += (targetLook - this.look) * (1 - Math.exp(-2.8 * dt));
-        const tx = Math.max(0, Math.min(this.terrain.endX - this.W, p.x + this.look - this.W / 2));
-        const ty = Math.max(minY, Math.min(maxY, p.y - this.H / 2 + 25));
+        const arena = this.arenaCameraTarget();
+        const tx = arena ? arena.x : Math.max(0, Math.min(this.terrain.endX - this.W, p.x + this.look - this.W / 2));
+        const ty = arena ? arena.y : Math.max(minY, Math.min(maxY, p.y - this.H / 2 + 25));
         this.camX += (tx - this.camX) * (1 - Math.exp(-9 * dt));
         this.camY += (ty - this.camY) * (1 - Math.exp(-6.5 * dt));
     }
@@ -1281,6 +1299,9 @@ class Game {
         }
 
         this.drawSonicCDHUD(ctx);
+        if (this.terrain.levelDef && typeof this.terrain.levelDef.drawHUD === 'function') {
+            this.terrain.levelDef.drawHUD(ctx, this);
+        }
         if (this.terrain.stage === 'palmtree') this.drawZoneMapRadar(ctx);
         else if (this.terrain.levelDef && typeof this.terrain.levelDef.drawRadar === 'function') {
             this.terrain.levelDef.drawRadar(ctx, this);
@@ -1934,6 +1955,10 @@ class Game {
 
         // 1. Floating & Moving Platforms (platformSmall 32x32, platformLarge 64x32)
         for (const p of T.platforms) {
+            if (T.levelDef && typeof T.levelDef.drawPlatform === 'function') {
+                T.levelDef.drawPlatform(ctx, p, this);
+                continue;
+            }
             if (p.x + p.w < this.view.x0 || p.x - p.w > this.view.x1) continue;
             const rect = p.large ? S.platformLarge : S.platformSmall;
             if (!this.drawSprite(ctx, rect, p.x - p.w / 2, p.y - 4, p.w, p.h)) {
@@ -2093,7 +2118,7 @@ class Game {
         if (T.capsule && T.capsule.x + 70 >= this.view.x0 && T.capsule.x - 70 <= this.view.x1) {
             this.drawCapsuleObj(ctx, T.capsule);
         }
-        if (T.boss && T.boss.x + 120 >= this.view.x0 && T.boss.x - 120 <= this.view.x1) {
+        if (T.boss && (T.boss.active || (T.boss.x + 180 >= this.view.x0 && T.boss.x - 180 <= this.view.x1))) {
             this.drawBossObj(ctx, T.boss);
         }
 
@@ -2710,6 +2735,8 @@ class Game {
             return (Math.floor(this._scarPeelPhase * 1.4) % 2 === 0) ? 3 : 4;
         }
         if (!p.grounded) {
+            if (p.wallSlide) return 1;
+            if (p.wallKickTimer > 0) return p.wallKickTimer > 13 ? 2 : 4;
             if (p.hurtPose) return 1;
             this._scarAirPhase = (this._scarAirPhase || 0) + Math.max(0.14, speed * 0.085) * (this.dt60 || 1);
             if (p.springTwirl) {
@@ -2773,7 +2800,16 @@ class Game {
             ctx.imageSmoothingEnabled = false;
 
             // Crouch / Look-Up / Super Peel-Out / Spring Twirl / Hurt posture transforms
-            if (p.crouching) {
+            if (p.wallSlide && !p.grounded) {
+                // Brace against the wall, flexing the legs while the scarf flutters.
+                ctx.rotate(-0.16);
+                ctx.scale(0.92, 1.03);
+                ctx.translate(0, Math.sin(this.terrain.clock * 0.35));
+            } else if (p.wallKickTimer > 0 && !p.grounded) {
+                const kick = p.wallKickTimer / 22;
+                ctx.rotate(-0.35 * kick);
+                ctx.scale(1 + kick * 0.12, 1 - kick * 0.08);
+            } else if (p.crouching) {
                 ctx.translate(0, 3);
                 ctx.scale(1.06, 0.86);
             } else if (p.lookingUp && p.grounded && speed <= 0.06) {
@@ -2787,6 +2823,9 @@ class Game {
             } else if (!p.grounded && p.springTwirl) {
                 const wobble = Math.sin((this.terrain.clock || 0) * 0.45) * 0.14;
                 ctx.rotate(wobble);
+                if (this.terrain.levelDef && this.terrain.levelDef.wallJump) {
+                    ctx.scale(Math.cos(p.springTwirlPhase || 0) * 0.38 + 0.62, 1);
+                }
             } else if (frameIdx === 0 && p.grounded) {
                 // Subtle 1px retro idle breathing bob
                 const bob = Math.floor(performance.now() / 420) % 2;
@@ -3310,7 +3349,9 @@ class Game {
     }
 
     drawControlsHint(ctx) {
-        const txt = '←/→ run  ↑+Jump peel-out  ↓+Jump spin dash  Air-Jump hold drop dash  1–7 checkpoints  M zone  Tab debug  R reset';
+        const txt = this.terrain.levelDef && this.terrain.levelDef.wallJump
+            ? '←/→ run  Jump at wall: kick  ↓+Jump spin dash  Air-Jump: drop dash  T sky  1–7 checkpoints  M stage  R reset'
+            : '←/→ run  ↑+Jump peel-out  ↓+Jump spin dash  Air-Jump hold drop dash  1–7 checkpoints  M zone  Tab debug  R reset';
         ctx.font = '11px Courier New';
         const w = ctx.measureText(txt).width + 20;
         this.panel(ctx, (this.W - w) / 2, this.H - 30, w, 22);

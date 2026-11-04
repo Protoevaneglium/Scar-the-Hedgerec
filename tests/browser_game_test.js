@@ -28,7 +28,16 @@ function element(id) {
     });
     return elements.get(id);
 }
-class ImageStub { set src(value) { this._src = value; if (this.onload) this.onload(); } }
+class ImageStub {
+    set src(value) {
+        this._src = value;
+        // Exercise the generated boss atlas path as well as the fallback rendering.
+        if (value.includes('kitt_boss_poses')) {
+            this.complete = true; this.naturalWidth = 1536; this.naturalHeight = 1024;
+        }
+        if (this.onload) this.onload();
+    }
+}
 const sandbox = {
     console, URLSearchParams, Math, Image: ImageStub, Audio: function () { return element('audio'); },
     document: { getElementById: element, createElement: () => element('canvas'), querySelectorAll: () => [] },
@@ -42,6 +51,7 @@ vm.createContext(sandbox);
 function load(file) { vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), sandbox, { filename: file }); }
 load('public/sonic-engine.js');
 load('public/levels/zone1_act2.js');
+load('public/levels/kitt_boss.js');
 load('public/levels/zone1_act3.js');
 const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
 const script = html.match(/<script>\s*'use strict';([\s\S]*?)<\/script>/);
@@ -96,6 +106,49 @@ for (let frame = 0; frame < 90; frame++) {
 }
 assert(ready, 'drop dash must invoke the actual browser callback');
 console.log('  ✓ Drop dash invokes the browser callback without freezing');
+
+game.loadStage('z1_act3', { skipTitleCard: true, skipFade: true });
+const act3 = game.terrain;
+const firstShaft = act3.z3.shafts[0];
+game.player.x = firstShaft.x0 + 12;
+game.player.y = firstShaft.bottom - 40;
+game.player.state = sandbox.SonicEngine.STATE.AIRBORNE;
+game.player.curled = false;
+game.player.xsp = 0; game.player.ysp = 2;
+game.player.update({ left: true, jumpHeld: true, jumpPressed: true }, 1 / 60);
+assert(game.player.wallKickTimer > 0 && game.player.xsp > 0, 'the real wall-kick callback must launch Scar');
+game.snapCamera(); game.render();
+let bossAtlasDraws = 0;
+const canvasDrawImage = ctx.drawImage;
+ctx.drawImage = (source, ...args) => {
+    if (source && String(source._src).includes('kitt_boss_poses')) bossAtlasDraws++;
+    return canvasDrawImage(source, ...args);
+};
+// Each checkpoint samples a different height or route, including the fortress arena.
+for (const checkpoint of act3.checkpoints) {
+    game.player.place(checkpoint.x, 0, checkpoint.y);
+    for (const era of ['good_future', 'present', 'past']) {
+        act3.timeEra = era;
+        game.snapCamera(); game.render();
+    }
+}
+game.player.place(act3.boss.left + 22, 0, act3.boss.floorY);
+game.player.invulnTimer = 100000;
+const seenBossStates = new Set();
+for (let frame = 0; frame < 1800; frame++) {
+    game.player.update({}, 1 / 60);
+    seenBossStates.add(act3.boss.state);
+    if (frame % 12 === 0) { game.snapCamera(); game.render(); }
+}
+assert(seenBossStates.has('clawWarn') && seenBossStates.has('rocketWarn') && seenBossStates.has('rush'),
+    'the actual game must advance through both weapon attacks and the rush');
+assert(bossAtlasDraws > 0, 'the generated Kitt atlas must be drawn by the real renderer');
+assert(game.camX >= act3.boss.left && game.camX + game.W <= act3.boss.right,
+    'the active battle camera must stay inside the fortress arena');
+assert(Math.abs(act3.boss.floorY - game.camY - (game.H - 125)) < 1,
+    'the battle camera must leave room above Kitt for his bazooka and HUD');
+ctx.drawImage = canvasDrawImage;
+console.log('  ✓ Act 3 routes, sky eras, animated boss atlas, and battle render with real browser callbacks');
 
 game.loadStage('palmtree', { skipTitleCard: true, skipFade: true });
 const loop = game.terrain.loops[1];

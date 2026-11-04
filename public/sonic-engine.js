@@ -131,6 +131,7 @@
             this.name = name;
             this.enabled = true;
             this.oneWay = !!opts.oneWay;
+            this.wallJump = !!opts.wallJump;
             this.onWallContact = opts.onWallContact || null;
             this.onFloorContact = opts.onFloorContact || null;
             this.setEndpoints(x1, y1, x2, y2);
@@ -1695,7 +1696,7 @@
             }
             if (this.capsule) {
                 const cap = this.capsule;
-                const unlocked = !cap.lockedUntilBoss || !this.boss || this.boss.defeated;
+                const unlocked = !cap.lockedUntilBoss || (this.boss && this.boss.defeated);
                 if (!cap.opened && unlocked) {
                     if (Math.abs(player.x - cap.x) < 26 && feetY >= cap.y - 80 && feetY <= cap.y - 54 && player.ysp >= -1.0) {
                         cap.opened = true;
@@ -2028,6 +2029,9 @@
             this.dropDashReady = false;
             this.springTwirl = false;
             this.springTwirlPhase = 0;
+            this.wallSlide = 0;
+            this.wallKickTimer = 0;
+            this.wallKickLock = 0;
             this.hurtPose = false;
             this.onCoasterRail = false;
             this.boostTrailTimer = 0;
@@ -2326,6 +2330,42 @@
         /* ---------- AIRBORNE (§5 + Mid-Air Drop Dash) ---------- */
         stepAirborne(inp, h, jumpPressed = false) {
             const P = PHYS;
+            // Wall kicks are enabled only by the act and its marked climb walls.
+            // Probe independently of E/F: a stopped player still needs wall contact.
+            this.wallSlide = 0;
+            this.wallKickTimer = Math.max(0, (this.wallKickTimer || 0) - h);
+            this.wallKickLock = Math.max(0, (this.wallKickLock || 0) - h);
+            if (this.terrain.levelDef && this.terrain.levelDef.wallJump && !this.hurtPose) {
+                let contact = null;
+                for (const dir of [-1, 1]) {
+                    const hit = this.terrain.raycast(this.x, this.y, dir, 0, this.radii.push + 8, this.layer, 0, true);
+                    if (hit && hit.surface.wallJump && Math.abs(hit.nx) > 0.95
+                        && (!contact || hit.t < contact.hit.t)) contact = { dir, hit };
+                }
+                if (contact && this.wallKickLock <= 0) {
+                    const towardWall = contact.dir < 0 ? inp.left : inp.right;
+                    if (jumpPressed) {
+                        this.uncurl();
+                        this.xsp = -contact.dir * 8.2;
+                        this.ysp = -8.5;
+                        this.facing = -contact.dir;
+                        this.jumped = false;
+                        this.springTwirl = false;
+                        this.dropDashCharging = false;
+                        this.dropDashCharge = 0;
+                        this.dropDashReady = false;
+                        this.wallKickTimer = 22;
+                        this.wallKickLock = 12;
+                        this.emit('wallJump', { direction: this.facing, x: contact.hit.x, y: this.y });
+                    } else if (towardWall && this.ysp > 0) {
+                        this.uncurl();
+                        this.wallSlide = contact.dir;
+                        this.facing = -contact.dir;
+                        this.ysp = Math.min(this.ysp, 2.2);
+                        if (Math.floor(this.terrain.clock / 8) !== Math.floor((this.terrain.clock - h) / 8)) this.emit('wallSlide');
+                    }
+                }
+            }
             const hasShoes = !!(this.shoesTimer && this.shoesTimer > 0);
             const top = hasShoes ? P.TOP * 2 : P.TOP;
             const airAcc = hasShoes ? P.AIR_ACC * 2 : P.AIR_ACC;
@@ -2356,10 +2396,10 @@
             }
 
             // Air acceleration (never pulls speed back down to TOP)
-            if (inp.left) {
+            if (inp.left && this.wallKickLock <= 0) {
                 if (this.xsp > -top) this.xsp = Math.max(this.xsp - airAcc * h, -top);
                 this.facing = -1;
-            } else if (inp.right) {
+            } else if (inp.right && this.wallKickLock <= 0) {
                 if (this.xsp < top) this.xsp = Math.min(this.xsp + airAcc * h, top);
                 this.facing = 1;
             }
@@ -2487,6 +2527,9 @@
         }
 
         land(hit) {
+            this.wallSlide = 0;
+            this.wallKickTimer = 0;
+            this.wallKickLock = 0;
             const r = this.radii;
             const xsp = this.xsp, ysp = this.ysp;
             this.groundSurface = hit.surface;

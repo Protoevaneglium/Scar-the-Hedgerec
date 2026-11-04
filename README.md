@@ -149,7 +149,7 @@ and press **Enter** — it starts the local server and opens your Android browse
 
 ---
 
-## 🧪 Run the Automated 31-Test Verification Suite
+## 🧪 Run the Automated Verification Suite
 
 ```bash
 npm test
@@ -158,6 +158,12 @@ npm test
 ---
 
 ## 🎮 Controls (Keyboard & Android Touch)
+
+**Zone 1 Act 3 — Kitt Bazooka:** Take the canyon speed route or climb the fortress's stacked upper routes. Tap **Jump while touching a marked climb wall** to kick away; hold toward a wall to slide. Spring launches, ring trails, and elevated bridges lead toward the citadel. The sky changes as you approach it, and **T** still cycles the time eras. In the arena, jump-spin into Kitt or return his missiles while curled. Ten collectible rings appear around Kitt and near the arena edges; collected rings respawn after seven seconds while the battle continues. Watch the warning target, exploit his reload, and open the animal capsule after his eight-hit defeat.
+
+The Act 3 layout takes inspiration from the supplied **Emerald Hill Act 2** and **Carnival Night Act 1** maps; its orange canyon, violet fortress, and cat insignia come from the supplied Kitt artwork. The transparent boss poses and fortress panorama were adapted with the built-in image generation tool; the exact prompts are saved in [`public/assets/kitt_art_prompts.json`](public/assets/kitt_art_prompts.json).
+
+Design research: [SEGA's Superstars manual](https://manual.sega.jp/sonicsuperstars/en/index.html) describes multiple routes and zone-specific loops, springs, and other contraptions. [Hirokazu Yasuhara's design interview](https://www.gamedeveloper.com/design/game-design-psychology-the-full-hirokazu-yasuhara-interview) discusses visible intermediate goals, player control, and planning layered layouts in three dimensions. Here those ideas inform the visible upper viaducts, spring-to-climb connections, speed-fed loops, and lower recovery road.
 
 | Input | Action |
 | :--- | :--- |

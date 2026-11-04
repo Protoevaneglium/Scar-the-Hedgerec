@@ -1,0 +1,32 @@
+{
+  "tool": "Built-in image_gen",
+  "reference": "Kitty Boss_ Missile-Clawed Menace.png (user supplied)",
+  "assets": [
+    {
+      "path": "public/assets/kitt_boss_poses.png",
+      "size": [
+        1536,
+        1024
+      ],
+      "layout": "3 columns x 2 rows, 512px cells",
+      "poses": [
+        "idle",
+        "claw volley",
+        "bazooka aim",
+        "bazooka recoil",
+        "hurt",
+        "defeated"
+      ],
+      "prompt": "Use case: style-transfer. Asset type: transparent game boss sprite atlas for a fast 2.5D side-scrolling platformer.\nInput image: reference image of Kitt Bazooka; preserve this exact character identity, purple bulky cat, large cream cheeks and belly, red open coat with gold buttons, yellow scarf and cuffs, black boots, purple striped tail, silver/red missile claws and oversized olive bazooka with hazard stripes.\nPrimary request: Adapt the reference into polished 2.5D rendered game animation keyframes with readable cartoon silhouettes and dimensional lighting. Produce exactly SIX full-body poses arranged in a precise 3-column by 2-row equal-cell grid, all facing LEFT, camera side-on with gentle 3/4 volume. Equal-sized cells; each character centered in its cell, aligned feet/baseline and equal scale, full bazooka and tail entirely inside each cell with generous transparent margin.\nOrder: top-left idle ready, top-middle extended missile-claw firing arm, top-right bazooka aiming left with glow in barrel; bottom-left bazooka recoil leaning backward, bottom-middle hurt/stunned eyes and dropped guard, bottom-right defeated sitting with smoking bazooka.\nTrue transparent background everywhere outside sprites. No floor, no scenery, no labels, no text, no grid lines, no detached particles crossing cells. Clean alpha edges, saturated purple/red/gold, cool lavender rim light. Keep missiles attached as claws on the idle poses. Consistent character anatomy and clothing across all six poses."
+    },
+    {
+      "path": "public/assets/kitt_fortress_panorama.png",
+      "size": [
+        2172,
+        724
+      ],
+      "purpose": "Transparent-sky parallax environment inspired by the reference fortress and canyon.",
+      "prompt": "Use case: stylized-concept. Asset type: 2.5D side-scrolling platformer distant parallax environment layer with transparent sky.\nReference image role: use ONLY the background setting from the attached Kitt Bazooka cat illustration. The violet angular military cat fortress with a yellow angular cat-eye insignia, tall thin antennas and a large satellite dish sits on orange/salmon faceted rocky cliffs. Preserve that visual identity, palette and villain fortress architecture. REMOVE all characters, bazooka, missiles, speed streaks and the original blue sky.\nCreate a very wide landscape panorama, ideally 3072x1024, camera side-on, showing the fortress spread across a terraced orange canyon. Left side rocky arches and tiny watchtowers, center dramatic orange canyon with connecting purple military aqueduct, right side the main purple fortress, yellow/black industrial vents, antennas and satellite dishes. It is a distant BACKGROUND layer; no foreground ground/platforms, no collectible objects, no text or watermarks. No gigantic central character. Super polished dimensional stylized game render, rounded bevels and faceted rock, warm peach light and lavender shadows, strong atmospheric separation, refined material detail. Terrain and buildings occupy lower two thirds with varied tall silhouette. Full alpha transparent sky above and between buildings, transparent outside terrain silhouette. No painted grey/checker backdrop. Canyon base can continue to lower edge. Crisp alpha, consistent orthographic perspective."
+    }
+  ]
+}

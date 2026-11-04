@@ -351,6 +351,7 @@ test('Classic Lives System grants 1-Up every 100 rings and triggers GAME OVER / 
 
 test('Zone 1 Act 2 (Starlight Resort 11,400px high-speed Lower & Upper Coaster routes + 28 Sonic 2 Badniks) and Act 3 Boss Capsule clear cleanly', () => {
     require('../public/levels/zone1_act2.js');
+    require('../public/levels/kitt_boss.js');
     require('../public/levels/zone1_act3.js');
     require('../templates/boss_act_template.js');
     assert(Terrain.LEVELS.z1_act2 && Terrain.LEVELS.z1_act3 && Terrain.LEVELS.boss_template, 'Act 2, Act 3 & Boss Template registered');
@@ -381,10 +382,16 @@ test('Zone 1 Act 2 (Starlight Resort 11,400px high-speed Lower & Upper Coaster r
         `cleared z1_act2 upper coaster in f=${f2U}, bigRing=${t2U.bigRing.collected}, rings=${p2U.rings}`);
     console.log(`      (cleared Starlight Resort Act 2 Upper Coaster + Giant Ring in ${(f2U / 60).toFixed(2)}s with ${p2U.rings} rings, score ${p2U.score})`);
 
-    // 3. Drop Scar onto Act 3's Animal Capsule plunger button and verify it opens & clears!
+    // 3. The boss owns the capsule lock; the capsule still clears normally after victory.
     const t3 = new Terrain('z1_act3');
     const p3 = new Player(t3);
     assert(t3.goalPost === null && t3.capsule && !t3.capsule.opened, 'Act 3 uses Animal Capsule instead of Goal Post');
+    assert(t3.boss && !t3.boss.defeated && t3.capsule.lockedUntilBoss, 'Kitt must lock the capsule before victory');
+    p3.x = t3.capsule.x;
+    p3.y = t3.capsule.y - 70 - p3.radii.height;
+    t3.updateObjects(p3, 1);
+    assert(!t3.capsule.opened, 'the capsule cannot bypass a living boss');
+    t3.boss.defeated = true;
     p3.x = t3.capsule.x;
     p3.y = t3.capsule.y - 110;
     p3.state = STATE.AIRBORNE;
