@@ -536,6 +536,7 @@
         zone: 1,
         zoneName: 'STARLIGHT RESORT',
         act: 2,
+        animalZone: 'cnz', // Casino Night's Flicky / Becky pair suits the resort.
         isBossAct: false,
         bgm: 'assets/level1.mp3',
         startX: 0,

@@ -58,6 +58,7 @@
         zoneName: 'NEW ZONE',     // Shown on the 16-bit sliding Title Card & Act Clear Tally!
         act: 1,                   // 1, 2, or 3 (Act 3 = Boss Act)
         isBossAct: false,         // true on Act 3 Boss Acts (adds ★ BOSS ACT ★ badge & Capsule finish)
+        animalZone: 'ehz',        // Sonic 2 pair; alternatively animalTypes: ['flicky', 'ricky'].
         bgm: null,                // e.g. 'assets/zone2.mp3' (null = silent until track is chosen)
         startX: 0,
         endX: 2600,               // Total level width in pixels (increase as map grows, e.g. 10000)

@@ -156,6 +156,8 @@ const entries = [
     { name: prefix + 'public/levels/boss_act_template.js', data: fs.readFileSync(path.join(ROOT, 'templates', 'boss_act_template.js')) },
     { name: prefix + 'public/assets/scar_sheet.png',       data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'scar_sheet.png')) },
     { name: prefix + 'public/assets/common_objects.png',   data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'common_objects.png')) },
+    { name: prefix + 'public/assets/animals.png',          data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'animals.png')) },
+    { name: prefix + 'public/assets/animals.txt',          data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'animals.txt')) },
     { name: prefix + 'public/assets/jump.wav',             data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'jump.wav')) },
     { name: prefix + 'public/assets/rings.wav',            data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'rings.wav')) },
     { name: prefix + 'public/assets/goalpost.wav',         data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'goalpost.wav')) },

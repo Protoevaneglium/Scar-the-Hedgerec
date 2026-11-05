@@ -121,6 +121,7 @@
     SonicEngine.Terrain.registerLevel('z1_act3', {
         title: 'Bazooka Citadel Act 3', zone: 1, zoneName: 'BAZOOKA CITADEL', act: 3,
         isBossAct: true, bgm: 'assets/level1.mp3', startX: 0, endX: 9600, deathY: 1320,
+        animalZone: 'mcz', // Mystic Cave's Cucky / Micky pair for the canyon citadel.
         cameraMinY: -650, cameraMaxY: 580, wallJump: true, smoothPresentation: true,
         theme: {skyTop:'#2868e7',skyMid:'#79c0ff',skyBottom:'#ffe2bb',groundA:'#d38b7c',groundB:'#69456d',loopA:'#ffd45c',loopB:'#785092',trimColor:'#b88ec1',trimHighlight:'#ffe1ba'},
         buildTerrain(b, terrain) {

@@ -72,6 +72,30 @@
         DYING: 'DYING',
     });
 
+    // Sonic 2's zone pairs, matching the blue cells on the supplied animal sheet.
+    // Custom acts select the closest setting with animalZone, or override animalTypes.
+    const ANIMAL_ZONES = Object.freeze({
+        ehz: ['flicky', 'ricky'], cpz: ['pocky', 'locky'], arz: ['flicky', 'pecky'],
+        cnz: ['flicky', 'becky'], htz: ['locky', 'wocky'], mcz: ['cucky', 'micky'],
+        ooz: ['pecky', 'rocky'], mz: ['locky', 'wocky'], scz: ['cucky', 'tocky'],
+        wfz: ['locky', 'wocky'], end: ['flicky', 'cucky', 'locky'],
+        hpz: ['cucky', 'rocky', 'micky'], dez: ['cucky', 'rocky', 'micky', 'picky'],
+    });
+    const ANIMAL_MOTION = Object.freeze({
+        flicky: { speed: 1.8, hop: 3.1, gravity: 0.11, flies: true },
+        cucky:  { speed: 1.4, hop: 3.7, gravity: 0.22 },
+        pocky:  { speed: 1.8, hop: 5.0, gravity: 0.22 },
+        ricky:  { speed: 2.2, hop: 3.8, gravity: 0.22 },
+        pecky:  { speed: 1.6, hop: 3.0, gravity: 0.10, flies: true },
+        rocky:  { speed: 1.2, hop: 3.6, gravity: 0.22 },
+        locky:  { speed: 1.9, hop: 3.0, gravity: 0.10, flies: true },
+        becky:  { speed: 2.4, hop: 4.0, gravity: 0.22 },
+        wocky:  { speed: 1.5, hop: 3.5, gravity: 0.22 },
+        micky:  { speed: 2.3, hop: 3.2, gravity: 0.22 },
+        tocky:  { speed: 1.7, hop: 3.9, gravity: 0.22 },
+        picky:  { speed: 1.6, hop: 3.6, gravity: 0.22 },
+    });
+
     /* ======================================================================
        MATH HELPERS
        Angle convention (spec §3): 0 = floor, 90 = right wall (going up),
@@ -421,6 +445,8 @@
             this.rings = [];
             this.scatteredRings = [];
             this.enemies = [];
+            this.animals = [];
+            this.animalSerial = 0;
             this.timePosts = [];
             this.starPosts = [];
             this.monitors = [];
@@ -514,6 +540,8 @@
             this.splashes = [];
             this.popups = [];
             this.scatteredRings = [];
+            this.animals = [];
+            this.animalSerial = 0;
             this.activeCheckpoint = null;
             this.clock = 0;
 
@@ -573,14 +601,16 @@
             // Optional Animal Capsule (used in Act 3 Boss Acts to finish the Zone after boss defeat)
             if (src.capsule) {
                 const cx = src.capsule.x, cy = src.capsule.y;
-                const topSurf = addObjSurface(new LineSurface(cx - 28, cy - 60, cx + 28, cy - 60, 0, -1, -1, 'capsule top', { oneWay: true }));
-                const leftSurf = addObjSurface(new LineSurface(cx - 30, cy - 60, cx - 30, cy, -1, 0, -1, 'capsule L'));
-                const rightSurf = addObjSurface(new LineSurface(cx + 30, cy - 60, cx + 30, cy, 1, 0, -1, 'capsule R'));
+                const topSurf = addObjSurface(new LineSurface(cx - 28, cy - 56, cx + 28, cy - 56, 0, -1, -1, 'capsule top', { oneWay: true }));
+                const leftSurf = addObjSurface(new LineSurface(cx - 30, cy - 56, cx - 30, cy, -1, 0, -1, 'capsule L'));
+                const rightSurf = addObjSurface(new LineSurface(cx + 30, cy - 56, cx + 30, cy, 1, 0, -1, 'capsule R'));
+                const buttonTopSurf = addObjSurface(new LineSurface(cx - 10, cy - 77, cx + 10, cy - 77, 0, -1, -1, 'capsule button', { oneWay: true }));
                 this.capsule = {
                     x: cx, y: cy,
                     lockedUntilBoss: src.capsule.lockedUntilBoss !== undefined ? !!src.capsule.lockedUntilBoss : false,
-                    opened: false, cleared: false, openTimer: 0,
-                    topSurf, leftSurf, rightSurf,
+                    opened: false, cleared: false, openTimer: 0, elapsed: 0, phase: 'idle',
+                    releaseCount: 12, releasedCount: 0,
+                    topSurf, leftSurf, rightSurf, buttonTopSurf,
                 };
             } else {
                 this.capsule = null;
@@ -954,6 +984,8 @@
             this.splashes = [];
             this.popups = [];
             this.scatteredRings = [];
+            this.animals = [];
+            this.animalSerial = 0;
             this.clock = 0;
 
             // 1. FLOATING & MOVING PLATFORMS (platformSmall 32x32, platformLarge 64x32)
@@ -1352,6 +1384,68 @@
             this.splashes.push({ x, y, type, frame: 0, timer: 0 });
         }
 
+        spawnAnimal(x, y, { type, direction, source = 'badnik' } = {}) {
+            const def = this.levelDef || {};
+            const zone = ANIMAL_ZONES[def.animalZone || 'ehz'] || ANIMAL_ZONES.ehz;
+            const types = (def.animalTypes || zone).filter(name => ANIMAL_MOTION[name]);
+            const serial = this.animalSerial++;
+            const selected = ANIMAL_MOTION[type] ? type : (types[serial % types.length] || 'flicky');
+            const motion = ANIMAL_MOTION[selected];
+            const dir = direction === undefined ? (serial % 2 ? 1 : -1) : (direction < 0 ? -1 : 1);
+            const animal = {
+                type: selected, x, y, vx: 0, vy: -3.5, age: 0, grounded: false,
+                frame: 0, source, direction: dir, speed: motion.speed + (serial % 3) * 0.12,
+                released: false, landTimer: 0, layer: 0,
+            };
+            this.animals.push(animal);
+            if (this.animals.length > 48) this.animals.shift();
+            return animal;
+        }
+
+        updateAnimals(player, h) {
+            // Separate steps also keep direct terrain.updateObjects callers stable at 30 Hz.
+            const steps = Math.max(1, Math.ceil(h));
+            const step = h / steps;
+            for (let i = this.animals.length - 1; i >= 0; i--) {
+                const animal = this.animals[i];
+                const motion = ANIMAL_MOTION[animal.type];
+                for (let s = 0; s < steps; s++) {
+                    animal.age += step;
+                    if (animal.landTimer > 0) {
+                        animal.landTimer = Math.max(0, animal.landTimer - step);
+                        animal.frame = animal.released ? 2 : 0;
+                        if (animal.landTimer > 0) continue;
+                        animal.grounded = false;
+                        animal.released = true;
+                        animal.vx = animal.direction * animal.speed;
+                        animal.vy = -motion.hop;
+                    }
+                    const oldY = animal.y;
+                    animal.x += animal.vx * step;
+                    animal.y += animal.vy * step;
+                    animal.vy += motion.gravity * step;
+                    if (animal.vy >= 0) {
+                        const hit = this.raycast(animal.x, oldY - 4, 0, 1,
+                            Math.max(4, animal.y - oldY + 4), animal.layer);
+                        if (hit && hit.ny < -0.5) {
+                            animal.y = hit.y;
+                            animal.vy = 0;
+                            animal.grounded = true;
+                            animal.landTimer = animal.released ? 3 : 6;
+                        }
+                    }
+                    // Birds begin flapping after their first landing; mammals alternate stride poses.
+                    animal.frame = !animal.released ? 0 : motion.flies
+                        ? 1 + (Math.floor(animal.age / 6) % 2) : (animal.vy < 0 ? 1 : 2);
+                }
+                if (animal.age > 540 || animal.y > this.deathY + 100
+                    || animal.x < this.startX - 100 || animal.x > this.endX + 100
+                    || (animal.age > 120 && Math.abs(animal.x - player.x) > 1100)) {
+                    this.animals.splice(i, 1);
+                }
+            }
+        }
+
         /** Step all dynamic stage & common Sonic objects for substep `h` (in 60Hz frames). */
         updateObjects(player, h) {
             if (this.stage !== 'palmtree' && !this.hasObjects) return;
@@ -1602,6 +1696,7 @@
                         player.score = (player.score || 0) + 100;
                         this.popups.push({ x: ex, y: ey - 16, text: '+100', life: 42 });
                         this.debris.push({ kind: 'explosion', x: ex, y: ey, vx: 0, vy: 0, life: 20, maxLife: 20 });
+                        this.spawnAnimal(ex, ey, { type: en.animalType });
                         player.emit('enemyPop', en);
                     } else if (!player.invulnTimer || player.invulnTimer <= 0) {
                         this.hurtPlayer(player, ex);
@@ -1698,36 +1793,51 @@
                 const cap = this.capsule;
                 const unlocked = !cap.lockedUntilBoss || (this.boss && this.boss.defeated);
                 if (!cap.opened && unlocked) {
-                    if (Math.abs(player.x - cap.x) < 26 && feetY >= cap.y - 80 && feetY <= cap.y - 54 && player.ysp >= -1.0) {
+                    // The narrow plunger is a real floor. Body/side/underside contact cannot press it.
+                    if (player.grounded && player.groundSurface === cap.buttonTopSurf
+                        && Math.abs(player.x - cap.x) <= 18) {
                         cap.opened = true;
-                        cap.openTimer = 85;
-                        player.ysp = -6.5;
+                        cap.phase = 'pressed';
+                        cap.openTimer = 180;
+                        cap.elapsed = 0;
+                        cap.buttonTopSurf.enabled = false;
+                        player.ysp = -3.5;
                         player.state = STATE.AIRBORNE;
                         player.groundSurface = null;
                         player.jumped = false;
-                        for (let k = 0; k < 4; k++) {
+                        player.curled = false;
+                        for (let k = 0; k < 7; k++) {
                             this.debris.push({
                                 kind: 'explosion',
-                                x: cap.x + (k - 1.5) * 16,
+                                x: cap.x + ((k * 17) % 49) - 24,
                                 y: cap.y - 36 - (k % 2) * 16,
-                                vx: 0, vy: 0, delay: k * 6, life: 20, maxLife: 20,
+                                vx: 0, vy: 0, delay: 8 + k * 7, life: 20, maxLife: 20,
                             });
                         }
                         player.emit('goalPost', cap);
                     }
                 }
                 if (cap.opened && !cap.cleared) {
-                    cap.openTimer -= h;
-                    if (cap.openTimer <= 55 && cap.topSurf && cap.topSurf.enabled) {
+                    cap.elapsed += h;
+                    cap.openTimer = Math.max(0, 180 - cap.elapsed);
+                    cap.phase = cap.elapsed < 8 ? 'pressed' : cap.elapsed < 60 ? 'exploding' : 'broken';
+                    if (cap.elapsed >= 60 && cap.topSurf.enabled) {
                         cap.topSurf.enabled = false;
                         cap.leftSurf.enabled = false;
                         cap.rightSurf.enabled = false;
+                    }
+                    while (cap.releasedCount < cap.releaseCount && cap.elapsed >= 60 + cap.releasedCount * 6) {
+                        const index = cap.releasedCount++;
+                        this.spawnAnimal(cap.x + (index % 4 - 1.5) * 10, cap.y - 24, {
+                            source: 'capsule', direction: index % 2 ? 1 : -1,
+                        });
                     }
                     if (cap.openTimer <= 0) {
                         cap.cleared = true;
                     }
                 }
             }
+            this.updateAnimals(player, h);
 
             // 12. Sonic CD Time Posts ('FUTURE' / 'PAST') & Time Warp mechanic
             for (const tp of this.timePosts) {

@@ -150,6 +150,41 @@ assert(Math.abs(act3.boss.floorY - game.camY - (game.H - 125)) < 1,
 ctx.drawImage = canvasDrawImage;
 console.log('  ✓ Act 3 routes, sky eras, animated boss atlas, and battle render with real browser callbacks');
 
+game.loadStage('z1_act3', { skipTitleCard: true, skipFade: true });
+const rescueTerrain = game.terrain;
+rescueTerrain.boss.defeated = true;
+game.player.x = rescueTerrain.capsule.x;
+game.player.y = rescueTerrain.capsule.y - 130;
+game.player.state = sandbox.SonicEngine.STATE.AIRBORNE;
+game.player.curled = true;
+game.player.xsp = game.player.gsp = 0; game.player.ysp = 2;
+let atlasCalls = [], capsuleCalls = [];
+ctx.drawImage = (source, ...args) => {
+    if (source === game.animalSheet) atlasCalls.push(args);
+    if (source === game.commonSheet && [678, 763, 840].includes(args[1])) capsuleCalls.push(args);
+    return canvasDrawImage(source, ...args);
+};
+game.snapCamera(); game.render();
+assert(capsuleCalls.some(args => args[1] === 678), 'the intact capsule must draw its blinking idle sprite');
+for (let frame = 0; frame < 240 && !rescueTerrain.capsule.cleared; frame++) {
+    game.last = frame * 1000 / 60;
+    game.frame((frame + 1) * 1000 / 60);
+    assert(!game.actClear, 'results must wait for the physical rescue to finish');
+}
+assert(rescueTerrain.capsule.cleared && rescueTerrain.capsule.releasedCount === 12);
+assert(capsuleCalls.some(args => args[1] === 763), 'the button must draw the depressed switch sprite');
+assert(capsuleCalls.some(args => args[1] === 840), 'the destroyed capsule must draw its broken base');
+assert(atlasCalls.length > 0, 'the real object renderer must draw the extracted animal atlas');
+assert(atlasCalls.some(args => args[0] === 32) && atlasCalls.some(args => args[0] === 64),
+    'both moving animal poses must reach the real renderer');
+assert(atlasCalls.every(args => args[2] === 32 && args[3] === 32 && [32, 288].includes(args[1])),
+    'Citadel animals must draw the Cucky and Micky atlas rows at native resolution');
+const frozenStageTime = game.stageTime;
+game.frame(game.last + 1000 / 60);
+assert(game.actClear && game.stageTime === frozenStageTime, 'the tally must begin with the clock frozen');
+ctx.drawImage = canvasDrawImage;
+console.log('  ✓ Capsule switch, explosion, broken base, animal atlas animation, and delayed tally render correctly');
+
 game.loadStage('palmtree', { skipTitleCard: true, skipFade: true });
 const loop = game.terrain.loops[1];
 const shelf = game.terrain.corkscrewFloor;

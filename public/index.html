@@ -587,6 +587,12 @@ const COMMON_SPRITES = {
     capsuleBroken: { x: 408, y: 840, w: 64, h: 32 }
 };
 
+// Three unscaled 32px cells per animal: release, rising/flap A, falling/flap B.
+const ANIMAL_ROWS = Object.freeze(Object.fromEntries([
+    'flicky', 'cucky', 'pocky', 'ricky', 'pecky', 'rocky',
+    'locky', 'becky', 'wocky', 'micky', 'tocky', 'picky'
+].map((name, row) => [name, row])));
+
 class Game {
     constructor() {
         this.canvas = document.getElementById('game');
@@ -613,6 +619,11 @@ class Game {
         this.commonSheetLoaded = false;
         this.commonSheet.onload = () => { this.commonSheetLoaded = true; };
         this.commonSheet.src = 'assets/common_objects.png';
+
+        this.animalSheet = new Image();
+        this.animalSheetLoaded = false;
+        this.animalSheet.onload = () => { this.animalSheetLoaded = true; };
+        this.animalSheet.src = 'assets/animals.png';
 
         // Load Sonic CD Palmtree Panic Good Future sprite sheet & full zone map
         this.objSheet = new Image();
@@ -1090,7 +1101,8 @@ class Game {
         const T = this.terrain;
         const stageCleared = !!((T.goalPost && T.goalPost.cleared) || (T.capsule && T.capsule.cleared));
 
-        if (!stageCleared && !this.player.gameOver && this.player.state !== STATE.DYING) {
+        const rescuing = !!(T.capsule && T.capsule.opened);
+        if (!stageCleared && !rescuing && !this.player.gameOver && this.player.state !== STATE.DYING) {
             this.stageTime += dt;
             if (this.stageTime >= 600) {
                 this.player.die('TIME OVER', false);
@@ -1123,7 +1135,7 @@ class Game {
             }
         }
 
-        const playerInput = (stageCleared || this.player.gameOver)
+        const playerInput = (stageCleared || rescuing || this.player.gameOver)
             ? { left: false, right: false, up: false, down: false, jumpHeld: false, jumpPressed: false }
             : snap;
         this.player.update(playerInput, dt);
@@ -2118,6 +2130,11 @@ class Game {
         if (T.capsule && T.capsule.x + 70 >= this.view.x0 && T.capsule.x - 70 <= this.view.x1) {
             this.drawCapsuleObj(ctx, T.capsule);
         }
+        for (const animal of T.animals || []) {
+            if (animal.x + 18 < this.view.x0 || animal.x - 18 > this.view.x1
+                || animal.y < this.view.y0 || animal.y - 32 > this.view.y1) continue;
+            this.drawAnimalObj(ctx, animal);
+        }
         if (T.boss && (T.boss.active || (T.boss.x + 180 >= this.view.x0 && T.boss.x - 180 <= this.view.x1))) {
             this.drawBossObj(ctx, T.boss);
         }
@@ -2282,36 +2299,31 @@ class Game {
             ctx.save();
             ctx.imageSmoothingEnabled = false;
             const blink = Math.floor(T.clock * 0.2) % 2;
-            if (!cap.opened) {
-                const f = COMMON_SPRITES.capsuleIdle[blink];
-                ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, x - 32, y - f.h, f.w, f.h);
-            } else {
-                const f = COMMON_SPRITES.capsuleOpen[blink];
-                ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, x - 32, y - f.h, f.w, f.h);
-                // Hopping rescued critters & sparkles once capsule opens!
-                const elapsed = Math.max(0, 85 - (cap.openTimer || 0));
-                if (elapsed > 14) {
-                    const colors = ['#4fc3f7', '#ffb74d', '#f06292', '#aed581'];
-                    for (let i = 0; i < 4; i++) {
-                        const dir = i % 2 === 0 ? -1 : 1;
-                        const spd = 1.1 + (i % 3) * 0.45;
-                        const tHop = Math.max(0, elapsed - 14 - i * 5);
-                        const ax = x + dir * tHop * spd;
-                        const ay = (y - 18) - Math.abs(Math.sin(tHop * 0.22)) * 22;
-                        ctx.fillStyle = colors[i];
-                        ctx.beginPath(); ctx.arc(ax, ay, 5, 0, TAU); ctx.fill();
-                        ctx.fillStyle = '#fff';
-                        ctx.fillRect(ax + dir * 1, ay - 2, 2, 2);
-                    }
-                }
-            }
+            const f = cap.phase === 'broken' ? COMMON_SPRITES.capsuleBroken
+                : cap.opened ? COMMON_SPRITES.capsuleOpen[blink] : COMMON_SPRITES.capsuleIdle[blink];
+            ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, x - 32, y - f.h, f.w, f.h);
             ctx.restore();
             return;
         }
         ctx.fillStyle = '#546e7a';
-        ctx.fillRect(x - 28, y - 60, 56, 60);
+        ctx.fillRect(x - 28, y - (cap.phase === 'broken' ? 24 : 56), 56, cap.phase === 'broken' ? 24 : 56);
+        if (cap.phase === 'broken') return;
         ctx.fillStyle = cap.opened ? '#66bb6a' : '#ffd54f';
-        ctx.fillRect(x - 14, y - (cap.opened ? 64 : 72), 28, 12);
+        ctx.fillRect(x - 10, y - (cap.opened ? 69 : 77), 20, 8);
+    }
+
+    drawAnimalObj(ctx, animal) {
+        if (!this.animalSheetLoaded) return;
+        const row = ANIMAL_ROWS[animal.type];
+        if (row === undefined) return;
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        ctx.translate(Math.round(animal.x), Math.round(animal.y));
+        // The source sheet's moving poses face right.
+        if ((animal.vx || animal.direction) < 0) ctx.scale(-1, 1);
+        ctx.drawImage(this.animalSheet, Math.max(0, Math.min(2, animal.frame)) * 32,
+            row * 32, 32, 32, -16, -32, 32, 32);
+        ctx.restore();
     }
 
     drawBossObj(ctx, boss) {

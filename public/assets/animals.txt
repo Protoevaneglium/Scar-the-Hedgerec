@@ -1,0 +1,19 @@
+Animal Friends sprites: Sonic the Hedgehog 2 (Sega Genesis), SEGA / Sonic Team.
+Source: user-supplied "Sega Genesis - Sonic the Hedgehog 2 - Miscellaneous - Animals.png".
+Original ripper and hosting credits: see the supplied reference sheet's Details panel.
+The atlas extracts all 12 animals' three normal animation frames without scaling or recoloring.
+Layout: 96 x 384 PNG; three 32 x 32 cells per row, aligned at the feet.
+Rows: Flicky, Cucky, Pocky, Ricky, Pecky, Rocky, Locky, Becky, Wocky, Micky, Tocky, Picky.
+Columns: initial release pose, movement pose A, movement pose B. Moving poses face right.
+
+Capsule sprites use the existing transparent common_objects.png, matching the supplied
+Sonic the Hedgehog Common Objects sheet (SEGA / Sonic Team; ripper credits on the reference).
+
+The game uses a Sonic 1 style three-act progression: signposts in Acts 1 and 2,
+then a boss-locked capsule in Act 3. Its custom settings use Sonic 2 animal pairs
+from analogous zones, following the reference sheet's blue cells:
+  Palmtree Panic: Emerald Hill's Flicky / Ricky.
+  Starlight Resort: Casino Night's Flicky / Becky.
+  Bazooka Citadel: Mystic Cave's Cucky / Micky.
+Future custom levels can select animalZone (ehz/cpz/arz/cnz/htz/mcz/ooz/mz/scz/wfz/end/hpz/dez)
+or set animalTypes to an array of atlas species names.

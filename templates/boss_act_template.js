@@ -13,7 +13,7 @@
  *   - Enclosed Boss Arena floor with left & right arena walls
  *   - Pre-arena safety Rings & Ring TV Monitor
  *   - Classic Sonic Animal Capsule (`objects.capsule` from `common_objects.png`):
- *       * Solid 64x60 capsule body + top plunger button
+ *       * Solid body + narrow top plunger, explosions and animated animal rescue
  *       * Can lock until `terrain.boss.defeated === true` (`lockedUntilBoss: true`)
  *       * Jumping on the top plunger button depresses it, pops 4 explosions,
  *         releases hopping critters, tallies Zone Clear bonuses, and fades into
