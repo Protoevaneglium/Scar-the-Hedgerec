@@ -5,47 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Scar the Hedgerec</title>
     <link rel="icon" href="data:,">
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
-        html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Courier New', monospace; color: #fff; }
-        #canvas-container { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #050b14; }
-        canvas { display: block; box-shadow: 0 0 40px rgba(0, 0, 0, 0.85); image-rendering: pixelated; }
-        #top-bar { position: absolute; top: 10px; right: 14px; display: flex; flex-wrap: wrap; gap: 6px; z-index: 10; justify-content: flex-end; max-width: 68%; }
-        .chip { background: rgba(10, 20, 40, 0.88); border: 1px solid rgba(80, 160, 255, 0.55); color: #9cdcfe; padding: 5px 10px;
-                border-radius: 6px; font: bold 11px 'Courier New', monospace; cursor: pointer; transition: background 0.12s; }
-        .chip:hover { background: rgba(30, 60, 120, 0.92); color: #fff; }
-        .chip.on { background: #1976d2; color: #fff; border-color: #90caf9; }
-        .chip.gold { background: rgba(180, 100, 10, 0.9); color: #ffe57f; border-color: #ffd54f; }
-        #touch { position: absolute; bottom: 20px; left: 0; right: 0; display: none; justify-content: space-between; padding: 0 30px; pointer-events: none; z-index: 10; }
-        @media (pointer: coarse) { #touch { display: flex; } }
-        .tgroup { display: flex; gap: 12px; pointer-events: auto; }
-        .tbtn { width: 62px; height: 62px; border-radius: 31px; background: rgba(20, 40, 80, 0.6); border: 2px solid rgba(100, 180, 255, 0.6);
-                color: #fff; font-size: 20px; font-weight: bold; touch-action: none; }
-        .tbtn.active { background: rgba(40, 120, 240, 0.85); border-color: #fff; }
-        .tbtn.jump { width: 76px; height: 76px; border-radius: 38px; background: rgba(220, 40, 40, 0.65); border-color: rgba(255, 140, 140, 0.8); font-size: 16px; }
-        /* Intro / startup sequence overlay (sits above everything until PRESS START) */
-        #intro { position: fixed; inset: 0; z-index: 100; background: #000; display: flex; align-items: center; justify-content: center; transition: opacity 0.45s ease; }
-        #intro.fade { opacity: 0; pointer-events: none; }
-        #intro video { width: 100%; height: 100%; object-fit: contain; background: #000; }
-    </style>
+    <link rel="stylesheet" href="css/game-ui.css">
 </head>
 <body>
 <div id="canvas-container">
-    <canvas id="game"></canvas>
-    <div id="top-bar">
+    <canvas id="game" aria-label="Scar the Hedgerec gameplay"></canvas>
+    <nav id="top-bar" aria-label="Stage controls">
         <button class="chip gold" id="btn-stage" title="Switch Stage (M)">Stage: Act 1</button>
         <button class="chip on" id="btn-era" title="Cycle Time Era (T)">Time: Good Future</button>
-        <button class="chip" id="btn-hud" title="Tab / G">Debug Sensors: OFF</button>
-        <button class="chip on" id="btn-audio">Audio: ON</button>
+        <button class="chip" id="btn-hud" aria-pressed="false" title="Tab / G">Debug Sensors: OFF</button>
+        <button class="chip on" id="btn-audio" aria-pressed="true">Audio: ON</button>
         <button class="chip" id="btn-cp" title="Keys 1–7">Checkpoint: Cliff & Slide (1)</button>
         <button class="chip" id="btn-reset" title="R">Reset (R)</button>
-    </div>
-    <div id="touch">
+    </nav>
+    <div id="touch" aria-label="Touch controls">
         <div class="tgroup">
-            <button class="tbtn" data-key="left">◀</button>
-            <button class="tbtn" data-key="up">▲</button>
-            <button class="tbtn" data-key="down">▼</button>
-            <button class="tbtn" data-key="right">▶</button>
+            <button class="tbtn" data-key="left" aria-label="Move left">◀</button>
+            <button class="tbtn" data-key="up" aria-label="Look up or charge peel-out">▲</button>
+            <button class="tbtn" data-key="down" aria-label="Roll or charge spin dash">▼</button>
+            <button class="tbtn" data-key="right" aria-label="Move right">▶</button>
         </div>
         <div class="tgroup"><button class="tbtn jump" data-key="jump">JUMP</button></div>
     </div>
@@ -57,6 +35,7 @@
 <script>window.INTRO_ACTIVE = true; // level BGM stays silent until the intro is dismissed</script>
 
 <script src="sonic-engine.js"></script>
+<script src="js/modern-hud.js"></script>
 <script src="levels/zone1_act2.js"></script>
 <script src="levels/kitt_boss.js"></script>
 <script src="levels/zone1_act3.js"></script>
@@ -636,6 +615,7 @@ class Game {
         this.mapImg.onload = () => { this.mapImgLoaded = true; };
         this.mapImg.src = 'assets/palmtree_map.png';
 
+        this.ui = new window.ScarUI(this);
         this.input = new InputHandler();
         this.showDebug = false;
         this.stageName = 'palmtree';
@@ -919,7 +899,7 @@ class Game {
         blurAfter(stg, () => this.toggleStage());
         blurAfter(era, () => this.cycleEra());
         blurAfter(hud, () => this.toggleDebug());
-        blurAfter(aud, () => { audio.enabled = !audio.enabled; aud.textContent = `Audio: ${audio.enabled ? 'ON' : 'OFF'}`; aud.classList.toggle('on', audio.enabled); });
+        blurAfter(aud, () => { audio.enabled = !audio.enabled; aud.textContent = `Audio: ${audio.enabled ? 'ON' : 'OFF'}`; aud.classList.toggle('on', audio.enabled); aud.setAttribute('aria-pressed', String(audio.enabled)); });
         blurAfter(cp, () => this.gotoCheckpoint((this.cpIndex + 1) % this.terrain.checkpoints.length));
         blurAfter(rst, () => this.resetCurrentStage());
     }
@@ -963,6 +943,7 @@ class Game {
         const b = document.getElementById('btn-hud');
         b.textContent = `Debug Sensors: ${this.showDebug ? 'ON' : 'OFF'}`;
         b.classList.toggle('on', this.showDebug);
+        b.setAttribute('aria-pressed', String(this.showDebug));
     }
     gotoCheckpoint(i) {
         this.cpIndex = i % this.terrain.checkpoints.length;
@@ -2214,8 +2195,7 @@ class Game {
                     scoreRect.w, scoreRect.h
                 );
             } else {
-                ctx.fillStyle = '#000'; ctx.fillText(pp.text, pp.x + 1, pp.y + 1);
-                ctx.fillStyle = '#ffeb3b'; ctx.fillText(pp.text, pp.x, pp.y);
+                this.ui.text(ctx, pp.text, pp.x, pp.y, 13, '#fff', 'center', 320);
             }
         }
         ctx.textAlign = 'left';
@@ -2929,171 +2909,17 @@ class Game {
         ctx.fill(); ctx.stroke();
     }
 
-    /* ---------------- Authentic Sonic CD HUD + Zone Map Radar ---------------- */
+    /* ---------------- Unleashed / Colors canvas interface ---------------- */
     drawSonicCDHUD(ctx) {
-        const p = this.player;
-        const mins = Math.floor(this.stageTime / 60);
-        const secs = Math.floor(this.stageTime % 60).toString().padStart(2, '0');
-        const cs = Math.floor((this.stageTime * 100) % 100).toString().padStart(2, '0');
-
-        this.panel(ctx, 12, 10, 210, 86);
-        ctx.font = 'bold 14px Courier New';
-        const row = (label, val, y, labelCol = '#ffeb3b') => {
-            ctx.fillStyle = '#000'; ctx.fillText(label, 23, y + 1); ctx.fillText(val, 105, y + 1);
-            ctx.fillStyle = labelCol; ctx.fillText(label, 22, y);
-            ctx.fillStyle = '#fff'; ctx.fillText(val, 104, y);
-        };
-        row('SCORE', String(p.score || 0).padStart(6, '0'), 30);
-        row('TIME', `${mins}'${secs}"${cs}`, 50);
-        const ringFlash = (p.rings || 0) === 0 && Math.floor(performance.now() / 250) % 2 === 0;
-        row('RINGS', String(p.rings || 0).padStart(3, '0'), 70, ringFlash ? '#ff5252' : '#ffeb3b');
-
-        // Time Warp charge indicator
-        const T = this.terrain;
-        ctx.font = 'bold 10px Courier New';
-        const eraTxt = `ERA: ${(ERA_LABELS[T.timeEra] || 'Good Future').toUpperCase()}`;
-        ctx.fillStyle = '#64ffda'; ctx.fillText(eraTxt, 22, 88);
-        if (T.timeWarpTarget) {
-            const pct = Math.min(1, T.timeWarpCharge / 90);
-            ctx.fillStyle = '#ff9800';
-            ctx.fillText(`WARP → ${T.timeWarpTarget.toUpperCase()} (${Math.round(pct * 100)}%)`, 235, 28);
-        }
-
-        // Classic Lives Badge (SCAR × 03)
-        this.panel(ctx, 12, 100, 134, 34);
-        this.drawScarMiniIcon(ctx, 20, 107, 22, 20, true);
-        ctx.font = 'bold 11px Courier New';
-        ctx.fillStyle = '#000'; ctx.fillText('SCAR', 51, 114);
-        ctx.fillStyle = '#ffeb3b'; ctx.fillText('SCAR', 50, 113);
-        const livesVal = `× ${String(Math.max(0, p.lives !== undefined ? p.lives : 3)).padStart(2, '0')}`;
-        ctx.font = 'bold 14px Courier New';
-        ctx.fillStyle = '#000'; ctx.fillText(livesVal, 51, 129);
-        ctx.fillStyle = '#fff'; ctx.fillText(livesVal, 50, 128);
-
-        // Active Power-Up / High-Speed Technique Badges next to Lives
-        const badges = [];
-        if (p.shoesTimer && p.shoesTimer > 0) badges.push({ label: `SPEED ${Math.ceil(p.shoesTimer / 60)}s`, col: '#ff2a85' });
-        if (p.invincTimer && p.invincTimer > 0) badges.push({ label: `STAR ${Math.ceil(p.invincTimer / 60)}s`, col: '#ffd740' });
-        if (p.shield) badges.push({ label: 'SHIELD', col: '#00e5ff' });
-        if (p.state === STATE.PEELOUT) badges.push({ label: 'PEEL-OUT!', col: '#ff2a85' });
-        else if (p.dropDashReady) badges.push({ label: 'DROP DASH', col: '#00e5ff' });
-        else if (p.onCoasterRail) badges.push({ label: 'RAIL SURGE', col: '#ffd740' });
-        let bx = 152;
-        ctx.font = 'bold 10px Courier New';
-        for (const b of badges) {
-            const bw = ctx.measureText(b.label).width + 14;
-            this.panel(ctx, bx, 104, bw, 26);
-            ctx.fillStyle = b.col;
-            ctx.fillText(b.label, bx + 7, 121);
-            bx += bw + 6;
-        }
+        this.ui.drawHUD(ctx);
     }
 
     drawActClearOverlay(ctx) {
-        const ac = this.actClear;
-        if (!ac) return;
-        const p = this.player;
-        const cx = this.W / 2;
-        const slideProg = ac.phase === 'intro' ? clamp01(1 - ac.timer / 42) : 1;
-        const ease = 1 - Math.pow(1 - slideProg, 3);
-        const offX = Math.round((1 - ease) * 520);
-
-        this.panel(ctx, cx - 235 + offX, 118, 470, 198);
-        ctx.save();
-        ctx.textAlign = 'center';
-        ctx.font = 'bold 22px Courier New';
-        ctx.fillStyle = '#000'; ctx.fillText('SCAR GOT THROUGH', cx + 2 - offX, 154);
-        ctx.fillStyle = '#ffeb3b'; ctx.fillText('SCAR GOT THROUGH', cx - offX, 152);
-
-        const subTitle = (ac.meta.isBossAct || ac.meta.act === 3)
-            ? `${ac.meta.zoneName} — ZONE ${ac.meta.zone} CLEAR!`
-            : `${ac.meta.zoneName}   ACT ${ac.meta.act}`;
-        ctx.font = 'bold 18px Courier New';
-        ctx.fillStyle = '#000'; ctx.fillText(subTitle, cx + 2 + offX, 180);
-        ctx.fillStyle = '#00e5ff'; ctx.fillText(subTitle, cx + offX, 178);
-
-        const drawTallyRow = (label, val, y, badgeCol) => {
-            const lx = cx - 175 + offX, rx = cx + 175 + offX;
-            ctx.fillStyle = badgeCol;
-            ctx.fillRect(lx - 6, y - 13, 14, 14);
-            ctx.textAlign = 'left';
-            ctx.font = 'bold 15px Courier New';
-            ctx.fillStyle = '#000'; ctx.fillText(label, lx + 17, y + 1);
-            ctx.fillStyle = '#ffeb3b'; ctx.fillText(label, lx + 16, y);
-            ctx.textAlign = 'right';
-            const sVal = String(val).padStart(6, '0');
-            ctx.fillStyle = '#000'; ctx.fillText(sVal, rx + 1, y + 1);
-            ctx.fillStyle = '#fff'; ctx.fillText(sVal, rx, y);
-        };
-
-        drawTallyRow('TIME BONUS', ac.timeBonus, 214, '#29b6f6');
-        drawTallyRow('RING BONUS', ac.ringBonus, 240, '#ffd54f');
-        drawTallyRow('TOTAL SCORE', p.score || 0, 268, '#ef5350');
-
-        ctx.textAlign = 'center';
-        ctx.font = 'bold 12px Courier New';
-        ctx.fillStyle = '#b2ebf2';
-        if (ac.phase === 'tally' || ac.phase === 'intro') {
-            ctx.fillText('PRESS JUMP TO FAST-FORWARD TALLY', cx, 298);
-        } else if (ac.nextStage) {
-            ctx.fillText('ADVANCING TO NEXT ACT...', cx, 298);
-        } else {
-            ctx.fillText(`ZONE ${ac.meta.zone} COMPLETE!  ·  PRESS JUMP TO CONTINUE OR R TO REPLAY`, cx, 298);
-        }
-        ctx.restore();
+        this.ui.drawResults(ctx);
     }
 
     drawGameOverOverlay(ctx) {
-        const p = this.player;
-        if (!p || !p.gameOver) return;
-        const t = clamp01((this.gameOverTimer || 0) / 34);
-        const ease = 1 - Math.pow(1 - t, 3);
-
-        ctx.save();
-        // Near-black Game Over screen (the frozen level fades out behind it)
-        ctx.fillStyle = `rgba(4, 6, 14, ${(0.97 * ease).toFixed(3)})`;
-        ctx.fillRect(0, 0, this.W, this.H);
-
-        const isTimeOver = p.gameOverReason === 'TIME OVER';
-        const cy = Math.round(this.H * 0.24);
-        const scale = 3.5;
-
-        if (this.commonSheetLoaded) {
-            ctx.imageSmoothingEnabled = false;
-            const leftRect = isTimeOver ? COMMON_SPRITES.timeWord : COMMON_SPRITES.gameWord;
-            const rightRect = COMMON_SPRITES.overWord;
-            const lw = Math.round(leftRect.w * scale), lh = Math.round(leftRect.h * scale);
-            const rw = Math.round(rightRect.w * scale), rh = Math.round(rightRect.h * scale);
-            const gap = 26;
-            const totalW = lw + gap + rw;
-            const targetLeftX = Math.round((this.W - totalW) / 2);
-            const targetRightX = targetLeftX + lw + gap;
-
-            const curLeftX = Math.round(-lw - 40 + (targetLeftX - (-lw - 40)) * ease);
-            const curRightX = Math.round((this.W + 40) + (targetRightX - (this.W + 40)) * ease);
-
-            ctx.drawImage(this.commonSheet, leftRect.x, leftRect.y, leftRect.w, leftRect.h, curLeftX, cy - Math.floor(lh / 2), lw, lh);
-            ctx.drawImage(this.commonSheet, rightRect.x, rightRect.y, rightRect.w, rightRect.h, curRightX, cy - Math.floor(rh / 2), rw, rh);
-        } else {
-            ctx.textAlign = 'center';
-            ctx.font = 'bold 48px Courier New';
-            const word = isTimeOver ? 'TIME OVER' : 'GAME OVER';
-            ctx.fillStyle = '#000'; ctx.fillText(word, this.W / 2 + 3, cy + 16);
-            ctx.fillStyle = '#ff5252'; ctx.fillText(word, this.W / 2, cy + 13);
-        }
-
-        this.drawFaintingScar(ctx, this.gameOverTimer || 0, ease);
-
-        if ((this.gameOverTimer || 0) > GAME_OVER_CONTINUE_DELAY && Math.floor(performance.now() / 320) % 2 === 0) {
-            const py = this.H - 26;
-            ctx.textAlign = 'center';
-            ctx.font = 'bold 15px Courier New';
-            ctx.fillStyle = '#000';
-            ctx.fillText('PRESS JUMP OR R TO CONTINUE', this.W / 2 + 2, py + 2);
-            ctx.fillStyle = '#ffeb3b';
-            ctx.fillText('PRESS JUMP OR R TO CONTINUE', this.W / 2, py);
-        }
-        ctx.restore();
+        this.ui.drawGameOver(ctx, GAME_OVER_CONTINUE_DELAY);
     }
 
     /**
@@ -3218,111 +3044,12 @@ class Game {
     }
 
     drawTitleCard(ctx) {
-        const tc = this.titleCard;
-        if (!tc) return;
-        const elapsed = tc.max - tc.timer;
-        let prog = 1;
-        if (elapsed < 22) {
-            const u = clamp01(elapsed / 22);
-            prog = 1 - Math.pow(1 - u, 3);
-        } else if (tc.timer < 26) {
-            const u = clamp01(tc.timer / 26);
-            prog = Math.pow(u, 3);
-        }
-
-        const offLeft = Math.round((1 - prog) * 480);
-        const offRight = Math.round((1 - prog) * 640);
-        const offTop = Math.round((1 - prog) * 320);
-
-        ctx.save();
-        // 1. Classic Sonic vertical crimson geometric ribbon on left
-        const rx = 205 - offLeft;
-        ctx.fillStyle = '#d50000';
-        ctx.beginPath();
-        ctx.moveTo(rx, -20 - offTop);
-        ctx.lineTo(rx + 86, -20 - offTop);
-        ctx.lineTo(rx + 60, 395 - offTop);
-        ctx.lineTo(rx - 26, 395 - offTop);
-        ctx.closePath();
-        ctx.fill();
-
-        // Gold & white accent stripes along the crimson pennant
-        ctx.fillStyle = '#ffd600';
-        ctx.beginPath();
-        ctx.moveTo(rx + 74, -20 - offTop);
-        ctx.lineTo(rx + 86, -20 - offTop);
-        ctx.lineTo(rx + 60, 395 - offTop);
-        ctx.lineTo(rx + 48, 395 - offTop);
-        ctx.closePath();
-        ctx.fill();
-
-        // Mini Scar emblem on the ribbon
-        this.drawScarMiniIcon(ctx, rx + 12, 128 - offTop, 36, 32, true);
-
-        // 2. Royal-navy horizontal Zone Name bar sliding in from the right
-        const bx = 225 + offRight, by = 178, bw = 535, bh = 104;
-        ctx.fillStyle = 'rgba(8, 20, 52, 0.95)';
-        ctx.fillRect(bx, by, bw, bh);
-        ctx.strokeStyle = '#00e5ff';
-        ctx.lineWidth = 3;
-        ctx.strokeRect(bx, by, bw, bh);
-        ctx.fillStyle = '#ffd600';
-        ctx.fillRect(bx, by + bh - 8, bw, 8);
-
-        // Zone Title Text (3D 16-bit shadow)
-        ctx.textAlign = 'left';
-        const titleFont = tc.zoneName.length > 15 ? 'bold 28px Courier New' : 'bold 34px Courier New';
-        ctx.font = titleFont;
-        ctx.fillStyle = '#000';
-        ctx.fillText(tc.zoneName, bx + 26, by + 46);
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText(tc.zoneName, bx + 23, by + 43);
-
-        ctx.font = 'bold 22px Courier New';
-        ctx.fillStyle = '#000';
-        ctx.fillText('ZONE', bx + 28, by + 79);
-        ctx.fillStyle = '#ffd600';
-        ctx.fillText('ZONE', bx + 25, by + 76);
-
-        if (tc.isBossAct) {
-            ctx.font = 'bold 13px Courier New';
-            ctx.fillStyle = '#ff5252';
-            ctx.fillText('★ BOSS ACT ★', bx + 112, by + 75);
-        }
-
-        // 3. Golden Act Medallion on the right end of the bar
-        const mx = bx + bw - 68, my = by + 50;
-        ctx.fillStyle = '#ffd600';
-        ctx.beginPath(); ctx.arc(mx, my, 46, 0, TAU); ctx.fill();
-        ctx.lineWidth = 3.5;
-        ctx.strokeStyle = '#081434';
-        ctx.stroke();
-        ctx.fillStyle = '#081434';
-        ctx.textAlign = 'center';
-        ctx.font = 'bold 13px Courier New';
-        ctx.fillText('ACT', mx, my - 14);
-        ctx.font = 'bold 42px Courier New';
-        ctx.fillStyle = '#d50000';
-        ctx.fillText(String(tc.act), mx + 2, my + 24);
-        ctx.fillStyle = '#081434';
-        ctx.fillText(String(tc.act), mx, my + 22);
-
-        ctx.restore();
+        this.ui.drawTitle(ctx);
     }
 
-    /** Live mini-map at bottom-left using the uploaded Sonic CD `palmtree_map.png`! */
+    /** Live route map framed by the canvas UI. */
     drawZoneMapRadar(ctx) {
-        if (!this.mapImgLoaded) return;
-        const mw = 260, mh = 26, mx = 12, my = this.H - 64;
-        this.panel(ctx, mx - 2, my - 2, mw + 4, mh + 4);
-        ctx.drawImage(this.mapImg, mx, my, mw, mh);
-        const px = mx + clamp01(this.player.x / this.terrain.endX) * mw;
-        const py = my + clamp01((this.player.y - 180) / 620) * mh;
-        if (Math.floor(performance.now() / 180) % 2 === 0) {
-            ctx.fillStyle = '#00e5ff';
-            ctx.beginPath(); ctx.arc(px, py, 3.5, 0, TAU); ctx.fill();
-            ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke();
-        }
+        this.ui.drawRadar(ctx);
     }
 
     drawHUD(ctx) {
@@ -3361,14 +3088,9 @@ class Game {
     }
 
     drawControlsHint(ctx) {
-        const txt = this.terrain.levelDef && this.terrain.levelDef.wallJump
-            ? '←/→ run  Jump at wall: kick  ↓+Jump spin dash  Air-Jump: drop dash  T sky  1–7 checkpoints  M stage  R reset'
-            : '←/→ run  ↑+Jump peel-out  ↓+Jump spin dash  Air-Jump hold drop dash  1–7 checkpoints  M zone  Tab debug  R reset';
-        ctx.font = '11px Courier New';
-        const w = ctx.measureText(txt).width + 20;
-        this.panel(ctx, (this.W - w) / 2, this.H - 30, w, 22);
-        ctx.fillStyle = '#cfe6ff'; ctx.fillText(txt, (this.W - w) / 2 + 10, this.H - 15);
+        this.ui.drawHints(ctx);
     }
+
 }
 
 function crough(c) { return c * 0.6; }

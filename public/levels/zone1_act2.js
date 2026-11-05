@@ -1544,26 +1544,32 @@
             const z = T.z2;
             if (!z) return;
 
-            const rx = 18;
-            const ry = game.H - 96;
+            const rx = game.W - 242;
+            const ry = game.H - 98;
             const rw = 216;
             const rh = 54;
             const sx = (x) => rx + 8 + (x / T.endX) * (rw - 16);
             const sy = (y) => ry + 8 + ((y - 110) / 640) * (rh - 14);
 
             ctx.save();
-            ctx.fillStyle = 'rgba(8, 10, 36, 0.78)';
-            ctx.strokeStyle = '#00e5ff';
-            ctx.lineWidth = 1.5;
+            ctx.fillStyle = 'rgba(5, 23, 55, 0.9)';
             ctx.beginPath();
-            ctx.roundRect(rx, ry, rw, rh, 6);
+            ctx.moveTo(rx + 8, ry);
+            ctx.lineTo(rx + rw, ry);
+            ctx.lineTo(rx + rw - 8, ry + rh);
+            ctx.lineTo(rx, ry + rh);
+            ctx.closePath();
             ctx.fill();
+            ctx.strokeStyle = 'rgba(116, 224, 255, 0.35)';
+            ctx.lineWidth = 1;
             ctx.stroke();
+            ctx.fillStyle = '#24cff4';
+            ctx.fillRect(rx + 9, ry, rw - 10, 2);
 
-            ctx.font = 'bold 9px Courier New';
-            ctx.fillStyle = '#8ef6ff';
+            ctx.font = 'italic 900 9px Arial, sans-serif';
+            ctx.fillStyle = '#dff7ff';
             ctx.textAlign = 'left';
-            ctx.fillText('STARLIGHT RESORT · ACT 2', rx + 8, ry + 11);
+            ctx.fillText('STAGE ROUTE / ACT 2', rx + 12, ry + 13);
 
             // Lower Expressway trace
             ctx.strokeStyle = '#3dffb8';

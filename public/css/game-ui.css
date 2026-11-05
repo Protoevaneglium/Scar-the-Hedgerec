@@ -1,0 +1,224 @@
+/* Unleashed / Colors inspired shell. The canvas keeps its own 16:9 viewport. */
+:root {
+    color-scheme: dark;
+    --control-height: 48px;
+    --ui-blue: #0868c6;
+    --ui-cyan: #4ad7ff;
+    --ui-gold: #ffe15a;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #030916;
+    color: #fff;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+button {
+    -webkit-tap-highlight-color: transparent;
+}
+
+#canvas-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: calc(100% - var(--control-height));
+    margin-top: var(--control-height);
+    background: radial-gradient(ellipse at 50% 40%, #10294b 0, #050d1c 65%, #030813 100%);
+}
+
+canvas {
+    display: block;
+    flex: none;
+    image-rendering: pixelated;
+    box-shadow: 0 10px 60px #000a;
+}
+
+#top-bar {
+    position: fixed;
+    inset: 0 0 auto;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    width: 100%;
+    height: var(--control-height);
+    padding: 7px 12px;
+    border-bottom: 1px solid #398dd971;
+    background: linear-gradient(100deg, #07162d 0%, #0a2140 50%, #081429 100%);
+    box-shadow: 0 3px 14px #0004;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+}
+
+#top-bar::-webkit-scrollbar { display: none; }
+
+.chip {
+    position: relative;
+    flex: 0 1 auto;
+    min-width: 0;
+    height: 32px;
+    padding: 0 12px;
+    border: 1px solid #3e72a5;
+    border-radius: 0;
+    background: linear-gradient(180deg, #183e67, #0c2748);
+    color: #c7ddf5;
+    font: italic 800 11px/30px Arial, Helvetica, sans-serif;
+    letter-spacing: 0.2px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    cursor: pointer;
+    transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+    clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+}
+
+.chip:hover {
+    border-color: #b5efff;
+    background: linear-gradient(180deg, #2364a2, #17477a);
+    color: #fff;
+}
+
+.chip:focus-visible {
+    outline: 0;
+    border-color: #fff;
+    box-shadow: inset 0 0 0 2px var(--ui-gold);
+    color: #fff;
+}
+
+.chip:active { background: #164d86; }
+
+.chip.on {
+    border-color: #42bbff;
+    background: linear-gradient(180deg, #147fc9, #07559c);
+    color: #fff;
+}
+
+.chip.gold {
+    border-color: #ffe778;
+    background: linear-gradient(180deg, #ffe75e, #f5b52d);
+    color: #12315c;
+}
+
+.chip.gold:hover {
+    background: linear-gradient(180deg, #fff2a8, #ffd552);
+    color: #05254e;
+}
+
+#btn-stage { flex: 1.2 1 240px; }
+#btn-era { flex: 0.7 1 140px; }
+#btn-cp { flex: 1.2 1 250px; }
+#btn-hud { flex: 0.7 1 150px; }
+#btn-audio { flex: 0 0 91px; }
+#btn-reset { flex: 0 0 81px; }
+
+#touch {
+    position: absolute;
+    right: 0;
+    bottom: max(16px, env(safe-area-inset-bottom));
+    left: 0;
+    z-index: 10;
+    display: none;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 0 max(18px, env(safe-area-inset-right)) 0 max(18px, env(safe-area-inset-left));
+    pointer-events: none;
+}
+
+.tgroup {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    pointer-events: auto;
+}
+
+.tbtn {
+    width: 54px;
+    height: 54px;
+    border: 2px solid #84daff99;
+    border-radius: 50%;
+    background: linear-gradient(145deg, #103c68c9, #06182dc9);
+    box-shadow: inset 0 2px 0 #c6f5ff33, 0 3px 8px #00102466;
+    color: #effaff;
+    font: 800 20px/1 Arial, Helvetica, sans-serif;
+    text-shadow: 0 2px 0 #07244d;
+    touch-action: none;
+}
+
+.tbtn.active,
+.tbtn:active {
+    border-color: #fff;
+    background: #087cceec;
+    box-shadow: 0 0 18px #3ebeff66, inset 0 0 10px #b4efff40;
+}
+
+.tbtn:focus-visible { outline: 3px solid var(--ui-gold); outline-offset: 3px; }
+
+.tbtn.jump {
+    width: 70px;
+    height: 70px;
+    border-color: #fff0a8bb;
+    background: linear-gradient(145deg, #ffe878e8, #ec9d24d9);
+    color: #153762;
+    font: italic 900 14px/1 Arial, Helvetica, sans-serif;
+    text-shadow: 0 1px 0 #fff7;
+}
+
+.tbtn.jump.active,
+.tbtn.jump:active { background: #fff0a4; border-color: #fff; }
+
+#intro {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+    transition: opacity 450ms ease;
+}
+
+#intro.fade { opacity: 0; pointer-events: none; }
+#intro video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+
+@media (pointer: coarse) {
+    #touch { display: flex; }
+    .chip { min-height: 34px; }
+}
+
+@media (max-width: 760px) {
+    :root { --control-height: 44px; }
+    #top-bar { gap: 4px; padding: 5px 7px; }
+    .chip { flex: 0 0 auto !important; max-width: 240px; padding: 0 10px; font-size: 10px; }
+    #btn-stage { max-width: 220px; }
+    #btn-cp { max-width: 260px; }
+    #touch { bottom: max(12px, env(safe-area-inset-bottom)); padding-right: 12px; padding-left: 12px; }
+    .tgroup { gap: 5px; }
+    .tbtn { width: 46px; height: 46px; font-size: 17px; }
+    .tbtn.jump { width: 62px; height: 62px; font-size: 12px; }
+}
+
+@media (max-width: 380px), (max-height: 400px) {
+    .tbtn { width: 40px; height: 40px; font-size: 15px; }
+    .tbtn.jump { width: 54px; height: 54px; font-size: 11px; }
+    #touch { bottom: max(8px, env(safe-area-inset-bottom)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .chip,
+    #intro { transition: none; }
+}

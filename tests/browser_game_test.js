@@ -50,6 +50,7 @@ sandbox.window = sandbox;
 vm.createContext(sandbox);
 function load(file) { vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), sandbox, { filename: file }); }
 load('public/sonic-engine.js');
+load('public/js/modern-hud.js');
 load('public/levels/zone1_act2.js');
 load('public/levels/kitt_boss.js');
 load('public/levels/zone1_act3.js');

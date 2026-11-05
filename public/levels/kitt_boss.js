@@ -206,8 +206,6 @@
             b.x = clamp(player.x + 310, b.left + 190, b.right - 180);
             b.active = true; enter(b, 'intro', 110, player);
             prepareArenaRings(terrain, b);
-            if (terrain.popups) terrain.popups.push({ x: player.x + 80, y: b.floorY - 125,
-                text: 'KITT BAZOOKA! SPIN TO RETURN MISSILES', life: 145 });
             const arenaCheckpoints = (terrain.checkpoints || []).filter(cp => cp.x > b.left + 22 && cp.x < b.right - 22);
             const checkpoint = arenaCheckpoints.reduce((best, cp) => !best
                 || Math.abs(cp.x - b.left - 130) < Math.abs(best.x - b.left - 130) ? cp : best, null)
@@ -394,8 +392,11 @@
                 ellipse(ctx, x, y, b.muzzleFlash * 2, b.muzzleFlash, '#fff6a0', null);
             }
             if (b.state === 'reload' && !b.defeated) {
-                ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff0a0';
-                ctx.fillText('RELOADING — STRIKE!', b.x, b.y - 244);
+                if (game.ui) game.ui.text(ctx, 'RELOADING — STRIKE!', b.x, b.y - 244, 14, '#79ffe1', 'center');
+                else {
+                    ctx.font = 'italic bold 14px Arial, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#79ffe1';
+                    ctx.fillText('RELOADING — STRIKE!', b.x, b.y - 244);
+                }
             }
         }
         for (const e of b.effects) {
@@ -407,16 +408,28 @@
 
     function drawHUD(ctx, b, game) {
         if (!b || !b.active || (b.hidden && b.defeated)) return;
-        const width = Math.min(338, game.W - 28), x = game.W - width - 14, y = 50;
+        const width = Math.min(360, game.W - 48), x = (game.W - width) / 2, y = game.H - 76;
         ctx.save();
-        ctx.fillStyle = 'rgba(26,12,44,.88)'; ctx.fillRect(x, y, width, 77);
-        ctx.strokeStyle = '#ffcf4a'; ctx.lineWidth = 2; ctx.strokeRect(x, y, width, 77);
-        ctx.font = 'bold 14px sans-serif'; ctx.fillStyle = '#fff4cb'; ctx.textAlign = 'left';
-        ctx.fillText(b.defeated ? 'KITT BAZOOKA • DEFEATED' : `KITT BAZOOKA${b.phase === 2 ? ' • OVERDRIVE' : ''}`, x + 12, y + 21);
-        const cellW = (width - 30) / b.maxHP;
+        const plate = (px, py, w, h, fill) => {
+            ctx.beginPath(); ctx.moveTo(px + 8, py); ctx.lineTo(px + w, py);
+            ctx.lineTo(px + w - 8, py + h); ctx.lineTo(px, py + h); ctx.closePath();
+            ctx.fillStyle = fill; ctx.fill();
+        };
+        // Keep the arena overhead clear; the compact gauge sits above the control hints.
+        plate(x + 2, y + 3, width, 43, 'rgba(0,9,30,.5)');
+        plate(x, y, width, 43, 'rgba(5,23,55,.94)');
+        plate(x + 3, y, 9, 43, b.phase === 2 ? '#ff725e' : '#19c8f4');
+        plate(x + 11, y, width - 11, 2, '#73e9ff');
+        ctx.font = 'italic 900 15px Arial, sans-serif'; ctx.fillStyle = '#ffffff'; ctx.textAlign = 'left';
+        ctx.fillText('KITT BAZOOKA', x + 21, y + 19);
+        ctx.font = 'bold 9px Arial, sans-serif'; ctx.textAlign = 'right';
+        ctx.fillStyle = b.defeated ? '#79ffe1' : b.phase === 2 ? '#ff9d82' : '#91d6ff';
+        ctx.fillText(b.defeated ? 'DEFEATED' : b.phase === 2 ? 'OVERDRIVE' : 'BOSS BATTLE', x + width - 15, y + 17);
+        const cellW = (width - 39) / b.maxHP;
         for (let i = 0; i < b.maxHP; i++) {
-            ctx.fillStyle = i < b.hp ? (b.phase === 2 ? '#ff725e' : '#ffce40') : '#4b3657';
-            ctx.fillRect(x + 12 + i * cellW, y + 31, cellW - 4, 10);
+            const cellX = x + 20 + i * cellW;
+            plate(cellX, y + 26, cellW - 3, 10, i < b.hp ? (b.phase === 2 ? '#ff7952' : '#ffcf34') : '#284060');
+            if (i < b.hp) plate(cellX + 2, y + 27, cellW - 7, 2, '#fff5c0');
         }
         const hints = {
             intro: 'SPIN TO RETURN MISSILES • JUMP TO STRIKE', stalk: 'KEEP MOVING • WATCH HIS HANDS',
@@ -426,8 +439,17 @@
             reload: 'RELOADING! JUMP INTO KITT TO STRIKE', hurt: 'NICE HIT! KEEP THE PRESSURE ON',
             defeat: 'GATES OPEN • JUMP ON THE CAPSULE SWITCH',
         };
-        ctx.font = 'bold 10px sans-serif'; ctx.fillStyle = b.state === 'reload' ? '#92ffe0' : '#eee1f5';
-        ctx.fillText(hints[b.state] || '', x + 12, y + 61);
+        const hint = hints[b.state];
+        if (hint) {
+            const danger = ['clawWarn', 'rocketWarn', 'rushWarn'].includes(b.state);
+            const opportunity = b.state === 'reload' || b.defeated;
+            ctx.font = 'italic bold 10px Arial, sans-serif';
+            const hintWidth = Math.min(game.W - 48, Math.max(width, ctx.measureText(hint).width + 36));
+            plate((game.W - hintWidth) / 2, y - 25, hintWidth, 20, 'rgba(5,23,55,.9)');
+            ctx.textAlign = 'center';
+            ctx.fillStyle = opportunity ? '#79ffe1' : danger ? '#ffdf63' : '#e3f6ff';
+            ctx.fillText(hint, game.W / 2, y - 11);
+        }
         ctx.restore();
     }
 
