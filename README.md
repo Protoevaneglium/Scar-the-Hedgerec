@@ -25,13 +25,13 @@ Pick the box that matches the window you have open *(installs or updates `%USERP
 **Command Prompt (`cmd`)** — no PowerShell needed:
 
 ```cmd
-curl -fsSL -o "%TEMP%\scar-install.bat" https://raw.githubusercontent.com/Protoevaneglium/Scar-the-Hedgerec/main/install-windows.bat && "%TEMP%\scar-install.bat"
+curl -fsSL -o "%TEMP%\scar-install.bat" https://raw.githubusercontent.com/Protoevaneglium/Scar-the-Hedgerec/master/install-windows.bat && "%TEMP%\scar-install.bat"
 ```
 
 **PowerShell** (the prompt starts with `PS`) — paste exactly this, do **not** wrap it in another `powershell ...` call:
 
 ```powershell
-irm https://raw.githubusercontent.com/Protoevaneglium/Scar-the-Hedgerec/main/install-windows.ps1 | iex
+irm https://raw.githubusercontent.com/Protoevaneglium/Scar-the-Hedgerec/master/install-windows.ps1 | iex
 ```
 
 > **Got `Access is denied` or a script-execution error?** Some antivirus / security policies block launching scripts. Use the Command Prompt box above instead, or use the manual ZIP install below.
@@ -69,13 +69,13 @@ scar.bat
 Open your **Terminal**, paste this single command, and press **Enter** *(clones or updates `~/Scar-the-Hedgerec` and generates `~/.local/bin/scar` + `~/scar.sh`)*:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Protoevaneglium/Scar-the-Hedgerec/main/install-linux.sh | sh
+curl -fsSL https://raw.githubusercontent.com/Protoevaneglium/Scar-the-Hedgerec/master/install-linux.sh | sh
 ```
 
 *(If your Linux distro uses `wget` instead of `curl`, use:)*
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/Protoevaneglium/Scar-the-Hedgerec/main/install-linux.sh | sh
+wget -qO- https://raw.githubusercontent.com/Protoevaneglium/Scar-the-Hedgerec/master/install-linux.sh | sh
 ```
 
 #### Step 2 — Start the Game Every Time
@@ -106,7 +106,7 @@ sh scar.sh
 Open **Termux**, paste this single command, and press **Enter** *(installs Node.js/Git if needed, downloads the game, and generates `$PREFIX/bin/scar` + `~/scar.bat`)*:
 
 ```bash
-pkg update -y && pkg install -y curl && curl -fsSL https://raw.githubusercontent.com/Protoevaneglium/Scar-the-Hedgerec/main/install-termux.sh | sh
+pkg update -y && pkg install -y curl && curl -fsSL https://raw.githubusercontent.com/Protoevaneglium/Scar-the-Hedgerec/master/install-termux.sh | sh
 ```
 
 #### Step 2 — Start the Game Every Time
@@ -161,6 +161,8 @@ and press **Enter** — it starts the local server and opens your Android browse
 ```bash
 npm test
 ```
+
+Image-tool development uses Node.js 20.9+ and `npm ci`. This installs the optional image-processing dependency and enables the image fixture tests. The game launcher and core verification suite still work without developer dependencies on Node.js 18+.
 
 ---
 

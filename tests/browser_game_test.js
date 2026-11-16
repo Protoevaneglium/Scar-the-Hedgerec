@@ -250,6 +250,54 @@ for (const stage of game.getCampaignStages()) {
 }
 console.log('  ✓ Every campaign act frees and renders animated animals from the shared atlas');
 
+for(const stage of ['palmtree','z1_act2','z2_act1']) {
+    game.loadStage(stage,{skipTitleCard:true,skipFade:true});
+    const terrain=game.terrain, goal=terrain.goalPost, p=game.player;
+    terrain.rings=[];p.rings=7;p.score=1234;game.stageTime=50;
+    p.place(goal.x+1,0,goal.y);p.update({},1/60);
+    assert(goal.spinning && p.score===2234,'the sign must award its base score without pre-awarding the ring tally');
+    game.frame(game.last+1000/60);
+    assert.strictEqual(game.stageTime,50,'the clock must freeze as soon as the sign spins');
+    goal.spinTimer=1;p.update({},1/60);
+    game.updateActClear(1,true);game.updateActClear(1,true);
+    assert.strictEqual(p.score,1234+1000+5000+700,`${stage}: the complete ring bonus must be awarded exactly once`);
+    game.updateActClear(1,false);
+    assert.strictEqual(p.score,7934);
+}
+console.log('  ✓ finish animation freezes the clock and the results tally awards each bonus exactly once');
+
+for (const stage of game.getCampaignStages()) {
+    game.loadStage(stage, { skipTitleCard: true, skipFade: true });
+    const terrain=game.terrain, post=terrain.starPosts.at(-1);
+    game.player.place(post.x,0,post.y); game.player.update({},1/60);
+    assert(game.cpIndex>0,`${stage}: checkpoint HUD must follow a real star post`);
+    game.player.respawn();
+    assert(game.cpIndex>0,`${stage}: a copied respawn coordinate must not reset the HUD to checkpoint 1`);
+    game.gotoCheckpoint(0);
+    game.player.x+=300; game.player.respawn();
+    assert(Math.abs(game.player.x-terrain.checkpoints[0].x)<1,`${stage}: manual checkpoint must replace the old respawn location`);
+    terrain.timeWarpTarget='past';terrain.timeWarpCharge=89;terrain.timeWarpFlash=18;
+    game.resetCurrentStage();
+    assert(terrain.timeWarpTarget===null && terrain.timeWarpCharge===0 && terrain.timeWarpFlash===0,
+        `${stage}: reset must cancel a pending time warp`);
+}
+game.loadStage('z1_act3',{skipTitleCard:true,skipFade:true});
+game.player.place(8150,0,560);game.player.update({},1/60);
+assert(game.terrain.boss.active);
+game.gotoCheckpoint(0);game.player.update({},1/60);
+assert(!game.terrain.boss.active && game.player.x<500,'leaving the arena via a checkpoint must release its lock');
+const oldStorage={...sandbox.localStorage};
+try {
+    for (const corrupted of ['{broken','{}','null','[5,null,"palmtree"]']) {
+        let stored=corrupted;
+        sandbox.localStorage.getItem=()=>stored;sandbox.localStorage.setItem=(_key,value)=>{stored=value;};
+        game.loadStage('z2_act1',{skipTitleCard:true,skipFade:true});
+        const progress=JSON.parse(stored);
+        assert(Array.isArray(progress) && progress.includes('z2_act1') && progress.every(id=>typeof id==='string'));
+    }
+} finally { Object.assign(sandbox.localStorage,oldStorage); }
+console.log('  ✓ checkpoint warps, respawn HUD, arena exits, time-warp resets and corrupt saved progress recover correctly');
+
 game.loadStage('palmtree', { skipTitleCard: true, skipFade: true });
 const loop = game.terrain.loops[1];
 const shelf = game.terrain.corkscrewFloor;

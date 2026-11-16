@@ -472,6 +472,9 @@
         }
 
         resetObjects() {
+            this.timeWarpTarget = null;
+            this.timeWarpCharge = 0;
+            this.timeWarpFlash = 0;
             if (this.levelDef) this.setupCustomObjects(this.levelDef);
             else if (this.stage === 'palmtree') this.setupPalmtreeObjects();
         }
@@ -849,7 +852,8 @@
             mark('1. Cliffside & Green Slide', 0);
             base.flat(460); // Starting cliff (0..460 at y=420)
             // Drop into the Under-Slide Secret Cavern (460..760: y=420 -> y=742)
-            base.ease(100, 0, 1.4).line(130, 1.4).ease(70, 1.4, 0); // y = 742 at x = 760
+            const cavernSlope = (742 - 420) / (100 / 2 + 130 + 70 / 2);
+            base.ease(100, 0, cavernSlope).line(130, cavernSlope).ease(70, cavernSlope, 0);
             // Secret cavern floor + Loop #1 runway (760..2300 at y=742)
             mark('2. Loop #1 & Cavern Exit', 1640);
             base.flat(1540); // to x = 2300
@@ -963,7 +967,8 @@
             this.add(high2.toSurface({ name: 'waterfall sky arch', oneWay: true, tier: 'high' }));
 
             // High Tier 3: The Giant Dome Arch Crest (x = 4060..5380, rising from y=380 up to y=212 at x=4720!)
-            const high3 = new PathBuilder(4060, 380).bump(1320, 28, +1);
+            const domeSlopeDegrees = Math.atan((380 - 212) * Math.PI / 1320) / DEG;
+            const high3 = new PathBuilder(4060, 380).bump(1320, domeSlopeDegrees, +1);
             this.add(high3.toSurface({ name: 'giant dome arch crest', oneWay: true, tier: 'high' }));
 
             // High Tier 4: Upper Corkscrew Canopy & Waterfall Peaks (x = 6020..6680 and 6900..7400 and 7620..8680, y = 300)
@@ -1873,9 +1878,9 @@
                 if (!gp.spinning && !gp.cleared && player.x >= gp.x && Math.abs(feetY - gp.y) < 120) {
                     gp.spinning = true;
                     gp.spinTimer = 110;
-                    const ringBonus = (player.rings || 0) * 100;
-                    player.score = (player.score || 0) + 1000 + ringBonus;
-                    this.popups.push({ x: gp.x, y: gp.y - 64, text: `ACT CLEAR! +${1000 + ringBonus}`, life: 120 });
+                    // The results tally awards the ring bonus once, after this sign animation.
+                    player.score = (player.score || 0) + 1000;
+                    this.popups.push({ x: gp.x, y: gp.y - 64, text: 'ACT CLEAR! +1000', life: 120 });
                     player.emit('goalPost', gp);
                 }
                 if (gp.spinning) {
@@ -1913,6 +1918,7 @@
         }
 
         hurtPlayer(player, hazardX) {
+            if (this.goalPost && (this.goalPost.spinning || this.goalPost.cleared)) return;
             if (player.invincTimer && player.invincTimer > 0) return;
             if (player.shield) {
                 player.shield = false;
@@ -2152,6 +2158,7 @@
         }
 
         respawn() {
+            this.respawnSerial = (this.respawnSerial || 0) + 1;
             if (this.terrain.activeCheckpoint) {
                 const ac = this.terrain.activeCheckpoint;
                 this.place(ac.x, 0, ac.y);
@@ -2189,6 +2196,14 @@
             if (this.boostTrailTimer > 0) this.boostTrailTimer = Math.max(0, this.boostTrailTimer - h);
             if (this.terrain.updateObjects) this.terrain.updateObjects(this, h);
             if (this.state === STATE.DYING) return;
+            // Winning is latched when the sign starts spinning. Holding a direction
+            // must not run Scar past the finite stage while the sign animates.
+            if (this.terrain.goalPost && (this.terrain.goalPost.spinning || this.terrain.goalPost.cleared)) {
+                inp = {}; jumpPressed = false;
+                this.gsp = this.xsp = 0;
+                this.uncurl();
+                if (this.grounded) { this.state = STATE.STANDING; this.ysp = 0; }
+            }
             if (this.state === STATE.SPINDASH) this.stepSpindash(inp, h, jumpPressed);
             else if (this.state === STATE.PEELOUT) this.stepPeelout(inp, h, jumpPressed);
             else if (this.state === STATE.AIRBORNE) this.stepAirborne(inp, h, jumpPressed);

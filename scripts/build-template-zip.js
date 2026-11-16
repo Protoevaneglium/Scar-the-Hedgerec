@@ -62,7 +62,7 @@ function buildZipBuffer(entries) {
         // Central directory header (46 bytes + filename)
         const central = Buffer.alloc(46 + nameBuf.length);
         central.writeUInt32LE(0x02014b50, 0);
-        central.writeUInt16LE(20, 4);
+        central.writeUInt16LE((3 << 8) | 20, 4); // Unix creator: honor executable mode on shell launchers.
         central.writeUInt16LE(20, 6);
         central.writeUInt16LE(0, 8);
         central.writeUInt16LE(method, 10);
@@ -76,7 +76,7 @@ function buildZipBuffer(entries) {
         central.writeUInt16LE(0, 32);
         central.writeUInt16LE(0, 34);
         central.writeUInt16LE(0, 36);
-        central.writeUInt32LE(entry.executable ? ((0o100755 << 16) >>> 0) : 0, 38);
+        central.writeUInt32LE(((entry.executable ? 0o100755 : 0o100644) << 16) >>> 0, 38);
         central.writeUInt32LE(offset, 42);
         nameBuf.copy(central, 46);
 

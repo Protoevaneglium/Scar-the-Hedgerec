@@ -198,13 +198,15 @@
         }
         if (player.state === 'DYING' || player.gameOver) { b.awaitingRespawn = !b.defeated; return; }
         // A retry restarts the encounter, including projectiles and health, at the checkpoint.
-        if (b.awaitingRespawn && !b.defeated) {
+        if (!b.defeated && (b.awaitingRespawn || (b.active
+            && b.playerRespawnSerial !== (player.respawnSerial || 0)))) {
             b = terrain.boss = create(terrain, b.config);
         }
         if (!b.active && player.x >= b.triggerX && !b.defeated) {
             // Stage the entrance within the camera view instead of firing from off screen.
             b.x = clamp(player.x + 310, b.left + 190, b.right - 180);
             b.active = true; enter(b, 'intro', 110, player);
+            b.playerRespawnSerial = player.respawnSerial || 0;
             prepareArenaRings(terrain, b);
             const arenaCheckpoints = (terrain.checkpoints || []).filter(cp => cp.x > b.left + 22 && cp.x < b.right - 22);
             const checkpoint = arenaCheckpoints.reduce((best, cp) => !best

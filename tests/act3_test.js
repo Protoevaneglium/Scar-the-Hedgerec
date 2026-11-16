@@ -339,4 +339,19 @@ test('a death and checkpoint respawn restart boss health and remove old projecti
         'retry must provide a fresh visible ring wave with reset timers');
 });
 
+test('the normal player death loop resets the boss without manually ticking boss logic', () => {
+    for (const hz of [30,60,144]) {
+        const {terrain,player}=fixture();
+        const old=activateBoss(terrain,player);
+        old.hp=3;
+        assert(advanceBoss(terrain,player,400,b=>b.projectiles.length>0));
+        player.die();
+        assert(simulate(player,6,()=>({}),()=>player.lives===2 && terrain.boss!==old,hz),
+            `${hz} Hz real death must reset the encounter`);
+        assert.strictEqual(terrain.boss.hp,terrain.boss.maxHP);
+        assert.strictEqual(terrain.boss.projectiles.length,0);
+        assert.strictEqual(terrain.boss.state,'intro');
+    }
+});
+
 process.exitCode = failures ? 1 : 0;

@@ -1,9 +1,9 @@
 #!/usr/bin/env sh
 # Scar the Hedgerec - Linux & macOS First-Time Auto-Installer & "scar" Launcher Generator
 # One-line First-Time Install:
-#   curl -fsSL https://raw.githubusercontent.com/Protoevaneglium/Scar-the-Hedgerec/main/install-linux.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/Protoevaneglium/Scar-the-Hedgerec/master/install-linux.sh | sh
 # Or with wget:
-#   wget -qO- https://raw.githubusercontent.com/Protoevaneglium/Scar-the-Hedgerec/main/install-linux.sh | sh
+#   wget -qO- https://raw.githubusercontent.com/Protoevaneglium/Scar-the-Hedgerec/master/install-linux.sh | sh
 
 set -e
 
@@ -106,7 +106,7 @@ else
         TAR_FILE="$TMP_DIR/scar.tar.gz"
         DOWNLOAD_OK=0
 
-        for URL in "$TAR_URL_MAIN" "$TAR_URL_MASTER"; do
+        for URL in "$TAR_URL_MASTER" "$TAR_URL_MAIN"; do
             if command -v curl >/dev/null 2>&1; then
                 if curl -fsSL "$URL" -o "$TAR_FILE" 2>/dev/null; then
                     DOWNLOAD_OK=1

@@ -1,55 +1,28 @@
-const Jimp = require('jimp');
-const fs = require('fs');
-const path = require('path');
-
-const filePath = process.argv[2];
-const outPath = process.argv[3];
-
-async function removeBackground() {
-    try {
-        const image = await Jimp.read(filePath);
-        const width = image.bitmap.width;
-        const height = image.bitmap.height;
-        
-        // Assume top-left pixel is the background color
-        const bgColor = image.getPixelColor(0, 0);
-        const targetColor = Jimp.intToRGBA(bgColor);
-        const threshold = 50; // slightly higher tolerance for jpeg artifacts
-        
-        const isBg = (x, y) => {
-            if (x < 0 || x >= width || y < 0 || y >= height) return false;
-            const c = Jimp.intToRGBA(image.getPixelColor(x, y));
-            return Math.abs(c.r - targetColor.r) < threshold &&
-                   Math.abs(c.g - targetColor.g) < threshold &&
-                   Math.abs(c.b - targetColor.b) < threshold &&
-                   c.a > 0;
-        };
-
-        const stack = [[0, 0], [width-1, 0], [0, height-1], [width-1, height-1]]; // start from all 4 corners
-        const visited = new Set();
-        
-        while (stack.length > 0) {
-            const [x, y] = stack.pop();
-            const key = `${x},${y}`;
-            if (visited.has(key)) continue;
-            visited.add(key);
-            
-            if (isBg(x, y)) {
-                // Set to transparent
-                image.setPixelColor(0x00000000, x, y);
-                
-                stack.push([x + 1, y]);
-                stack.push([x - 1, y]);
-                stack.push([x, y + 1]);
-                stack.push([x, y - 1]);
-            }
-        }
-
-        await image.writeAsync(outPath);
-        console.log(`Processed and saved to: ${outPath}`);
-    } catch (err) {
-        console.error(`Error processing:`, err);
+'use strict';
+async function removeBackground(filePath, outPath) {
+    if (!filePath || !outPath) throw new Error('Usage: node flood_fill_bg.js input-image output.png');
+    const sharp = require('sharp');
+    const { data, info: { width, height } } = await sharp(filePath).toColourspace('srgb').ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    const target = [data[0], data[1], data[2]];
+    const visited = new Uint8Array(width * height), stack = [];
+    const enqueue = index => { if (!visited[index]) { visited[index] = 1; stack.push(index); } };
+    enqueue(0); enqueue(width - 1); enqueue((height - 1) * width); enqueue(width * height - 1);
+    while (stack.length) {
+        const index = stack.pop(), x = index % width, y = Math.floor(index / width);
+        const offset = index * 4;
+        if (!data[offset + 3] || Math.abs(data[offset] - target[0]) >= 50 || Math.abs(data[offset + 1] - target[1]) >= 50 || Math.abs(data[offset + 2] - target[2]) >= 50) continue;
+        data[offset + 3] = 0;
+        if (x + 1 < width) enqueue(index + 1);
+        if (x > 0) enqueue(index - 1);
+        if (y + 1 < height) enqueue(index + width);
+        if (y > 0) enqueue(index - width);
     }
+    await sharp(data, { raw: { width, height, channels: 4 } }).png().toFile(outPath);
+    return outPath;
 }
-
-removeBackground();
+module.exports = { removeBackground };
+if (require.main === module) {
+    removeBackground(process.argv[2], process.argv[3])
+        .then(output => console.log(`Processed and saved to: ${output}`))
+        .catch(error => { console.error(error.message); process.exitCode = 1; });
+}

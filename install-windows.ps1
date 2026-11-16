@@ -1,8 +1,8 @@
 # Scar the Hedgerec - Windows First-Time Auto-Installer & "scar.bat" / "scar.cmd" Generator
 # Works identically when launched from Command Prompt (cmd.exe) OR PowerShell:
-#   powershell -ExecutionPolicy Bypass -Command "iex (irm https://raw.githubusercontent.com/Protoevaneglium/Scar-the-Hedgerec/main/install-windows.ps1)"
+#   powershell -ExecutionPolicy Bypass -Command "iex (irm https://raw.githubusercontent.com/Protoevaneglium/Scar-the-Hedgerec/master/install-windows.ps1)"
 # Or directly inside PowerShell:
-#   iex (irm https://raw.githubusercontent.com/Protoevaneglium/Scar-the-Hedgerec/main/install-windows.ps1)
+#   iex (irm https://raw.githubusercontent.com/Protoevaneglium/Scar-the-Hedgerec/master/install-windows.ps1)
 
 $ErrorActionPreference = 'Continue'
 $RepoUrl      = 'https://github.com/Protoevaneglium/Scar-the-Hedgerec.git'
@@ -75,7 +75,7 @@ if ($ScriptDir -and (Test-Path (Join-Path $ScriptDir 'server.js'))) {
         $TmpExt = Join-Path ([IO.Path]::GetTempPath()) "scar-hedgerec-ext-$([Guid]::NewGuid().ToString('N'))"
         try {
             $DownloadOk = $false
-            foreach ($Url in @($ZipUrlMain, $ZipUrlMaster)) {
+            foreach ($Url in @($ZipUrlMaster, $ZipUrlMain)) {
                 try {
                     Invoke-WebRequest -Uri $Url -OutFile $TmpZip -UseBasicParsing -ErrorAction Stop
                     $DownloadOk = $true

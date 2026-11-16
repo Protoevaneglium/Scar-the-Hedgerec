@@ -7,7 +7,7 @@ REM
 REM Usage:
 REM   * Inside a cloned/unzipped repo: double-click install-windows.bat
 REM   * From anywhere in Command Prompt (one-liner, downloads the game):
-REM       curl -fsSL -o "%TEMP%\scar-install.bat" https://raw.githubusercontent.com/Protoevaneglium/Scar-the-Hedgerec/main/install-windows.bat && "%TEMP%\scar-install.bat"
+REM       curl -fsSL -o "%TEMP%\scar-install.bat" https://raw.githubusercontent.com/Protoevaneglium/Scar-the-Hedgerec/master/install-windows.bat && "%TEMP%\scar-install.bat"
 
 set "REPO_URL=https://github.com/Protoevaneglium/Scar-the-Hedgerec.git"
 set "ZIP_URL=https://github.com/Protoevaneglium/Scar-the-Hedgerec/archive/refs/heads/master.zip"

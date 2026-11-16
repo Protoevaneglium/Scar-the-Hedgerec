@@ -3,7 +3,7 @@
 # Usage:
 #   sh install-termux.sh
 # Or one-liner in Termux:
-#   curl -fsSL https://raw.githubusercontent.com/Protoevaneglium/Scar-the-Hedgerec/main/install-termux.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/Protoevaneglium/Scar-the-Hedgerec/master/install-termux.sh | sh
 
 set -e
 

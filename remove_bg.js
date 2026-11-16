@@ -1,51 +1,38 @@
-const Jimp = require('jimp');
 const fs = require('fs');
 const path = require('path');
 
-const assetsDir = path.join(__dirname, 'public', 'assets');
-
-async function removeBackground() {
-    const files = fs.readdirSync(assetsDir).filter(file => file.endsWith('.jpg') && (file.startsWith('scar_') || file.startsWith('enemy_')));
+async function removeBackground(assetsDir = path.join(__dirname, 'public', 'assets')) {
+    const sharp = require('sharp');
+    const files = fs.readdirSync(assetsDir).filter(file => /\.jpe?g$/i.test(file) && (file.startsWith('scar_') || file.startsWith('enemy_')));
+    let processed = 0, failed = 0;
     
     for (const file of files) {
         const filePath = path.join(assetsDir, file);
-        const outPath = path.join(assetsDir, file.replace('.jpg', '.png'));
+        const outPath = path.join(assetsDir, file.replace(/\.jpe?g$/i, '.png'));
         
         try {
-            const image = await Jimp.read(filePath);
-            
-            // Assume top-left pixel is the background color
-            const bgColor = image.getPixelColor(0, 0);
-            
-            // Threshold for color matching
-            const threshold = 30; // tolerance
-            
-            const targetColor = Jimp.intToRGBA(bgColor);
-
-            image.scan(0, 0, image.bitmap.width, image.bitmap.height, function (x, y, idx) {
-                const r = this.bitmap.data[idx + 0];
-                const g = this.bitmap.data[idx + 1];
-                const b = this.bitmap.data[idx + 2];
-                const a = this.bitmap.data[idx + 3];
-                
-                // If it's close to the background color, make it transparent
-                if (Math.abs(r - targetColor.r) < threshold &&
-                    Math.abs(g - targetColor.g) < threshold &&
-                    Math.abs(b - targetColor.b) < threshold) {
-                    
-                    this.bitmap.data[idx + 3] = 0; // Set alpha to 0
-                }
-            });
-
-            await image.writeAsync(outPath);
+            const { data, info } = await sharp(filePath).toColourspace('srgb').ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+            const target = [data[0], data[1], data[2]], threshold = 30;
+            for (let idx = 0; idx < data.length; idx += 4) {
+                if (Math.abs(data[idx] - target[0]) < threshold && Math.abs(data[idx + 1] - target[1]) < threshold
+                    && Math.abs(data[idx + 2] - target[2]) < threshold) data[idx + 3] = 0;
+            }
+            await sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } }).png().toFile(outPath);
             console.log(`Processed: ${file} -> ${path.basename(outPath)}`);
             
             // Delete the original jpg to clean up
             fs.unlinkSync(filePath);
+            processed++;
         } catch (err) {
+            failed++;
             console.error(`Error processing ${file}:`, err);
         }
     }
+    return { processed, failed };
 }
 
-removeBackground();
+module.exports = { removeBackground };
+if (require.main === module) {
+    removeBackground().then(result => { if (result.failed) process.exitCode = 1; })
+        .catch(error => { console.error(error.message); process.exitCode = 1; });
+}
