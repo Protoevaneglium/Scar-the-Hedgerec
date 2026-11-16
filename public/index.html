@@ -29,7 +29,10 @@
     </div>
 </div>
 
-<div id="intro"><video id="intro-video" src="assets/intro.mp4" playsinline preload="auto" autoplay></video></div>
+<div id="intro">
+    <video id="intro-video" src="assets/intro.mp4" poster="assets/intro_title.png" playsinline preload="auto" autoplay></video>
+    <img class="intro-title-fallback" src="assets/intro_title.png" alt="Scar the Hedgerec — Press Enter to start">
+</div>
 
 <audio id="bgm" src="assets/level1.mp3" loop preload="auto"></audio>
 <script>window.INTRO_ACTIVE = true; // level BGM stays silent until the intro is dismissed</script>
@@ -39,6 +42,7 @@
 <script src="levels/zone1_act2.js"></script>
 <script src="levels/kitt_boss.js"></script>
 <script src="levels/zone1_act3.js"></script>
+<script src="levels/zone2_act1.js"></script>
 <script>
 'use strict';
 const { PHYS, HITBOX, STATE, Terrain, Player, MODE_FRAMES, PALMTREE_SPRITES, toDeg, TAU } = window.SonicEngine;
@@ -3097,18 +3101,29 @@ function crough(c) { return c * 0.6; }
 function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
 
 /* ==========================================================================
-   INTRO — plays the startup clip with full audio, then boots the game on
-   PRESS START (Enter or Space) or automatically when the clip ends (~28s).
+   INTRO — the opening plays automatically, then holds its original title art.
+   Only PRESS START (Enter / Space / a title-screen tap) begins gameplay.
    ========================================================================== */
 function runIntro(onDone) {
     const wrap = document.getElementById('intro');
     const vid = document.getElementById('intro-video');
     const skip = new URLSearchParams(window.location.search).has('nointro');
     let finished = false;
+    let waitingForStart = false;
+    let startupTimer = null;
+
+    const holdTitle = (fallback = false) => {
+        if (finished) return;
+        waitingForStart = true;
+        if (startupTimer !== null) { clearTimeout(startupTimer); startupTimer = null; }
+        if (vid) { try { vid.pause(); } catch (_) {} }
+        if (fallback && wrap) wrap.classList.add('title-fallback');
+    };
 
     const finish = () => {
         if (finished) return;
         finished = true;
+        if (startupTimer !== null) clearTimeout(startupTimer);
         window.removeEventListener('keydown', onKey, true);
         window.removeEventListener('pointerdown', onPointer, true);
         window.INTRO_ACTIVE = false;
@@ -3122,26 +3137,25 @@ function runIntro(onDone) {
         }
     };
 
-    const playWithAudio = () => {
-        if (!vid) return;
+    const playWithAudio = async () => {
+        if (!vid || finished || waitingForStart) return;
         vid.defaultMuted = false;
         vid.muted = false;
         vid.volume = 1.0;
-        const p = vid.play();
-        if (p && p.catch) {
-            p.catch(() => {
-                // If browser blocks unmuted autoplay on cold start, next key/click starts it with audio
-            });
+        try {
+            await vid.play();
+        } catch (_) {
+            if (finished || waitingForStart) return;
+            // Cold browsers can block sound; retry the opening muted without
+            // requiring an initial click. Gameplay still waits for Start.
+            vid.defaultMuted = true;
+            vid.muted = true;
+            try { await vid.play(); }
+            catch (_) { holdTitle(true); }
         }
     };
 
     const onKey = (e) => {
-        // If the video was held paused due to browser autoplay restriction, start playing it with full audio
-        if (vid && vid.paused) {
-            playWithAudio();
-            if (vid.currentTime < 0.25) return;
-        }
-
         if (e.code === 'Space' || e.code === 'Enter' || e.code === 'NumpadEnter') {
             e.preventDefault();
             e.stopImmediatePropagation(); // don't let the start press leak into the game as a jump
@@ -3152,11 +3166,17 @@ function runIntro(onDone) {
             window.addEventListener('keydown', eatRepeat, true);
             window.addEventListener('keyup', release, true);
             finish();
+            return;
+        }
+        // Other keys can enable intro sound without dismissing the title.
+        if (vid && !waitingForStart) {
+            if (vid.muted) { vid.defaultMuted = false; vid.muted = false; }
+            if (vid.paused) playWithAudio();
         }
     };
 
     const onPointer = (e) => {
-        if (vid && vid.paused) {
+        if (vid && vid.paused && !waitingForStart) {
             playWithAudio();
             return;
         }
@@ -3168,13 +3188,18 @@ function runIntro(onDone) {
 
     window.addEventListener('keydown', onKey, true);
     window.addEventListener('pointerdown', onPointer, true);
-    vid.addEventListener('ended', finish, { once: true });
-    vid.addEventListener('error', finish, { once: true });
+    vid.addEventListener('ended', () => holdTitle(), { once: true });
+    vid.addEventListener('error', () => holdTitle(true), { once: true });
     vid.addEventListener('timeupdate', () => {
-        if (vid.currentTime >= 28.0) finish();
+        if (vid.currentTime > 0 && startupTimer !== null) {
+            clearTimeout(startupTimer);
+            startupTimer = null;
+        }
+        if (vid.currentTime >= 28.0) holdTitle();
     });
 
-    // Ensure audio is unmuted and play
+    // If media cannot start, show the same title art and keep its Start gate.
+    startupTimer = setTimeout(() => { if (vid.currentTime === 0) holdTitle(true); }, 8000);
     playWithAudio();
 }
 

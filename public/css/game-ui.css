@@ -194,6 +194,9 @@ canvas {
 
 #intro.fade { opacity: 0; pointer-events: none; }
 #intro video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+#intro .intro-title-fallback { display: none; width: 100%; height: 100%; object-fit: contain; }
+#intro.title-fallback video { display: none; }
+#intro.title-fallback .intro-title-fallback { display: block; }
 
 @media (pointer: coarse) {
     #touch { display: flex; }

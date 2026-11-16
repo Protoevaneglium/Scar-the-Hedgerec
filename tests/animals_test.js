@@ -4,6 +4,8 @@ const { Terrain, Player, STATE } = require('../public/sonic-engine.js');
 require('../public/levels/zone1_act2.js');
 require('../public/levels/kitt_boss.js');
 require('../public/levels/zone1_act3.js');
+require('../public/levels/zone2_act1.js');
+const CAMPAIGN = ['palmtree', 'z1_act2', 'z1_act3', 'z2_act1'];
 
 function fixture(stage = 'z1_act3') {
     const terrain = new Terrain(stage);
@@ -27,8 +29,18 @@ function test(name, fn) {
 }
 
 console.log('\nAnimals and capsules');
+test('every campaign act includes the core object kit and rescuable badniks', () => {
+    for (const stage of CAMPAIGN) {
+        const { terrain } = fixture(stage);
+        for (const key of ['rings', 'loops', 'monitors', 'starPosts', 'springs', 'platforms', 'speedBoosters', 'enemies']) {
+            assert(terrain[key].length > 0, `${stage} must include ${key}`);
+        }
+        assert(terrain.bigRing, `${stage} must offer a giant-ring reward`);
+        assert(terrain.spikeClusters.length > 0 || terrain.boss, `${stage} needs floor or boss hazards`);
+    }
+});
 test('normal acts use signposts and the boss act uses a locked capsule', () => {
-    for (const stage of ['palmtree', 'z1_act2']) {
+    for (const stage of ['palmtree', 'z1_act2', 'z2_act1']) {
         const { terrain } = fixture(stage);
         assert(terrain.goalPost && !terrain.capsule);
     }
@@ -36,11 +48,14 @@ test('normal acts use signposts and the boss act uses a locked capsule', () => {
     assert(!terrain.goalPost && terrain.capsule.lockedUntilBoss);
 });
 
-test('every destroyed badnik releases one themed animal, while monitors release none', () => {
-    for (const stage of ['palmtree', 'z1_act2']) {
+test('every act frees its animal pair from badniks at 30, 60, and 144 Hz; monitors free none', () => {
+    const pairs = { palmtree: ['flicky', 'ricky'], z1_act2: ['flicky', 'becky'],
+        z1_act3: ['cucky', 'micky'], z2_act1: ['flicky', 'ricky'] };
+    for (const stage of CAMPAIGN) for (const hz of [30, 60, 144]) {
         const { terrain, player } = fixture(stage);
         const enemy = terrain.enemies.find(en => en.kind === 'crab');
-        const pair = stage === 'palmtree' ? ['flicky', 'ricky'] : ['flicky', 'becky'];
+        const pair = pairs[stage];
+        assert(enemy, `${stage} needs rescuable enemies along its route`);
         for (let n = 0; n < 2; n++) {
             // Use two real enemies at the same safe encounter point to exercise the zone pair.
             const target = n === 0 ? enemy : terrain.enemies.find(en => en.alive && en.kind === 'crab');
@@ -49,17 +64,17 @@ test('every destroyed badnik releases one themed animal, while monitors release 
             player.x = target.x; player.y = target.y - 14;
             player.xsp = player.gsp = 0; player.ysp = 2;
             player.state = STATE.AIRBORNE; player.curled = true;
-            terrain.updateObjects(player, 1);
+            terrain.updateObjects(player, 60 / hz);
             assert(!target.alive);
             assert.strictEqual(terrain.animals.length, n + 1);
             assert.strictEqual(terrain.animals[n].type, pair[n]);
-            terrain.updateObjects(player, 1);
+            terrain.updateObjects(player, 60 / hz);
             assert.strictEqual(terrain.animals.length, n + 1, 'dead enemies cannot release twice');
         }
         const monitor = terrain.monitors[0];
         player.x = monitor.x; player.y = monitor.y - 15;
         player.curled = true; player.state = STATE.AIRBORNE; player.ysp = 1;
-        terrain.updateObjects(player, 1);
+        terrain.updateObjects(player, 60 / hz);
         assert(monitor.broken && terrain.animals.length === 2);
         terrain.resetObjects();
         assert.strictEqual(terrain.animals.length, 0);

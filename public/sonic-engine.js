@@ -559,14 +559,9 @@
                 return obj;
             });
 
-            this.swingPlatforms = [];
             this.bouncePoles = (src.bouncePoles || []).map((d) => ({ dir: 1, power: -11.5, ...d, state: 'straight', timer: 0 }));
             this.spinners = (src.spinners || []).map((d) => ({ variant: 'silver', ...d, cooldown: 0, spinTimer: 0 }));
-            this.houdiniGroups = [];
-            this.breakableWalls = [];
-            this.breakableFloors = [];
-            this.trapDoors = [];
-            this.rocks = [];
+            this.setupRouteObjects(src, addObjSurface);
             this.speedBoosters = (src.speedBoosters || []).map((d) => ({ boost: 11.5, ...d, cooldown: 0 }));
             this.dashRings = (src.dashRings || []).map((d) => ({
                 x: d.x, y: d.y,
@@ -657,6 +652,76 @@
             if (typeof def.setupObjects === 'function') {
                 def.setupObjects(ringHelpers, this, addObjSurface);
             }
+        }
+
+        /** Shared interactive scenery: every act can use the original object kit. */
+        setupRouteObjects(src, addObjSurface) {
+            this.swingPlatforms = (src.swingPlatforms || []).map(d => {
+                const config = { len: 76, maxAngle: .85, speed: .035, phase: 0, ...d };
+                const x = config.pivotX, y = config.pivotY + config.len;
+                const surface = addObjSurface(new LineSurface(x - 24, y - 6, x + 24, y - 6, 0, -1, -1, 'swing platform', { oneWay: true }));
+                const obj = { ...config, x, y, angle: 0, dx: 0, dy: 0, surface };
+                surface.ownerPlatform = obj;
+                return obj;
+            });
+            this.houdiniGroups = (src.houdiniGroups || []).map(g => ({
+                triggerX: g.triggerX, triggerY: g.triggerY, triggered: false,
+                steps: g.steps.map((st, idx) => {
+                    const surface = addObjSurface(new LineSurface(st.x - 12, st.y - 12, st.x + 12, st.y - 12, 0, -1, -1, 'houdini step', { oneWay: true }));
+                    return { ...st, idx, active: true, animTimer: idx * 8, surface };
+                }),
+            }));
+            this.breakableWalls = (src.breakableWalls || []).map(d => {
+                const w = 48, h = 48;
+                const wall = { x: d.x, y: d.y, w, h, broken: false };
+                const tryBreak = player => {
+                    if (wall.broken) return true;
+                    if (player.curled || Math.abs(player.grounded ? player.gsp : player.xsp) >= 3.5) {
+                        this.shatterWall(wall, player);
+                        return true;
+                    }
+                    return false;
+                };
+                wall.leftSurf = addObjSurface(new LineSurface(d.x - w / 2, d.y - h, d.x - w / 2, d.y, -1, 0, -1, 'breakable wall L', { onWallContact: tryBreak }));
+                wall.rightSurf = addObjSurface(new LineSurface(d.x + w / 2, d.y - h, d.x + w / 2, d.y, 1, 0, -1, 'breakable wall R', { onWallContact: tryBreak }));
+                wall.topSurf = addObjSurface(new LineSurface(d.x - w / 2, d.y - h, d.x + w / 2, d.y - h, 0, -1, -1, 'breakable wall top', { oneWay: true }));
+                return wall;
+            });
+            this.breakableFloors = (src.breakableFloors || []).map(d => {
+                const config = { w: 128, h: 40, kind: 'thin', ...d };
+                const bf = { ...config, broken: false, stepping: false, timer: 0, respawnTimer: 0 };
+                bf.surface = addObjSurface(new LineSurface(bf.x, bf.y, bf.x + bf.w, bf.y, 0, -1, -1, 'breakable floor', {
+                    oneWay: true,
+                    onFloorContact: (player, fromAir) => {
+                        if (bf.broken) return;
+                        bf.stepping = true;
+                        if (fromAir && player.curled && player.ysp > 4.5) bf.timer += 10;
+                    },
+                }));
+                bf.surface.ownerBreakFloor = bf;
+                return bf;
+            });
+            this.trapDoors = (src.trapDoors || []).map(d => {
+                const config = { w: 48, period: 210, openDuration: 75, phase: 0, ...d };
+                const surface = addObjSurface(new LineSurface(config.x, config.y, config.x + config.w, config.y, 0, -1, -1, 'trap door', { oneWay: true }));
+                return { ...config, isOpen: false, warn: false, surface };
+            });
+            this.rocks = (src.rocks || []).map(d => {
+                const w = 40, h = 32;
+                const rock = { x: d.x, y: d.y, w, h, broken: false };
+                const trySmash = player => {
+                    if (rock.broken) return true;
+                    if (player.curled || Math.abs(player.grounded ? player.gsp : player.xsp) >= 4) {
+                        this.shatterRock(rock, player);
+                        return true;
+                    }
+                    return false;
+                };
+                rock.topSurf = addObjSurface(new LineSurface(d.x - w / 2, d.y - h, d.x + w / 2, d.y - h, 0, -1, -1, 'rock top', { oneWay: true }));
+                rock.leftSurf = addObjSurface(new LineSurface(d.x - w / 2, d.y - h, d.x - w / 2, d.y, -1, 0, -1, 'rock L', { onWallContact: trySmash }));
+                rock.rightSurf = addObjSurface(new LineSurface(d.x + w / 2, d.y - h, d.x + w / 2, d.y, 1, 0, -1, 'rock R', { onWallContact: trySmash }));
+                return rock;
+            });
         }
 
         add(s) {
@@ -1015,14 +1080,6 @@
                 { pivotX: 6790, pivotY: 225, len: 72, maxAngle: 0.80, speed: 0.04,  phase: 0.7 },
                 { pivotX: 8160, pivotY: 445, len: 76, maxAngle: 0.85, speed: 0.038, phase: 2.1 },
             ];
-            this.swingPlatforms = swingDefs.map((d) => {
-                const x = d.pivotX, y = d.pivotY + d.len;
-                const surf = addObjSurface(new LineSurface(x - 24, y - 6, x + 24, y - 6, 0, -1, -1, 'swing platform', { oneWay: true }));
-                const obj = { ...d, x, y, angle: 0, dx: 0, dy: 0, surface: surf };
-                surf.ownerPlatform = obj;
-                return obj;
-            });
-
             // 3. BOUNCE POLES (poleStraight, poleBentDown, poleBentUp — 32px springy poles)
             const poleDefs = [
                 { x: 295,  y: 372, dir: 1,  power: -11.5 }, // Jump onto it to launch to High Tier 1!
@@ -1071,15 +1128,6 @@
                     ],
                 },
             ];
-            this.houdiniGroups = houdiniDefs.map((g) => {
-                const steps = g.steps.map((st, idx) => {
-                    const surf = addObjSurface(new LineSurface(st.x - 12, st.y - 12, st.x + 12, st.y - 12, 0, -1, -1, 'houdini step', { oneWay: true }));
-                    surf.enabled = true; // Active in Good Future; sparkles when triggered!
-                    return { ...st, idx, active: true, animTimer: idx * 8, surface: surf };
-                });
-                return { triggerX: g.triggerX, triggerY: g.triggerY, triggered: false, steps };
-            });
-
             // 6. BREAKABLE WALLS (3 columns x 16x48 = 48x48 golden triangle walls)
             const wallDefs = [
                 { x: 880,  y: 742 }, // In the Under-Slide Secret Cavern
@@ -1088,24 +1136,6 @@
                 { x: 6960, y: 742 }, // After Loop #2
                 { x: 8600, y: 530 }, // On Waterfall Fortress Mid Tier
             ];
-            this.breakableWalls = wallDefs.map((d) => {
-                const w = 48, h = 48;
-                const wall = { x: d.x, y: d.y, w, h, broken: false, leftSurf: null, rightSurf: null, topSurf: null };
-                const tryBreak = (player) => {
-                    if (wall.broken) return true;
-                    const speed = Math.abs(player.grounded ? player.gsp : player.xsp);
-                    if (player.curled || speed >= 3.5) {
-                        this.shatterWall(wall, player);
-                        return true;
-                    }
-                    return false;
-                };
-                wall.leftSurf = addObjSurface(new LineSurface(d.x - w / 2, d.y - h, d.x - w / 2, d.y, -1, 0, -1, 'breakable wall L', { onWallContact: tryBreak }));
-                wall.rightSurf = addObjSurface(new LineSurface(d.x + w / 2, d.y - h, d.x + w / 2, d.y, 1, 0, -1, 'breakable wall R', { onWallContact: tryBreak }));
-                wall.topSurf = addObjSurface(new LineSurface(d.x - w / 2, d.y - h, d.x + w / 2, d.y - h, 0, -1, -1, 'breakable wall top', { oneWay: true }));
-                return wall;
-            });
-
             // 7. BREAKABLE FLOORS (128x40 thin & 128x56 thick grass/arrow/triangle bridges)
             const floorDefs = [
                 { x: 460,  y: 420, w: 128, h: 40, kind: 'thin'  }, // Bridges Cliff Start -> Great Green Slide (over Secret Cavern)
@@ -1113,32 +1143,12 @@
                 { x: 4680, y: 540, w: 128, h: 40, kind: 'thin'  }, // Inside Giant Hollow Dome
                 { x: 7820, y: 530, w: 128, h: 56, kind: 'thick' }, // Over Waterfall Fortress chasm
             ];
-            this.breakableFloors = floorDefs.map((d) => {
-                const bf = { ...d, broken: false, stepping: false, timer: 0, respawnTimer: 0, surface: null };
-                bf.surface = addObjSurface(new LineSurface(d.x, d.y, d.x + d.w, d.y, 0, -1, -1, 'breakable floor', {
-                    oneWay: true,
-                    onFloorContact: (player, fromAir) => {
-                        if (bf.broken) return;
-                        bf.stepping = true;
-                        // Stomping from a jump/roll breaks faster; running fast across lets you clear it before it drops!
-                        if (fromAir && player.curled && player.ysp > 4.5) bf.timer += 10;
-                    },
-                }));
-                bf.surface.ownerBreakFloor = bf;
-                return bf;
-            });
-
             // 8. TRAP DOORS (48x8 mechanical bridge bars that hinge open/closed)
             const trapDefs = [
                 { x: 3080, y: 540, w: 48, period: 210, openDuration: 75, phase: 0   },
                 { x: 6920, y: 490, w: 48, period: 210, openDuration: 75, phase: 70  },
                 { x: 8420, y: 530, w: 48, period: 210, openDuration: 75, phase: 140 },
             ];
-            this.trapDoors = trapDefs.map((d) => {
-                const surf = addObjSurface(new LineSurface(d.x, d.y, d.x + d.w, d.y, 0, -1, -1, 'trap door', { oneWay: true }));
-                return { ...d, isOpen: false, warn: false, surface: surf };
-            });
-
             // 9. ROCKS (40x32 boulders — steppable on top, smashable from the side when curled/fast)
             const rockDefs = [
                 { x: 1180, y: 742 },
@@ -1146,23 +1156,11 @@
                 { x: 4980, y: 720 },
                 { x: 7220, y: 730 },
             ];
-            this.rocks = rockDefs.map((d) => {
-                const w = 40, h = 32;
-                const rk = { x: d.x, y: d.y, w, h, broken: false, topSurf: null, leftSurf: null, rightSurf: null };
-                const trySmash = (player) => {
-                    if (rk.broken) return true;
-                    const speed = Math.abs(player.grounded ? player.gsp : player.xsp);
-                    if (player.curled || speed >= 4.0) {
-                        this.shatterRock(rk, player);
-                        return true;
-                    }
-                    return false;
-                };
-                rk.topSurf = addObjSurface(new LineSurface(d.x - w / 2, d.y - h, d.x + w / 2, d.y - h, 0, -1, -1, 'rock top', { oneWay: true }));
-                rk.leftSurf = addObjSurface(new LineSurface(d.x - w / 2, d.y - h, d.x - w / 2, d.y, -1, 0, -1, 'rock L', { onWallContact: trySmash }));
-                rk.rightSurf = addObjSurface(new LineSurface(d.x + w / 2, d.y - h, d.x + w / 2, d.y, 1, 0, -1, 'rock R', { onWallContact: trySmash }));
-                return rk;
-            });
+            this.setupRouteObjects({
+                swingPlatforms: swingDefs, houdiniGroups: houdiniDefs,
+                breakableWalls: wallDefs, breakableFloors: floorDefs,
+                trapDoors: trapDefs, rocks: rockDefs,
+            }, addObjSurface);
 
             // 10. SPEED BOOSTERS (classic Sonic CD ground boosters before loops & giant climbs)
             this.speedBoosters = [

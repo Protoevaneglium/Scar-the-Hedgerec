@@ -120,7 +120,7 @@
 
     SonicEngine.Terrain.registerLevel('z1_act3', {
         title: 'Bazooka Citadel Act 3', zone: 1, zoneName: 'BAZOOKA CITADEL', act: 3,
-        isBossAct: true, bgm: 'assets/level1.mp3', startX: 0, endX: 9600, deathY: 1320,
+        isBossAct: true, nextStage: 'z2_act1', bgm: 'assets/level1.mp3', startX: 0, endX: 9600, deathY: 1320,
         animalZone: 'mcz', // Mystic Cave's Cucky / Micky pair for the canyon citadel.
         cameraMinY: -650, cameraMaxY: 580, wallJump: true, smoothPresentation: true,
         theme: {skyTop:'#2868e7',skyMid:'#79c0ff',skyBottom:'#ffe2bb',groundA:'#d38b7c',groundB:'#69456d',loopA:'#ffd45c',loopB:'#785092',trimColor:'#b88ec1',trimHighlight:'#ffe1ba'},
@@ -193,6 +193,12 @@
                 bouncePoles:[{x:3740,y:f.f(3740)-28,dir:1,power:-12.5},{x:4310,y:f.f(4310)-27,dir:1,power:-11.7}],
                 spinners:[{x:3920,y:540,variant:'silver'},{x:4040,y:490,variant:'dark'},{x:4170,y:540,variant:'silver'},{x:6010,y:170,variant:'silver'},{x:6130,y:110,variant:'dark'}],
                 platforms:[{x:5180,y:400,w:88,ampX:35,ampY:55,speed:.024},{x:7330,y:150,w:96,ampX:65,ampY:35,speed:.02}],
+                // Badnik rescues remain part of the approach, before the boss capsule crowd.
+                enemies:[
+                    ...[1710,2410,4550,6070,7630].map(x=>({kind:'crab',x,y:f.f(x),minX:x-45,maxX:x+45,vx:1.1})),
+                    {kind:'crab',x:1450,y:z.sunDeck.f(1450),minX:1390,maxX:1510,vx:1},
+                    {kind:'crab',x:4310,y:z.upperA.f(4310),minX:4260,maxX:4370,vx:1.1},
+                ],
                 timePosts:[{x:1800,y:f.f(1800),kind:'PAST'},{x:6990,y:f.f(6990),kind:'FUTURE'}],
                 spikeClusters:[],bigRing:{x:6820,y:-348},goalPost:null,
                 capsule:{x:9310,y:560,lockedUntilBoss:true},

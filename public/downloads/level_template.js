@@ -26,6 +26,9 @@
  *       * 3-Prong Spikes & Giant Special Ring (+50 rings & +10,000 pts flash)
  *       * Spinning Robotnik -> Sonic Goal Post (Acts 1–2) & Animal Capsule (Act 3 Boss Acts)
  *       * 5-frame Badnik/Monitor Explosions + Pixel Score Popups (`100`..`10000`, `1UP!`)
+ *       * Animals automatically escape every defeated Badnik, animate, and hop on real terrain in every act.
+ *   - Original interactive scenery is reusable in every act (all placements are optional):
+ *       * Swing platforms, bounce poles, pinball bumpers, sparkling steps, breakable walls/floors, trap doors & rocks.
  *   - Core WAV Sound Effects (`jump.wav`, `rings.wav`, `goalpost.wav`) + 1-Up/Tally/GameOver Jingles
  *   - Keyboard + Android/Termux Multi-Touch Controls (`◀`, `▼`, `▶`, `JUMP`)
  *
@@ -137,6 +140,20 @@
             // Moving Platforms — { x, y, w, ampX, ampY, speed, phase }
             platforms: [
                 // { x: 820, y: 430, w: 64, ampX: 60, ampY: 0, speed: 0.035 },
+            ],
+
+            // Original object kit — uses the same sprites, collision, sounds and reset as Act 1.
+            swingPlatforms: [
+                // { pivotX: 1100, pivotY: 350, len: 110, maxAngle: 0.6, speed: 0.03 },
+            ],
+            bouncePoles: [ /* { x: 1700, y: 535, dir: 1, power: -11.5 } */ ],
+            spinners: [ /* { x: 1800, y: 450, variant: 'silver' } */ ],
+            breakableWalls: [ /* { x: 1900, y: 560 } */ ],
+            breakableFloors: [ /* { x: 1250, y: 430, w: 128, h: 40, kind: 'thin' } */ ],
+            trapDoors: [ /* { x: 1378, y: 430, w: 48, period: 210, openDuration: 75 } */ ],
+            rocks: [ /* { x: 2050, y: 560 } */ ],
+            houdiniGroups: [
+                // { triggerX: 780, triggerY: 538, steps: [{ x: 820, y: 510 }, { x: 860, y: 478 }] },
             ],
 
             // Speed Boosters — { x, y, boost }

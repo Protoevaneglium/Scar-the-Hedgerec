@@ -106,13 +106,17 @@ indexHtml = indexHtml.replace(
     '<title>Scar the Hedgerec — Level Core Starter</title>'
 );
 indexHtml = indexHtml.replace(
-    '<audio id="bgm" src="assets/level1.mp3" loop autoplay preload="auto"></audio>',
-    '<audio id="bgm" loop autoplay preload="auto"></audio>'
+    /<audio id="bgm"[^>]*><\/audio>/,
+    '<audio id="bgm" loop preload="auto"></audio>'
 );
+// The reusable starter boots directly into its blank act. Its package does not
+// ship the campaign's cinematic, title art, or soundtrack.
+indexHtml = indexHtml.replace(/<div id="intro">[\s\S]*?<\/div>\s*/, '');
 indexHtml = indexHtml.replace(
     /<script src="sonic-engine\.js"><\/script>[\s\S]*?<script>/,
     [
         '<script src="sonic-engine.js"></script>',
+        '<script src="js/modern-hud.js"></script>',
         '<script src="levels/level_template.js"></script>',
         '<script src="levels/boss_act_template.js"></script>',
         '<script>window.DEFAULT_STAGE = "template"; window.CAMPAIGN_STAGES = ["template", "boss_template"]; window.STAGE_ORDER = ["template", "boss_template", "test"];</script>',
@@ -152,16 +156,30 @@ const entries = [
     { name: prefix + 'start-termux.sh',         data: toLF(fs.readFileSync(path.join(ROOT, 'start-termux.sh'))), executable: true },
     { name: prefix + 'public/index.html',       data: indexHtml },
     { name: prefix + 'public/sonic-engine.js',  data: fs.readFileSync(path.join(ROOT, 'public', 'sonic-engine.js')) },
+    { name: prefix + 'public/css/game-ui.css',  data: fs.readFileSync(path.join(ROOT, 'public', 'css', 'game-ui.css')) },
+    { name: prefix + 'public/js/modern-hud.js',  data: fs.readFileSync(path.join(ROOT, 'public', 'js', 'modern-hud.js')) },
     { name: prefix + 'public/levels/level_template.js',    data: fs.readFileSync(path.join(ROOT, 'templates', 'level_template.js')) },
     { name: prefix + 'public/levels/boss_act_template.js', data: fs.readFileSync(path.join(ROOT, 'templates', 'boss_act_template.js')) },
     { name: prefix + 'public/assets/scar_sheet.png',       data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'scar_sheet.png')) },
     { name: prefix + 'public/assets/common_objects.png',   data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'common_objects.png')) },
     { name: prefix + 'public/assets/animals.png',          data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'animals.png')) },
     { name: prefix + 'public/assets/animals.txt',          data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'animals.txt')) },
+    { name: prefix + 'public/assets/palmtree_objects.png', data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'palmtree_objects.png')) },
+    { name: prefix + 'public/assets/palmtree_map.png',     data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'palmtree_map.png')) },
+    { name: prefix + 'public/assets/enemies.png',          data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'enemies.png')) },
     { name: prefix + 'public/assets/jump.wav',             data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'jump.wav')) },
     { name: prefix + 'public/assets/rings.wav',            data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'rings.wav')) },
     { name: prefix + 'public/assets/goalpost.wav',         data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'goalpost.wav')) },
 ];
+
+function includeUiAssets(relativeDir) {
+    for (const entry of fs.readdirSync(path.join(ROOT, 'public', relativeDir), { withFileTypes: true })) {
+        const relative = relativeDir + '/' + entry.name;
+        if (entry.isDirectory()) includeUiAssets(relative);
+        else entries.push({ name: prefix + 'public/' + relative, data: fs.readFileSync(path.join(ROOT, 'public', relative)) });
+    }
+}
+includeUiAssets('assets/ui');
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
 const zipBuf = buildZipBuffer(entries);

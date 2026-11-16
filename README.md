@@ -133,6 +133,12 @@ and press **Enter** — it starts the local server and opens your Android browse
     - **Lower Twin-Loop Expressway**: Waterfall bridges, launch crests, and twin 360° loops.
     - **Upper Starlight Coaster Highway**: 3-wave corkscrew roller-coaster skyway, 3 Upper 360° loops, and Finale Giant Ring Sky Island.
     - **2.5D / 3D Visual Infusion**: Sphere-shaded ringed planets, rotating starlight ferris wheels, cylindrical plasma waterfalls, and extruded road decks fixed to the 2D plane.
+- **Zone 2 Act 1 — Marble Canopy**:
+  - A 12,000px jungle and marble-ruin course inspired by Marble Zone, Angel Island, and the previously supplied maps' branching routes. Four marked wall-kick towers feed elevated highways; a continuous lower road keeps the action moving through six loops.
+  - Waterfalls, floating sanctuaries, molten masonry vents, mechanical beetles, treasure balconies, and a sky that changes with progress, time, and era.
+  - Original 156 BPM FM/marimba soundtrack with jungle percussion. Rebuild its seamless 74-second loop with `node scripts/compose-zone2-music.js`.
+  - Reuses the earlier acts' pinball bumpers, swinging platforms, smashable walls and rocks, collapsing bridges, trap doors, and sparkling step shortcuts, alongside the core rings, monitors, springs, checkpoints and giant ring.
+  - Continues after Kitt's capsule rescue, or open `http://localhost:3000/?nointro&stage=z2_act1`. Steer toward marked walls and tap Jump repeatedly to alternate kicks; ring trails show the climbs.
 - **Custom Character Rig & Advanced High-Speed Techniques**:
   - **Scar the Hedgerec**: Full 7-frame sprite rig (`idle`, `walk1`, `walk2`, `run1`, `run2`, `death1`, `death2`) + Spin Dash ball.
   - **Sonic CD Super Peel-Out (`↑ + Jump`)**: Rev Figure-8 legs in place with cyan/magenta vortex particles, launching uncurled at supersonic speed (`12.0`).
@@ -143,6 +149,7 @@ and press **Enter** — it starts the local server and opens your Android browse
   - **Act 1 Badniks**: Motobug, Crabmeat, Buzz Bomber, Spikes (Yadorin), Caterkiller, Burrobot, Batbrain, and Chopper.
   - **Act 2 Sonic 2 Badniks (14 Species, 29 Enemies)**: Masher (waterfall leaps), Buzzer (targeting stingers), Coconuts (palm tree windup), Sping, Grounder, Crawl (star bumper thrust), Shellcracker, Slicer, Balkiry, Nebula, Octus, Chop, Turtloid, and Asteron.
 - **Classic Sonic Common Objects**: Animated **Rings & Ring Sparkles**, **Item Monitors** (*Blue Shield*, *Invincibility*, *Super Ring +10*, *Speed Shoes*, *Scar 1-Up*), **Checkpoint Star Posts**, **Red & Yellow Springs**, **Spikes**, **Giant Ring (Okina Ring)**, spinning **Robotnik / Sonic Goal Post**, and **Act 3 Boss Animal Capsule**.
+- **Animal rescues in every campaign act**: Badniks free animated animals in Zone 1 Acts 1–3 and Zone 2 Act 1. Act 3 also keeps its boss capsule rescue. Animals hop on the real terrain and use the shared animal sprite sheet; stage resets restore the encounters.
 - **Authentic Audio**: Looping soundtrack (`level1.mp3`) + custom WAV and synthesized retro sound effects (Jump, Rings, Goal Post, Peel-Out, Drop Dash, Dash Rings, Death Sting, 1-Up, and Tally).
 - **Exact 16-Bit Fixed-Point Physics (`60 FPS` Sub-stepped)**:
   - Six analytical raycast sensors (**A/B** Ground, **C/D** Ceiling, **E/F** Wall Push) across Floor (`Mode 0`), Right Wall (`Mode 1`), Ceiling (`Mode 2`), and Left Wall (`Mode 3`), with 360° loop traversal on multiple layers.
@@ -176,6 +183,6 @@ Design research: [SEGA's Superstars manual](https://manual.sega.jp/sonicsupersta
 | **Space / Z / X / C** or Touch **JUMP** | Jump (Release early for short hop; fast-forwards Act Clear tally) |
 | **1 – 7** (or Top-Bar **Checkpoint** button) | Warp to Stage Checkpoints |
 | **T** (or Top-Bar **Time** button) | Cycle Time Era (*Good Future* / *Present* / *Past*) |
-| **M** (or Top-Bar **Stage** button) | Switch Stage (*Zone 1 Act 1*, *Act 2*, *Act 3 Boss*, *Physics Test*) |
+| **M** (or Top-Bar **Stage** button) | Switch Stage (*Zone 1 Act 1*, *Act 2*, *Act 3 Boss*, *Zone 2 Act 1*, *Physics Test*) |
 | **Tab** or **G** | Toggle Debug HUD & Sensor Raycast Overlay |
 | **R** | Reset Stage & Objects (or Restart on Game Over) |

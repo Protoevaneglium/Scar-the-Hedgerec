@@ -13,6 +13,7 @@ const ctx = new Proxy({}, {
         if (key in target) return target[key];
         if (key === 'createLinearGradient' || key === 'createRadialGradient') return () => gradient;
         if (key === 'createPattern') return () => ({});
+        if (key === 'getImageData') return (_x, _y, width, height) => ({ data: new Uint8ClampedArray(width * height * 4), width, height });
         if (key === 'measureText') return text => ({ width: String(text).length * 8 });
         return noop;
     },
@@ -54,6 +55,7 @@ load('public/js/modern-hud.js');
 load('public/levels/zone1_act2.js');
 load('public/levels/kitt_boss.js');
 load('public/levels/zone1_act3.js');
+load('public/levels/zone2_act1.js');
 const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
 const script = html.match(/<script>\s*'use strict';([\s\S]*?)<\/script>/);
 assert(script, 'main game script exists');
@@ -185,6 +187,68 @@ game.frame(game.last + 1000 / 60);
 assert(game.actClear && game.stageTime === frozenStageTime, 'the tally must begin with the clock frozen');
 ctx.drawImage = canvasDrawImage;
 console.log('  ✓ Capsule switch, explosion, broken base, animal atlas animation, and delayed tally render correctly');
+
+assert.strictEqual(game.getNextCampaignStage(), 'z2_act1', 'the Zone 1 rescue must lead to Zone 2');
+game.player.score = 83000; game.player.lives = 5; game.player.shield = true;
+game.actClear.phase = 'fadeOut'; game.fadeAlpha = .99;
+assert(game.updateActClear(1, false), 'the completed Zone 1 tally must load the next zone');
+assert.strictEqual(game.stageName, 'z2_act1');
+game.titleCard = null; game.fadeAlpha = 0;
+assert.strictEqual(game.player.score, 83000);
+assert.strictEqual(game.player.lives, 5);
+assert(game.player.shield && game.player.rings === 0 && game.stageTime === 0,
+    'Zone 2 must carry campaign rewards and reset stage counters');
+const canopy = game.terrain;
+assert(game.getCampaignStages().includes('z2_act1'));
+assert.notDeepStrictEqual(canopy.levelDef.skyColors(0, 0), canopy.levelDef.skyColors(.8, 0),
+    'the sky must change while progressing through Zone 2');
+assert.notDeepStrictEqual(canopy.levelDef.skyColors(0, 0), canopy.levelDef.skyColors(0, 1800),
+    'the sky must also animate while exploring');
+for (const checkpoint of canopy.checkpoints) {
+    game.player.place(checkpoint.x, 0, checkpoint.y);
+    for (const era of ['good_future', 'present', 'past']) {
+        canopy.timeEra = era; canopy.clock += 180;
+        game.snapCamera(); game.render();
+    }
+}
+const canopyShaft = canopy.z2.shafts[0];
+game.player.x = canopyShaft.x0 + 12; game.player.y = canopyShaft.top + 90;
+game.player.state = sandbox.SonicEngine.STATE.AIRBORNE; game.player.curled = false;
+game.player.xsp = 0; game.player.ysp = 2;
+game.player.update({ left: true, jumpHeld: true, jumpPressed: true }, 1 / 60);
+assert(game.player.wallKickTimer > 0 && game.player.xsp > 0);
+game.snapCamera(); game.render();
+game.resetCurrentStage();
+assert.strictEqual(game.terrain.rings.filter(r => r.collected).length, 0);
+assert.strictEqual(game.terrain.stage, 'z2_act1');
+console.log('  ✓ Zone 2 campaign carryover, changing skies, wall-kick callbacks, scenery, and reset render correctly');
+
+for (const stage of game.getCampaignStages()) {
+    game.loadStage(stage, { skipTitleCard: true, skipFade: true });
+    const terrain = game.terrain, p = game.player;
+    const enemy = terrain.enemies.find(en => en.kind === 'crab');
+    assert(enemy, `${stage} must offer a badnik rescue`);
+    p.x = enemy.x; p.y = enemy.y - 14;
+    p.state = sandbox.SonicEngine.STATE.AIRBORNE; p.curled = true;
+    p.xsp = p.gsp = 0; p.ysp = 2;
+    terrain.updateObjects(p, 1);
+    assert(!enemy.alive && terrain.animals.length > 0, `${stage} must release a real animal`);
+    const calls = [];
+    ctx.drawImage = (source, ...args) => {
+        if (source === game.animalSheet) calls.push(args);
+        return canvasDrawImage(source, ...args);
+    };
+    for (let i = 0; i < 120; i++) {
+        terrain.updateAnimals(p, 1);
+        if (i % 5 === 0) { game.snapCamera(); game.render(); }
+    }
+    ctx.drawImage = canvasDrawImage;
+    assert(calls.length > 0 && calls.every(args => args[2] === 32 && args[3] === 32),
+        `${stage} must draw the animal atlas in the real renderer`);
+    assert(calls.some(args => args[0] === 32) && calls.some(args => args[0] === 64),
+        `${stage} must animate both moving animal poses`);
+}
+console.log('  ✓ Every campaign act frees and renders animated animals from the shared atlas');
 
 game.loadStage('palmtree', { skipTitleCard: true, skipFade: true });
 const loop = game.terrain.loops[1];

@@ -50,6 +50,13 @@ Every new level registered with `SonicEngine.Terrain.registerLevel(id, config)` 
 | **Giant Ring (Okina Ring)** | `objects.bigRing` | 64×63 spinning Giant Ring with 7-frame flash burst (+50 rings & +10,000 score) |
 | **Goal Post (Acts 1–2)** | `objects.goalPost` | Robotnik plate spins to Sonic plate, plays `goalpost.wav`, triggers Act Clear Score Tally -> Next Act |
 | **Animal Capsule (Act 3)** | `objects.capsule` | Solid 64×60 Act 3 Boss Capsule + top plunger button (`lockedUntilBoss: true/false`). Jumping on the plunger pops explosions, frees critters, and clears the Zone! |
+| **Rescued Animals (every act)** | `animalZone` / `animalTypes` | Every defeated Badnik frees one animated animal; boss capsules release a crowd. The shared animal atlas, terrain hopping, and reset work in every zone. |
+| **Swinging Platforms** | `objects.swingPlatforms` | Pendulum platforms with pivot/chain sprites, collision, and player carrying; configure `pivotX`, `pivotY`, `len`, `maxAngle`, `speed`, `phase`. |
+| **Bounce Poles & Bumpers** | `objects.bouncePoles` / `objects.spinners` | The original springy poles and silver/dark pinball bumpers launch Scar using the same physics and sound events in every act. |
+| **Breakable Walls & Rocks** | `objects.breakableWalls` / `objects.rocks` | `{x, y}` is the bottom center. Rolling or enough speed smashes the solid object into animated debris. |
+| **Collapsing Floors** | `objects.breakableFloors` | `{x, y, w, h, kind}` is the top-left edge. Cracks on contact, collapses after a short delay, and regenerates after five seconds. |
+| **Trap Doors** | `objects.trapDoors` | `{x, y, w, period, openDuration, phase}` creates a bridge that warns before opening; placement must provide a safe recovery route. |
+| **Sparkling Steps** | `objects.houdiniGroups` | `{triggerX, triggerY, steps: [{x, y}]}` reuses Act 1's animated step blocks and their collision surfaces. |
 | **Explosions & Popups** | *Automatic* | 5-frame explosion poof & pixel score sprites (`+100`..`+10000`, `1UP!`) |
 
 ### E. Core Audio & Cross-Platform Controls
