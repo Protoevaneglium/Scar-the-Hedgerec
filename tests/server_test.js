@@ -4,6 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const http = require('http');
+const { EventEmitter } = require('events');
 const { createStaticServer, startServer } = require('../server');
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'scar-http-'));
 const root = path.join(temp, 'public'), privateDir = path.join(temp, 'public-private');
@@ -38,8 +39,20 @@ function request(port, url, headers = {}, method = 'GET') {
 function started(server, event = 'listening') {
     servers.push(server);
     return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error('Server startup hung')), 5000);
-        server.once(event, () => { clearTimeout(timer); resolve(server); });
+        const cleanup = () => {
+            clearTimeout(timer);
+            server.removeListener(event, ready);
+            server.removeListener('error', failed);
+        };
+        const ready = () => { cleanup(); resolve(server); };
+        const failed = error => {
+            // An occupied port is part of the launcher's normal retry/reuse path.
+            if (error.code === 'EADDRINUSE') return;
+            cleanup(); reject(error);
+        };
+        const timer = setTimeout(() => { cleanup(); reject(new Error(`Server startup hung waiting for ${event}`)); }, 5000);
+        server.once(event, ready);
+        server.on('error', failed);
     });
 }
 function deadline(promise, message) {
@@ -50,6 +63,12 @@ function deadline(promise, message) {
 }
 (async () => {
     console.log('\nHTTP server and launcher');
+    const failedStartup = new EventEmitter();
+    const startupFailure = started(failedStartup);
+    failedStartup.emit('error', Object.assign(new Error('Controlled startup failure'), { code:'EADDRNOTAVAIL' }));
+    await assert.rejects(startupFailure, /Controlled startup failure/);
+    assert.strictEqual(failedStartup.listenerCount('listening'), 0);
+    assert.strictEqual(failedStartup.listenerCount('error'), 0);
     for (const nativeOnly of [true, false]) {
         const port = await listen(createStaticServer({ rootDir: root, nativeOnly }));
         assert.strictEqual((await request(port, '/')).body, 'game');
@@ -125,12 +144,14 @@ function deadline(promise, message) {
     const ephemeral = startServer({port:0, host:'127.0.0.1', open:false, log:()=>{}});
     await started(ephemeral); assert(ephemeral.address().port > 0);
     const explicitUrls = [];
-    const explicit = startServer({ port: 0, host: '127.0.0.2', open: true, openUrl: url => explicitUrls.push(url), log: () => {} });
+    // macOS only configures 127.0.0.1 by default; a second 127/8 alias is not
+    // portable. A literal host still detects an incorrect hardcoded localhost URL.
+    const explicit = startServer({ port: 0, host: '127.0.0.1', open: true, openUrl: url => explicitUrls.push(url), log: () => {} });
     await started(explicit);
-    assert.strictEqual(new URL(explicitUrls[0]).hostname, '127.0.0.2',
+    assert.strictEqual(new URL(explicitUrls[0]).hostname, '127.0.0.1',
         'the browser URL must target the interface on which the game actually listens');
     const explicitReusedUrls = [];
-    const explicitReused = startServer({ port: explicit.address().port, host: '127.0.0.2', open: true,
+    const explicitReused = startServer({ port: explicit.address().port, host: '127.0.0.1', open: true,
         openUrl: url => explicitReusedUrls.push(url), log: () => {} });
     await started(explicitReused, 'reused');
     assert.deepStrictEqual(explicitReusedUrls, explicitUrls,

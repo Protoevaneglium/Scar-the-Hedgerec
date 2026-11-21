@@ -14,8 +14,19 @@ const path = require('path');
 const zlib = require('zlib');
 
 const ROOT = path.resolve(__dirname, '..');
-const OUT_DIR = path.join(ROOT, 'public', 'downloads');
-const OUT_ZIP = path.join(OUT_DIR, 'scar-level-core-template.zip');
+const TEXT_EXTENSIONS = new Set(['.bat', '.cmd', '.ps1', '.sh', '.js', '.css', '.html', '.json', '.md', '.txt', '.svg', '.xml', '.csv', '.yaml', '.yml']);
+const WINDOWS_EXTENSIONS = new Set(['.bat', '.cmd', '.ps1']);
+
+// Git checkout settings must not affect the downloadable archive. Do not decode
+// binary assets: their bytes (including any CR/LF sequences) must stay intact.
+function canonicalEntryData(name, data) {
+    const raw = Buffer.isBuffer(data) ? data : Buffer.from(data, 'utf8');
+    const extension = path.extname(name).toLowerCase();
+    if (!TEXT_EXTENSIONS.has(extension)) return raw;
+    let text = raw.toString('utf8').replace(/\r\n?/g, '\n');
+    if (WINDOWS_EXTENSIONS.has(extension)) text = text.replace(/\n/g, '\r\n');
+    return Buffer.from(text, 'utf8');
+}
 
 // CRC32 lookup table for standard PKZIP format
 const CRC_TABLE = new Uint32Array(256);
@@ -37,7 +48,7 @@ function buildZipBuffer(entries) {
 
     for (const entry of entries) {
         const nameBuf = Buffer.from(entry.name.replace(/\\/g, '/'), 'utf8');
-        const raw = Buffer.isBuffer(entry.data) ? entry.data : Buffer.from(entry.data, 'utf8');
+        const raw = canonicalEntryData(entry.name, entry.data);
         const compressed = zlib.deflateRawSync(raw, { level: 9 });
         const useDeflate = compressed.length < raw.length;
         const payload = useDeflate ? compressed : raw;
@@ -99,8 +110,12 @@ function buildZipBuffer(entries) {
     return Buffer.concat([...localParts, centralBuf, eocd]);
 }
 
+function buildStarter(rootDir = ROOT) {
+const OUT_DIR = path.join(rootDir, 'public', 'downloads');
+const OUT_ZIP = path.join(OUT_DIR, 'scar-level-core-template.zip');
+
 // Transform `public/index.html` into the clean Blank Starter index.html
-let indexHtml = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8');
+let indexHtml = fs.readFileSync(path.join(rootDir, 'public', 'index.html'), 'utf8');
 indexHtml = indexHtml.replace(
     '<title>Scar the Hedgerec</title>',
     '<title>Scar the Hedgerec — Level Core Starter</title>'
@@ -137,46 +152,47 @@ const starterPkg = JSON.stringify({
     license: 'ISC',
 }, null, 2) + '\n';
 
-const toLF = (buf) => Buffer.from(buf.toString('utf8').replace(/\r\n/g, '\n'), 'utf8');
 
 const prefix = 'scar-level-core-template/';
 const entries = [
-    { name: prefix + 'LEVEL_CORE_BLUEPRINT.md', data: fs.readFileSync(path.join(ROOT, 'templates', 'LEVEL_CORE_BLUEPRINT.md')) },
-    { name: prefix + 'README.md',               data: fs.readFileSync(path.join(ROOT, 'templates', 'LEVEL_CORE_BLUEPRINT.md')) },
+    { name: prefix + 'LEVEL_CORE_BLUEPRINT.md', data: fs.readFileSync(path.join(rootDir, 'templates', 'LEVEL_CORE_BLUEPRINT.md')) },
+    { name: prefix + 'README.md',               data: fs.readFileSync(path.join(rootDir, 'templates', 'LEVEL_CORE_BLUEPRINT.md')) },
     { name: prefix + 'package.json',            data: starterPkg },
-    { name: prefix + 'server.js',               data: fs.readFileSync(path.join(ROOT, 'server.js')) },
-    { name: prefix + 'install-windows.bat',     data: fs.readFileSync(path.join(ROOT, 'install-windows.bat')) },
-    { name: prefix + 'install-windows.ps1',     data: fs.readFileSync(path.join(ROOT, 'install-windows.ps1')) },
-    { name: prefix + 'scar.bat',                data: fs.readFileSync(path.join(ROOT, 'scar.bat')) },
-    { name: prefix + 'start-windows.bat',       data: fs.readFileSync(path.join(ROOT, 'start-windows.bat')) },
-    { name: prefix + 'install-linux.sh',        data: toLF(fs.readFileSync(path.join(ROOT, 'install-linux.sh'))), executable: true },
-    { name: prefix + 'scar.sh',                 data: toLF(fs.readFileSync(path.join(ROOT, 'scar.sh'))), executable: true },
-    { name: prefix + 'start-linux-mac.sh',      data: toLF(fs.readFileSync(path.join(ROOT, 'start-linux-mac.sh'))), executable: true },
-    { name: prefix + 'install-termux.sh',       data: toLF(fs.readFileSync(path.join(ROOT, 'install-termux.sh'))), executable: true },
-    { name: prefix + 'start-termux.sh',         data: toLF(fs.readFileSync(path.join(ROOT, 'start-termux.sh'))), executable: true },
+    { name: prefix + 'server.js',               data: fs.readFileSync(path.join(rootDir, 'server.js')) },
+    { name: prefix + 'install-windows.bat',     data: fs.readFileSync(path.join(rootDir, 'install-windows.bat')) },
+    { name: prefix + 'install-windows.ps1',     data: fs.readFileSync(path.join(rootDir, 'install-windows.ps1')) },
+    { name: prefix + 'scar.bat',                data: fs.readFileSync(path.join(rootDir, 'scar.bat')) },
+    { name: prefix + 'start-windows.bat',       data: fs.readFileSync(path.join(rootDir, 'start-windows.bat')) },
+    { name: prefix + 'install-linux.sh',        data: fs.readFileSync(path.join(rootDir, 'install-linux.sh')), executable: true },
+    { name: prefix + 'scar.sh',                 data: fs.readFileSync(path.join(rootDir, 'scar.sh')), executable: true },
+    { name: prefix + 'start-linux-mac.sh',      data: fs.readFileSync(path.join(rootDir, 'start-linux-mac.sh')), executable: true },
+    { name: prefix + 'install-termux.sh',       data: fs.readFileSync(path.join(rootDir, 'install-termux.sh')), executable: true },
+    { name: prefix + 'start-termux.sh',         data: fs.readFileSync(path.join(rootDir, 'start-termux.sh')), executable: true },
     { name: prefix + 'public/index.html',       data: indexHtml },
-    { name: prefix + 'public/sonic-engine.js',  data: fs.readFileSync(path.join(ROOT, 'public', 'sonic-engine.js')) },
-    { name: prefix + 'public/css/game-ui.css',  data: fs.readFileSync(path.join(ROOT, 'public', 'css', 'game-ui.css')) },
-    { name: prefix + 'public/js/modern-hud.js',  data: fs.readFileSync(path.join(ROOT, 'public', 'js', 'modern-hud.js')) },
-    { name: prefix + 'public/levels/level_template.js',    data: fs.readFileSync(path.join(ROOT, 'templates', 'level_template.js')) },
-    { name: prefix + 'public/levels/boss_act_template.js', data: fs.readFileSync(path.join(ROOT, 'templates', 'boss_act_template.js')) },
-    { name: prefix + 'public/assets/scar_sheet.png',       data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'scar_sheet.png')) },
-    { name: prefix + 'public/assets/common_objects.png',   data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'common_objects.png')) },
-    { name: prefix + 'public/assets/animals.png',          data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'animals.png')) },
-    { name: prefix + 'public/assets/animals.txt',          data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'animals.txt')) },
-    { name: prefix + 'public/assets/palmtree_objects.png', data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'palmtree_objects.png')) },
-    { name: prefix + 'public/assets/palmtree_map.png',     data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'palmtree_map.png')) },
-    { name: prefix + 'public/assets/enemies.png',          data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'enemies.png')) },
-    { name: prefix + 'public/assets/jump.wav',             data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'jump.wav')) },
-    { name: prefix + 'public/assets/rings.wav',            data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'rings.wav')) },
-    { name: prefix + 'public/assets/goalpost.wav',         data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'goalpost.wav')) },
+    { name: prefix + 'public/sonic-engine.js',  data: fs.readFileSync(path.join(rootDir, 'public', 'sonic-engine.js')) },
+    { name: prefix + 'public/css/game-ui.css',  data: fs.readFileSync(path.join(rootDir, 'public', 'css', 'game-ui.css')) },
+    { name: prefix + 'public/js/modern-hud.js',  data: fs.readFileSync(path.join(rootDir, 'public', 'js', 'modern-hud.js')) },
+    { name: prefix + 'public/levels/level_template.js',    data: fs.readFileSync(path.join(rootDir, 'templates', 'level_template.js')) },
+    { name: prefix + 'public/levels/boss_act_template.js', data: fs.readFileSync(path.join(rootDir, 'templates', 'boss_act_template.js')) },
+    { name: prefix + 'public/assets/scar_sheet.png',       data: fs.readFileSync(path.join(rootDir, 'public', 'assets', 'scar_sheet.png')) },
+    { name: prefix + 'public/assets/common_objects.png',   data: fs.readFileSync(path.join(rootDir, 'public', 'assets', 'common_objects.png')) },
+    { name: prefix + 'public/assets/animals.png',          data: fs.readFileSync(path.join(rootDir, 'public', 'assets', 'animals.png')) },
+    { name: prefix + 'public/assets/animals.txt',          data: fs.readFileSync(path.join(rootDir, 'public', 'assets', 'animals.txt')) },
+    { name: prefix + 'public/assets/palmtree_objects.png', data: fs.readFileSync(path.join(rootDir, 'public', 'assets', 'palmtree_objects.png')) },
+    { name: prefix + 'public/assets/palmtree_map.png',     data: fs.readFileSync(path.join(rootDir, 'public', 'assets', 'palmtree_map.png')) },
+    { name: prefix + 'public/assets/enemies.png',          data: fs.readFileSync(path.join(rootDir, 'public', 'assets', 'enemies.png')) },
+    { name: prefix + 'public/assets/jump.wav',             data: fs.readFileSync(path.join(rootDir, 'public', 'assets', 'jump.wav')) },
+    { name: prefix + 'public/assets/rings.wav',            data: fs.readFileSync(path.join(rootDir, 'public', 'assets', 'rings.wav')) },
+    { name: prefix + 'public/assets/goalpost.wav',         data: fs.readFileSync(path.join(rootDir, 'public', 'assets', 'goalpost.wav')) },
 ];
 
 function includeAssets(relativeDir) {
-    for (const entry of fs.readdirSync(path.join(ROOT, 'public', relativeDir), { withFileTypes: true })) {
+    const files = fs.readdirSync(path.join(rootDir, 'public', relativeDir), { withFileTypes: true });
+    files.sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
+    for (const entry of files) {
         const relative = relativeDir + '/' + entry.name;
         if (entry.isDirectory()) includeAssets(relative);
-        else entries.push({ name: prefix + 'public/' + relative, data: fs.readFileSync(path.join(ROOT, 'public', relative)) });
+        else entries.push({ name: prefix + 'public/' + relative, data: fs.readFileSync(path.join(rootDir, 'public', relative)) });
     }
 }
 includeAssets('assets/ui');
@@ -186,18 +202,18 @@ fs.mkdirSync(OUT_DIR, { recursive: true });
 const zipBuf = buildZipBuffer(entries);
 fs.writeFileSync(OUT_ZIP, zipBuf);
 
-// Also copy individual template files into `public/downloads/` for single-file download
-fs.copyFileSync(
-    path.join(ROOT, 'templates', 'level_template.js'),
-    path.join(OUT_DIR, 'level_template.js')
-);
-fs.copyFileSync(
-    path.join(ROOT, 'templates', 'boss_act_template.js'),
-    path.join(OUT_DIR, 'boss_act_template.js')
-);
-fs.copyFileSync(
-    path.join(ROOT, 'templates', 'LEVEL_CORE_BLUEPRINT.md'),
-    path.join(OUT_DIR, 'LEVEL_CORE_BLUEPRINT.md')
-);
+// Single-file downloads use the same canonical bytes as their ZIP entries.
+for (const name of ['level_template.js', 'boss_act_template.js', 'LEVEL_CORE_BLUEPRINT.md']) {
+    fs.writeFileSync(path.join(OUT_DIR, name), canonicalEntryData(name,
+        fs.readFileSync(path.join(rootDir, 'templates', name))));
+}
 
-console.log(`Built ${OUT_ZIP} (${(zipBuf.length / 1024).toFixed(1)} KB, ${entries.length} files)`);
+return { zipPath: OUT_ZIP, zipBuffer: zipBuf, entryCount: entries.length };
+}
+
+if (require.main === module) {
+    const result = buildStarter();
+    console.log(`Built ${result.zipPath} (${(result.zipBuffer.length / 1024).toFixed(1)} KB, ${result.entryCount} files)`);
+}
+
+module.exports = { buildStarter };
