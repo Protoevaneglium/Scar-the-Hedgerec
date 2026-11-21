@@ -17,6 +17,8 @@
         <button class="chip on" id="btn-audio" aria-pressed="true">Audio: ON</button>
         <button class="chip" id="btn-cp" title="Keys 1–7">Checkpoint: Cliff & Slide (1)</button>
         <button class="chip" id="btn-reset" title="R">Reset (R)</button>
+        <button class="chip" id="btn-pause" title="P / Esc / Controller Menu" aria-pressed="false">Pause (P)</button>
+        <span id="gamepad-status" class="controller-status" role="status" hidden></span>
     </nav>
     <div id="touch" aria-label="Touch controls">
         <div class="tgroup">
@@ -36,13 +38,22 @@
             <button id="rosie-choice-1" data-conversation-control="choice" data-choice="1"></button>
             <button id="rosie-choice-2" data-conversation-control="choice" data-choice="2"></button>
         </div>
-        <p class="rosie-dialogue-hint">1–3 to reply · C / Esc to leave · You can walk away</p>
+        <p id="rosie-dialogue-hint" class="rosie-dialogue-hint">1–3 to reply · C / Esc to leave · You can walk away</p>
+    </section>
+    <section id="pause-panel" role="dialog" aria-modal="true" aria-labelledby="pause-title" hidden>
+        <div class="pause-card">
+            <span class="rosie-dialogue-eyebrow">TAKE A BREATHER</span><h2 id="pause-title">Paused</h2>
+            <p>Your adventure is waiting.</p>
+            <button id="btn-resume">Resume · A / Enter</button>
+            <p class="pause-controls">Left stick / D-pad · Move<br>A · Jump &nbsp; X · Talk &nbsp; B · Back<br>Down + A · Spin dash &nbsp; Up + A · Peel-out<br>Menu / P / Esc · Pause or resume</p>
+        </div>
     </section>
 </div>
 
 <div id="intro">
     <video id="intro-video" src="assets/intro.mp4" poster="assets/intro_title.png" playsinline preload="auto" autoplay></video>
     <img class="intro-title-fallback" src="assets/intro_title.png" alt="Scar the Hedgerec — Press Enter to start">
+    <p id="intro-controller-hint" hidden></p>
 </div>
 
 <audio id="bgm" src="assets/level1.mp3" loop preload="auto"></audio>
@@ -461,16 +472,33 @@ class InputHandler {
         this.debugToggle = false;
         this.actions = [];
         this.heldSources = new Map();
+        this.pressedSources = { jump: new Set(), up: new Set() };
+        this.consumedResumeKeys = new Set();
+        this.conversation = conversation;
+        this.gamepadConnected = this.gamepadActive = false;
+        this.gamepadIndex = null;
+        this.gamepadId = null;
+        this.gamepadFocused = true;
+        this.resetGamepad();
         const KEY = {
             ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right',
             ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down',
             Space: 'jump', KeyZ: 'jump', KeyX: 'jump', Enter: 'jump',
         };
-        const SWALLOW = new Set([...Object.keys(KEY), 'KeyC', 'Tab']);
+        const SWALLOW = new Set([...Object.keys(KEY), 'KeyC', 'KeyP', 'Escape', 'Tab']);
         window.addEventListener('keydown', (e) => {
             audio.unlock();
             if (SWALLOW.has(e.code)) e.preventDefault();
+            if (this.consumedResumeKeys.has(e.code)) return;
             const talking = !!conversation.isOpen?.() || this.actions.some(action => action.type === 'talk');
+            if (conversation.isPaused?.()) {
+                if (['Enter', 'Space', 'Escape', 'KeyP'].includes(e.code)) {
+                    e.preventDefault();
+                    this.consumedResumeKeys.add(e.code);
+                    if (!e.repeat) this.actions.push({ type: 'resume' });
+                }
+                return;
+            }
             if (e.code === 'KeyC') {
                 if (talking || conversation.canTalk?.()) {
                     if (!e.repeat) this.actions.push({ type: 'talk' });
@@ -490,6 +518,10 @@ class InputHandler {
                     index: Number(e.code.slice(-1)) - 1, revision: conversation.revision?.() });
                 return;
             }
+            if (!talking && (e.code === 'KeyP' || e.code === 'Escape')) {
+                if (!e.repeat) this.actions.push({ type: 'pause' });
+                return;
+            }
             const k = KEY[e.code];
             if (k) this.press(k, true, 'key:' + e.code);
             if (e.repeat) return;
@@ -502,19 +534,30 @@ class InputHandler {
         });
         window.addEventListener('keyup', (e) => {
             if (SWALLOW.has(e.code)) e.preventDefault();
+            this.consumedResumeKeys.delete(e.code);
             if (e.code === 'KeyC') this.press('jump', false, 'key:KeyC');
             const k = KEY[e.code];
             if (k) this.press(k, false, 'key:' + e.code);
         });
         const clearControls = () => {
+            this.resetGamepad();
             this.heldSources.clear();
+            this.consumedResumeKeys.clear();
             this.left = this.right = this.up = this.down = this.jumpHeld = false;
             this.endFrame();
             for (const btn of tbtns) btn.classList.remove('active');
         };
-        window.addEventListener('blur', clearControls);
+        window.addEventListener('blur', () => { this.gamepadFocused = false; clearControls(); });
+        window.addEventListener('focus', () => { this.gamepadFocused = true; this.resetGamepad(); });
+        window.addEventListener('gamepaddisconnected', (e) => {
+            if (e.gamepad && e.gamepad.index === this.gamepadIndex) {
+                this.resetGamepad(); this.gamepadConnected = false;
+                this.gamepadIndex = this.gamepadId = null;
+            }
+        });
         if (document.addEventListener) document.addEventListener('visibilitychange', () => {
             if (document.hidden) clearControls();
+            else this.resetGamepad();
         });
         window.addEventListener('pointerdown', () => audio.unlock());
         const touchBar = document.getElementById('touch');
@@ -560,12 +603,108 @@ class InputHandler {
         const held = this.heldSources.get(k);
         if (down) held.add(source); else held.delete(source);
         const active = held.size > 0;
-        if (k === 'jump') { if (active && !this.jumpHeld) this.jumpPressed = true; this.jumpHeld = active; }
-        else if (k === 'up') { if (active && !this.up) this.upPressed = true; this.up = active; }
+        if (k === 'jump') { if (active && !this.jumpHeld) { this.jumpPressed = true; this.pressedSources.jump.add(source); } this.jumpHeld = active; }
+        else if (k === 'up') { if (active && !this.up) { this.upPressed = true; this.pressedSources.up.add(source); } this.up = active; }
         else this[k] = active;
     }
+    releaseGamepadControls() {
+        for (const key of ['left', 'right', 'up', 'down', 'jump']) this.press(key, false, 'gamepad');
+        for (const key of ['jump', 'up']) {
+            this.pressedSources[key].delete('gamepad');
+            this[key === 'jump' ? 'jumpPressed' : 'upPressed'] = this.pressedSources[key].size > 0;
+        }
+    }
+    resetGamepad() {
+        this.releaseGamepadControls();
+        for (let i = this.actions.length - 1; i >= 0; i--) if (this.actions[i].source === 'gamepad') this.actions.splice(i, 1);
+        this.gamepadActive = this.gamepadArmed = false;
+        this.gamepadAxisX = this.gamepadAxisY = this.gamepadNav = 0;
+        this.gamepadLastX = this.gamepadLastY = 0;
+        this.gamepadButtons = { a: false, b: false, x: false, menu: false };
+        this.gamepadMode = null; this.gamepadNextRepeat = this.gamepadLastPoll = 0;
+    }
+    pollGamepad() {
+        if (!this.gamepadFocused || document.hidden) { this.resetGamepad(); return false; }
+        try {
+            const pads = typeof navigator.getGamepads === 'function' ? navigator.getGamepads() : [];
+            const available = [];
+            for (let i = 0; pads && i < Math.min(16, pads.length); i++) {
+                const pad = pads[i];
+                if (pad && pad.connected !== false && pad.mapping === 'standard'
+                    && Number.isSafeInteger(pad.index) && pad.index >= 0) available.push(pad);
+            }
+            const pad = available.find(item => item.index === this.gamepadIndex && item.id === this.gamepadId) || available[0];
+            this.gamepadConnected = !!pad;
+            if (!pad) {
+                this.resetGamepad(); this.gamepadIndex = this.gamepadId = null;
+                return false;
+            }
+            if (pad.index !== this.gamepadIndex || pad.id !== this.gamepadId) {
+                this.resetGamepad(); this.gamepadIndex = pad.index; this.gamepadId = pad.id;
+            }
+            const button = index => {
+                const value = pad.buttons && pad.buttons[index];
+                return typeof value === 'number' ? Number.isFinite(value) && value >= .5
+                    : !!value && (value.pressed === true || Number.isFinite(value.value) && value.value >= .5);
+            };
+            const axis = index => Number.isFinite(pad.axes && pad.axes[index]) ? Math.max(-1, Math.min(1, pad.axes[index])) : 0;
+            const rawX = axis(0), rawY = axis(1);
+            const buttons = { a: button(0), b: button(1), x: button(2), menu: button(9) };
+            const dpad = { up: button(12), down: button(13), left: button(14), right: button(15) };
+            const neutral = Math.abs(rawX) <= .15 && Math.abs(rawY) <= .15
+                && !Object.values(buttons).some(Boolean) && !Object.values(dpad).some(Boolean);
+            const mode = this.conversation.isPaused?.() ? 'pause'
+                : this.conversation.isOpen?.() || this.actions.some(action => action.type === 'talk') ? 'dialogue' : 'play';
+            if (mode !== this.gamepadMode) { this.resetGamepad(); this.gamepadMode = mode; }
+            if (!this.gamepadArmed) {
+                if (neutral) this.gamepadActive = this.gamepadArmed = true;
+                return this.gamepadActive;
+            }
+            this.gamepadActive = true;
+            const direction = (value, previous) => value >= .25 ? 1 : value <= -.25 ? -1
+                : previous === 1 && value > .15 ? 1 : previous === -1 && value < -.15 ? -1 : 0;
+            const oldX = this.gamepadAxisX, oldY = this.gamepadAxisY;
+            this.gamepadAxisX = direction(rawX, oldX); this.gamepadAxisY = direction(rawY, oldY);
+            const horizontal = dpad.left || dpad.right ? Number(dpad.right) - Number(dpad.left) : this.gamepadAxisX;
+            const vertical = dpad.up || dpad.down ? Number(dpad.down) - Number(dpad.up) : this.gamepadAxisY;
+            const fresh = key => buttons[key] && !this.gamepadButtons[key];
+            if (Object.keys(buttons).some(fresh) || horizontal !== this.gamepadLastX && horizontal
+                || vertical !== this.gamepadLastY && vertical) { try { audio.unlock(); } catch (_) {} }
+            const freshA = fresh('a'), freshB = fresh('b'), freshX = fresh('x'), freshMenu = fresh('menu');
+            this.gamepadButtons = buttons; this.gamepadLastX = horizontal; this.gamepadLastY = vertical;
+            const queue = action => this.actions.push({ ...action, source: 'gamepad' });
+            const release = () => this.releaseGamepadControls();
+            if (freshMenu) { release(); queue({ type: 'pause' }); return true; }
+            if (mode === 'pause') {
+                release();
+                if (freshA || freshB) queue({ type: 'resume' });
+                return true;
+            }
+            if (mode === 'dialogue') {
+                release();
+                if (freshB || freshX) { queue({ type: 'dialogueClose' }); return true; }
+                if (freshA) { queue({ type: 'dialogueConfirm', revision: this.conversation.revision?.() }); return true; }
+                const rawNow = typeof performance !== 'undefined' ? performance.now() : 0;
+                const now = Number.isFinite(rawNow) ? Math.max(0, rawNow) : this.gamepadLastPoll;
+                if (now < this.gamepadLastPoll) this.gamepadNextRepeat = now + 250;
+                if (vertical && (vertical !== this.gamepadNav || now >= this.gamepadNextRepeat)) {
+                    queue({ type: 'dialogueMove', delta: vertical, revision: this.conversation.revision?.() }); this.gamepadNextRepeat = now + 250;
+                }
+                this.gamepadNav = vertical; this.gamepadLastPoll = now;
+                return true;
+            }
+            if (freshX && this.conversation.canTalk?.()) { release(); queue({ type: 'talk' }); return true; }
+            this.press('left', horizontal < 0, 'gamepad'); this.press('right', horizontal > 0, 'gamepad');
+            this.press('up', vertical < 0, 'gamepad'); this.press('down', vertical > 0, 'gamepad');
+            this.press('jump', buttons.a, 'gamepad');
+            return true;
+        } catch (_) {
+            this.resetGamepad(); this.gamepadConnected = false; this.gamepadIndex = this.gamepadId = null;
+            return false;
+        }
+    }
     snapshot() { return { left: this.left, right: this.right, up: this.up, upPressed: this.upPressed, down: this.down, jumpHeld: this.jumpHeld, jumpPressed: this.jumpPressed }; }
-    endFrame() { this.jumpPressed = false; this.upPressed = false; this.debugToggle = false; this.actions.length = 0; }
+    endFrame() { this.jumpPressed = false; this.upPressed = false; this.pressedSources.jump.clear(); this.pressedSources.up.clear(); this.debugToggle = false; this.actions.length = 0; }
 }
 
 /* ==========================================================================
@@ -797,8 +936,11 @@ class Game {
         this.mapImg.src = 'assets/palmtree_map.png';
 
         this.ui = new window.ScarUI(this);
+        this.paused = false;
+        this.dialogueSelection = 0;
         this.input = new InputHandler({ canTalk: () => this.canTalkToRosie(),
             isOpen: () => !!this.rosieConversationView()?.open,
+            isPaused: () => this.paused,
             revision: () => this.rosieConversationView()?.revision });
         this.showDebug = false;
         this.stageName = 'palmtree';
@@ -896,6 +1038,8 @@ class Game {
     loadStage(stageName, opts = {}) {
         const prevPlayer = this.player;
         const carryover = !!(opts && opts.carryover && prevPlayer);
+        this.setPaused(false);
+        this.input?.resetGamepad?.();
 
         this.stageName = stageName;
         this.unlockStageProgress(stageName);
@@ -1015,6 +1159,8 @@ class Game {
     }
 
     resetCurrentStage(fullRestart = false) {
+        this.setPaused(false);
+        this.input?.resetGamepad?.();
         if (fullRestart || (this.player && this.player.gameOver)) {
             this.loadStage(this.stageName);
             return;
@@ -1103,9 +1249,11 @@ class Game {
         blurAfter(stg, () => this.toggleStage());
         blurAfter(era, () => this.cycleEra());
         blurAfter(hud, () => this.toggleDebug());
-        blurAfter(aud, () => { audio.enabled = !audio.enabled; aud.textContent = `Audio: ${audio.enabled ? 'ON' : 'OFF'}`; aud.classList.toggle('on', audio.enabled); aud.setAttribute('aria-pressed', String(audio.enabled)); });
+        blurAfter(aud, () => { audio.enabled = !audio.enabled; if (this.paused) audio.pauseBGM(); aud.textContent = `Audio: ${audio.enabled ? 'ON' : 'OFF'}`; aud.classList.toggle('on', audio.enabled); aud.setAttribute('aria-pressed', String(audio.enabled)); });
         blurAfter(cp, () => this.gotoCheckpoint((this.cpIndex + 1) % this.terrain.checkpoints.length));
         blurAfter(rst, () => this.resetCurrentStage());
+        document.getElementById('btn-pause')?.addEventListener('click', () => this.setPaused(!this.paused));
+        document.getElementById('btn-resume')?.addEventListener('click', () => this.setPaused(false));
         document.getElementById('btn-talk')?.addEventListener('click', () => {
             audio.unlock(); this.input.actions.push({ type: 'talk' });
         });
@@ -1119,6 +1267,55 @@ class Game {
                     revision: Number(button.dataset.revision) });
             });
         }
+        this.syncRosieConversationUI();
+        this.syncControllerUI();
+    }
+
+    setPaused(value) {
+        const next = !!value;
+        if (this.paused === next) return;
+        this.paused = next;
+        const now = performance.now();
+        if (Number.isFinite(now)) this.last = now;
+        if (next) { audio.pauseBGM(); audio.stopScarVoice(); }
+        else audio.playBGM();
+        this.syncControllerUI();
+        if (next) document.getElementById('btn-resume')?.focus?.({ preventScroll: true });
+        else this.canvas?.focus?.({ preventScroll: true });
+    }
+
+    syncControllerUI() {
+        const connected = !!this.input?.gamepadConnected;
+        const status = document.getElementById('gamepad-status');
+        if (status) {
+            status.hidden = !connected;
+            const label = this.input?.gamepadActive ? 'Controller ready' : 'Release controller controls';
+            if (status.textContent !== label) status.textContent = label;
+        }
+        const pause = document.getElementById('pause-panel');
+        if (pause) pause.hidden = !this.paused;
+        const button = document.getElementById('btn-pause');
+        if (button) {
+            const label = this.paused ? 'Resume (P)' : 'Pause (P)';
+            if (button.textContent !== label) { button.textContent = label; button.setAttribute('aria-pressed', String(!!this.paused)); }
+        }
+        const talk = document.getElementById('btn-talk');
+        if (talk) {
+            const label = connected ? 'Talk to Rosie · X' : 'Talk to Rosie · C';
+            if (talk.textContent !== label) talk.textContent = label;
+        }
+        const hint = document.getElementById('rosie-dialogue-hint');
+        if (hint) {
+            const label = connected ? '↑ / ↓ Choose · A Reply · B / X Leave' : '1–3 to reply · C / Esc to leave · You can walk away';
+            if (hint.textContent !== label) hint.textContent = label;
+        }
+    }
+
+    moveRosieSelection(delta, revision) {
+        const view = this.rosieConversationView();
+        if (this.paused || !view?.open || !view.choices.length || !Number.isFinite(delta)
+            || (revision !== undefined && revision !== view.revision)) return;
+        this.dialogueSelection = (this.dialogueSelection + Math.sign(delta) + view.choices.length) % view.choices.length;
         this.syncRosieConversationUI();
     }
 
@@ -1136,6 +1333,7 @@ class Game {
     }
 
     handleRosieConversation(type, index, revision) {
+        if (this.paused) return;
         const n = this.terrain?.z2a2?.reunion, dialogue = window.RosieDialogue;
         if (!n?.conversation || !dialogue) return;
         const view = dialogue.view(n.conversation);
@@ -1145,9 +1343,11 @@ class Game {
             dialogue.start(n.conversation, { rings: this.player.rings,
                 lavaActive: this.terrain.z2a2.lavaActive, huggedRecently: !!n.hugged });
             n.hugged = false;
+            this.dialogueSelection = 0;
             n.messageTimer = 0; n.actionTimer = 24;
             window.RosieNPC?.cancelHug(n); audio.rosieTalk();
         } else if (type === 'dialogueChoice' && view.open && dialogue.choose(n.conversation, index, revision)) {
+            this.dialogueSelection = 0;
             n.actionTimer = 24; audio.rosieTalk();
         }
         this.syncRosieConversationUI();
@@ -1167,11 +1367,13 @@ class Game {
         const open = !!view?.open;
         const panel = document.getElementById('rosie-dialogue');
         const talk = document.getElementById('btn-talk');
-        if (talk) talk.hidden = open || !this.canTalkToRosie();
+        if (talk) talk.hidden = this.paused || open || !this.canTalkToRosie();
         if (!panel) return;
-        const justOpened = panel.hidden && open;
-        panel.hidden = !open;
-        const key = open ? `${view.session}:${view.revision}:${view.text}` : 'closed';
+        const choiceKey = open ? `${view.session}:${view.revision}` : 'closed';
+        if (this.dialogueChoiceKey !== choiceKey) { this.dialogueChoiceKey = choiceKey; this.dialogueSelection = 0; }
+        const justOpened = panel.hidden && open && !this.paused;
+        panel.hidden = !open || this.paused;
+        const key = open ? `${choiceKey}:${view.text}:${this.dialogueSelection}:${!!this.paused}` : 'closed';
         if (this.dialogueUIRevision === key) return;
         this.dialogueUIRevision = key;
         if (!open) return;
@@ -1181,9 +1383,11 @@ class Game {
             if (!button) continue;
             button.hidden = !view.choices[index];
             button.dataset.revision = String(view.revision);
+            button.classList.toggle('selected', index === this.dialogueSelection);
+            button.setAttribute('aria-current', String(index === this.dialogueSelection));
             button.textContent = view.choices[index] ? `${index + 1}  ${view.choices[index].label}` : '';
         }
-        if (justOpened) document.getElementById('rosie-choice-0')?.focus?.({ preventScroll: true });
+        if (!this.paused && (justOpened || this.input?.gamepadConnected)) document.getElementById('rosie-choice-' + this.dialogueSelection)?.focus?.({ preventScroll: true });
     }
 
     getStageOrder() {
@@ -1229,6 +1433,8 @@ class Game {
         b.setAttribute('aria-pressed', String(this.showDebug));
     }
     gotoCheckpoint(i) {
+        this.setPaused(false);
+        this.input?.resetGamepad?.();
         if (this.player.gameOver) this.loadStage(this.stageName, { skipTitleCard: true, skipFade: true });
         const count = this.terrain.checkpoints.length;
         const index = Number(i);
@@ -1371,20 +1577,30 @@ class Game {
         // Background RAF callbacks may continue at a throttled rate. Pausing
         // simulation here also protects deaths, results, and NPC conversations.
         if (document.hidden) { this.dt60 = 0; return; }
+        const beganPaused = !!this.paused;
+        this.input.pollGamepad?.();
 
         if (this.input.debugToggle) { this.toggleDebug(); this.input.debugToggle = false; }
         const actions = this.input.actions.splice(0);
         let choseDialogue = false;
         for (const a of actions) {
+            if (a.type === 'pause') this.setPaused(!this.paused);
+            if (a.type === 'resume') this.setPaused(false);
             if (a.type === 'reset') this.resetCurrentStage();
             if (a.type === 'stage') this.toggleStage();
             if (a.type === 'era') this.cycleEra();
             if (a.type === 'checkpoint') this.gotoCheckpoint(a.index);
             if (a.type === 'talk' || a.type === 'dialogueClose') this.handleRosieConversation(a.type);
+            if (a.type === 'dialogueMove') this.moveRosieSelection(a.delta, a.revision);
+            if (a.type === 'dialogueConfirm' && !choseDialogue) {
+                this.handleRosieConversation('dialogueChoice', this.dialogueSelection, a.revision); choseDialogue = true;
+            }
             if (a.type === 'dialogueChoice' && !choseDialogue) {
                 this.handleRosieConversation(a.type, a.index, a.revision); choseDialogue = true;
             }
         }
+        this.syncControllerUI();
+        if (this.paused || beganPaused) { this.dt60 = 0; this.input.endFrame(); this.render(); return; }
 
         // Invalid/duplicate timestamps must not poison clocks or consume a tap
         // before physics has had any time in which to apply it.
@@ -1571,6 +1787,7 @@ class Game {
         }
     }
     renderScene() {
+        this.syncControllerUI();
         this.syncRosieConversationUI();
         const ctx = this.ctx;
         this.drawBackground(ctx);
@@ -3439,10 +3656,22 @@ function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
 function runIntro(onDone) {
     const wrap = document.getElementById('intro');
     const vid = document.getElementById('intro-video');
+    const controllerHint = document.getElementById('intro-controller-hint');
     const skip = new URLSearchParams(window.location.search).has('nointro');
     let finished = false;
     let waitingForStart = false;
     let startupTimer = null;
+    let controllerFrame = null;
+    let controllerFocused = true;
+    const controllerStates = new Map();
+    try { if (typeof document.hasFocus === 'function') controllerFocused = document.hasFocus(); } catch (_) {}
+
+    const stopControllerPolling = () => {
+        if (controllerFrame !== null && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(controllerFrame);
+        controllerFrame = null;
+        controllerStates.clear();
+        if (controllerHint) controllerHint.hidden = true;
+    };
 
     const holdTitle = (fallback = false) => {
         if (finished) return;
@@ -3455,14 +3684,24 @@ function runIntro(onDone) {
     const finish = () => {
         if (finished) return;
         finished = true;
-        if (startupTimer !== null) clearTimeout(startupTimer);
+        if (startupTimer !== null) { clearTimeout(startupTimer); startupTimer = null; }
+        stopControllerPolling();
         window.removeEventListener('keydown', onKey, true);
         window.removeEventListener('pointerdown', onPointer, true);
+        window.removeEventListener('blur', onControllerBlur);
+        window.removeEventListener('focus', onControllerFocus);
+        window.removeEventListener('gamepaddisconnected', onControllerDisconnect);
+        document.removeEventListener?.('visibilitychange', onControllerVisibility);
+        if (vid) {
+            vid.removeEventListener('ended', onEnded);
+            vid.removeEventListener('error', onError);
+            vid.removeEventListener('timeupdate', onTimeUpdate);
+        }
         window.INTRO_ACTIVE = false;
         if (vid) { try { vid.pause(); } catch (e) {} }
         onDone();
-        audio.unlock();
-        audio.playBGM();
+        try { audio.unlock(); } catch (_) {}
+        try { audio.playBGM(); } catch (_) {}
         if (wrap) {
             wrap.classList.add('fade');
             setTimeout(() => { wrap.remove(); }, 500);
@@ -3516,23 +3755,81 @@ function runIntro(onDone) {
         finish();
     };
 
+    const scheduleControllerPolling = () => {
+        if (finished || document.hidden || !controllerFocused || controllerFrame !== null
+            || typeof requestAnimationFrame !== 'function') return;
+        controllerFrame = requestAnimationFrame(pollController);
+    };
+    const pollController = () => {
+        controllerFrame = null;
+        if (finished || document.hidden || !controllerFocused) { controllerStates.clear(); return; }
+        let startPressed = false;
+        let controllerSeen = false, controllerReady = false;
+        try {
+            const pads = typeof navigator !== 'undefined' && typeof navigator.getGamepads === 'function'
+                ? navigator.getGamepads() : [];
+            const connected = new Set();
+            for (let index = 0; pads && index < Math.min(16, pads.length); index++) {
+                const pad = pads[index];
+                if (!pad || pad.connected !== true || pad.mapping !== 'standard') continue;
+                controllerSeen = true;
+                connected.add(index);
+                let state = controllerStates.get(index);
+                if (!state || state.id !== pad.id) {
+                    state = { id: pad.id, armed: false }; controllerStates.set(index, state);
+                }
+                const down = buttonIndex => {
+                    const button = pad.buttons?.[buttonIndex];
+                    return !!button && (button.pressed === true || (Number.isFinite(button.value) && button.value > .5));
+                };
+                const pressed = down(0) || down(9); // Xbox A or Menu / Start.
+                if (!pressed) state.armed = true;
+                else if (state.armed) { startPressed = true; break; }
+                controllerReady = controllerReady || state.armed;
+            }
+            for (const index of controllerStates.keys()) if (!connected.has(index)) controllerStates.delete(index);
+        } catch (_) {
+            // A browser may deny this API until a gesture or in an embedded page.
+            controllerStates.clear();
+            controllerSeen = false;
+        }
+        if (controllerHint) {
+            controllerHint.hidden = !controllerSeen;
+            const label = controllerReady ? 'A / Menu · Start' : 'Release A / Menu, then press to start';
+            if (controllerHint.textContent !== label) controllerHint.textContent = label;
+        }
+        if (startPressed) { finish(); return; }
+        scheduleControllerPolling();
+    };
+    const onControllerBlur = () => { controllerFocused = false; stopControllerPolling(); };
+    const onControllerFocus = () => { controllerFocused = true; stopControllerPolling(); scheduleControllerPolling(); };
+    const onControllerDisconnect = () => controllerStates.clear();
+    const onControllerVisibility = () => { stopControllerPolling(); scheduleControllerPolling(); };
+    const onEnded = () => holdTitle();
+    const onError = () => holdTitle(true);
+    const onTimeUpdate = () => {
+        if (vid.currentTime > 0 && startupTimer !== null) {
+            clearTimeout(startupTimer); startupTimer = null;
+        }
+        if (vid.currentTime >= 28.0) holdTitle();
+    };
+
     if (skip || !wrap || !vid) { finish(); return; }
 
     window.addEventListener('keydown', onKey, true);
     window.addEventListener('pointerdown', onPointer, true);
-    vid.addEventListener('ended', () => holdTitle(), { once: true });
-    vid.addEventListener('error', () => holdTitle(true), { once: true });
-    vid.addEventListener('timeupdate', () => {
-        if (vid.currentTime > 0 && startupTimer !== null) {
-            clearTimeout(startupTimer);
-            startupTimer = null;
-        }
-        if (vid.currentTime >= 28.0) holdTitle();
-    });
+    window.addEventListener('blur', onControllerBlur);
+    window.addEventListener('focus', onControllerFocus);
+    window.addEventListener('gamepaddisconnected', onControllerDisconnect);
+    document.addEventListener?.('visibilitychange', onControllerVisibility);
+    vid.addEventListener('ended', onEnded, { once: true });
+    vid.addEventListener('error', onError, { once: true });
+    vid.addEventListener('timeupdate', onTimeUpdate);
 
     // If media cannot start, show the same title art and keep its Start gate.
     startupTimer = setTimeout(() => { if (vid.currentTime === 0) holdTitle(true); }, 8000);
     playWithAudio();
+    scheduleControllerPolling();
 }
 
 window.addEventListener('DOMContentLoaded', () => {

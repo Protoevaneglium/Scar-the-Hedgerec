@@ -156,9 +156,10 @@
 
         drawHints(ctx) {
             const g = this.game;
-            if (g.actClear || g.player.gameOver || (root.matchMedia && root.matchMedia('(pointer: coarse)').matches)) return;
-            const items = [['← →', 'MOVE'], ['SPACE', 'JUMP'], ['↓ + JUMP', 'SPIN DASH'],
-                [g.terrain.levelDef && g.terrain.levelDef.wallJump ? 'WALL + JUMP' : '↑ + JUMP',
+            if (g.paused || g.actClear || g.player.gameOver || (root.matchMedia && root.matchMedia('(pointer: coarse)').matches)) return;
+            const pad = !!g.input?.gamepadConnected;
+            const items = [[pad ? 'LS / D-PAD' : '← →', 'MOVE'], [pad ? 'A' : 'SPACE', 'JUMP'], [pad ? '↓ + A' : '↓ + JUMP', 'SPIN DASH'],
+                [g.terrain.levelDef && g.terrain.levelDef.wallJump ? (pad ? 'WALL + A' : 'WALL + JUMP') : (pad ? '↑ + A' : '↑ + JUMP'),
                     g.terrain.levelDef && g.terrain.levelDef.wallJump ? 'WALL KICK' : 'PEEL-OUT']];
             ctx.save();
             this.plate(ctx, 204, g.H - 27, 552, 23, 'rgba(4,18,41,.82)', 6);

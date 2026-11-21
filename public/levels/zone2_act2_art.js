@@ -377,7 +377,7 @@
                 if (end.canTalk && !end.conversation?.active && (!g.canTalkToRosie || g.canTalkToRosie())) {
                     c.save(); c.font = 'bold 9px monospace'; c.textAlign = 'center';
                     c.fillStyle = '#392b4c'; c.fillRect(actorX - 37, actorY + 9, 74, 17);
-                    c.fillStyle = '#fff0cf'; c.fillText('C · TALK', actorX, actorY + 21); c.restore();
+                    c.fillStyle = '#fff0cf'; c.fillText(g.input?.gamepadConnected ? 'X · TALK' : 'C · TALK', actorX, actorY + 21); c.restore();
                 }
             }
         },

@@ -198,6 +198,22 @@ Design research: [SEGA's Superstars manual](https://manual.sega.jp/sonicsupersta
 | **M** (or Top-Bar **Stage** button) | Switch Stage (*Zone 1 Act 1*, *Act 2*, *Act 3 Boss*, *Zone 2 Act 1*, *Physics Test*) |
 | **Tab** or **G** | Toggle Debug HUD & Sensor Raycast Overlay |
 | **R** | Reset Stage & Objects (or Restart on Game Over) |
+| **P / Esc** (or Top-Bar **Pause**) | Pause / resume; Esc closes Rosie dialogue first. |
+
+Xbox controllers work through the browser's [standard Gamepad API mapping](https://w3c.github.io/gamepad/#remapping). Connect by USB or Bluetooth, focus the game and press a controller button to let the browser detect it. Release the controls once, then use A or Menu to start. The game shows “Controller ready” when armed. Reconnecting or returning to the game requires a neutral stick and released buttons before a new action.
+
+| Xbox input | Action |
+| :--- | :--- |
+| **Left stick / D-pad** | Move, look up, crouch / roll |
+| **A** | Jump; hold for drop dash; continue results / game over |
+| **Down + A** | Charge spin dash; release Down to launch |
+| **Up + A** | Charge peel-out; release Up to launch |
+| **X** near Rosie | Open / leave a conversation |
+| **Up / Down**, then **A** in conversation | Select / confirm a reply |
+| **B** in conversation | Leave the conversation |
+| **Menu** | Pause / resume; A or B also resumes from pause |
+
+Keyboard, touch and controller inputs can be mixed. Controller disconnects release controller input without releasing a held keyboard or touch control. Pause freezes gameplay, deaths, results and Rosie animations; releasing the resume button prevents it from becoming a jump. The downloadable starter includes the same controller support.
 
 In Molten Sanctuary, Rosie can approach and briefly hug Scar when he stands nearby facing away. Hearts rise from her head, and moving, turning or jumping ends the hug. Her local conversation library contains 35 branching exchanges about the ruins, routes, rings and future adventures. She remembers choices during the act, including whether Scar welcomes hugs, prefers to be asked, or wants space. Death closes the conversation while preserving those preferences; restarting the act begins fresh.
 

@@ -197,6 +197,8 @@ canvas {
 #intro .intro-title-fallback { display: none; width: 100%; height: 100%; object-fit: contain; }
 #intro.title-fallback video { display: none; }
 #intro.title-fallback .intro-title-fallback { display: block; }
+#intro-controller-hint { position: absolute; bottom: max(24px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px); padding: 10px 18px; border: 1px solid #95d7ff; border-radius: 8px; background: #071c36ed; color: #fff0ae; font: bold 14px/1.4 Arial, sans-serif; text-align: center; }
+#intro-controller-hint[hidden] { display: none; }
 
 .rosie-talk {
     position: absolute; right: 24px; bottom: 104px; z-index: 12;
@@ -220,6 +222,15 @@ canvas {
 .rosie-dialogue-choices { display: grid; gap: 7px; }
 .rosie-dialogue-choices button { min-height: 37px; padding: 9px 11px; border: 1px solid #b582a6; border-radius: 7px; background: #ffffff0b; color: #fff0db; font: 13px/1.35 Arial, sans-serif; text-align: left; cursor: pointer; }
 .rosie-dialogue-choices button:hover, .rosie-dialogue-choices button:focus-visible { background: #a653794d; border-color: #ffd4e5; outline: 2px solid #ffd4e5; outline-offset: 1px; }
+.rosie-dialogue-choices button.selected { background: #a653794d; border-color: #ffd4e5; }
+.controller-status { flex: none; color: #b8eed0; font-size: 10px; white-space: nowrap; }
+.controller-status[hidden], #pause-panel[hidden] { display: none; }
+#pause-panel { position: absolute; inset: 0; z-index: 25; display: grid; place-items: center; background: #05101be6; padding: 18px; }
+.pause-card { width: min(390px, 100%); max-height: 100%; overflow: auto; padding: 25px; border: 2px solid #91d6ff; border-radius: 16px; background: #0c2644; text-align: center; box-shadow: 0 12px 45px #0009; }
+.pause-card h2 { margin: 8px 0; color: #fff0a9; font-size: 32px; }
+.pause-card p { color: #c4d9ef; font-size: 13px; line-height: 1.8; }
+#btn-resume { margin: 20px 0; padding: 12px 25px; border: 2px solid #fff0a9; border-radius: 8px; background: #ffe15a; color: #10345b; font: bold 15px Arial, sans-serif; cursor: pointer; }
+.pause-card .pause-controls { font-size: 11px; }
 .rosie-dialogue-hint { margin-top: 11px; color: #d8bcd4; font-size: 10px; line-height: 1.5; }
 @media (pointer: coarse) { #rosie-dialogue { bottom: 94px; max-height: calc(100% - 106px); } }
 @media (max-width: 560px) {
