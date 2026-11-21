@@ -167,7 +167,9 @@ test('Space, Z and X retain real jump controls during conversation and a distant
         const f = fixture();
         try {
             open(f); const y = f.p.y;
-            tap(f.h, code); frames(f.h, 3);
+            const focusedReply = f.h.elements.get('rosie-choice-0');
+            Object.assign(focusedReply.dataset, { conversationControl: 'choice', choice: '0' });
+            tap(f.h, code, { target: focusedReply }); frames(f.h, 3);
             assert(!f.p.grounded && f.p.y < y && f.p.ysp < 0, `${code} must launch Scar through real physics`);
             closed(f);
         } finally { f.h.dispose(); }

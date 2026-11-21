@@ -413,8 +413,7 @@ class InputHandler {
                 } else if (!e.repeat) this.press('jump', true, 'key:KeyC');
                 return;
             }
-            if (talking && (e.code === 'Escape' || e.code === 'Enter'
-                || (e.code === 'Space' && e.target?.dataset?.conversationControl))) {
+            if (talking && (e.code === 'Escape' || e.code === 'Enter')) {
                 e.preventDefault();
                 if (!e.repeat) this.actions.push(e.code === 'Escape' || e.target?.dataset?.conversationControl === 'close'
                     ? { type: 'dialogueClose' }
