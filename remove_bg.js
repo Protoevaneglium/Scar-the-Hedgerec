@@ -11,7 +11,10 @@ async function removeBackground(assetsDir = path.join(__dirname, 'public', 'asse
         const outPath = path.join(assetsDir, file.replace(/\.jpe?g$/i, '.png'));
         
         try {
-            const { data, info } = await sharp(filePath).toColourspace('srgb').ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+            // Close the source file before decoding. Native filename inputs may
+            // retain cached handles and prevent the later unlink on Windows.
+            const encoded = fs.readFileSync(filePath);
+            const { data, info } = await sharp(encoded).toColourspace('srgb').ensureAlpha().raw().toBuffer({ resolveWithObject: true });
             const target = [data[0], data[1], data[2]], threshold = 30;
             for (let idx = 0; idx < data.length; idx += 4) {
                 if (Math.abs(data[idx] - target[0]) < threshold && Math.abs(data[idx + 1] - target[1]) < threshold

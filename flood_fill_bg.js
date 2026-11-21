@@ -1,8 +1,12 @@
 'use strict';
+const fs = require('fs');
 async function removeBackground(filePath, outPath) {
     if (!filePath || !outPath) throw new Error('Usage: node flood_fill_bg.js input-image output.png');
     const sharp = require('sharp');
-    const { data, info: { width, height } } = await sharp(filePath).toColourspace('srgb').ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    // A buffer input lets callers overwrite their source without a native
+    // filename decoder keeping that file open on Windows.
+    const encoded = fs.readFileSync(filePath);
+    const { data, info: { width, height } } = await sharp(encoded).toColourspace('srgb').ensureAlpha().raw().toBuffer({ resolveWithObject: true });
     const target = [data[0], data[1], data[2]];
     const visited = new Uint8Array(width * height), stack = [];
     const enqueue = index => { if (!visited[index]) { visited[index] = 1; stack.push(index); } };
