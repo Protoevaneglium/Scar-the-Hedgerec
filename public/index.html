@@ -839,6 +839,10 @@ class Game {
         else if (this.terrain.stage === 'palmtree') this.terrain.setupPalmtreeObjects();
         this.player.rings = 0;
         this.player.nextLifeRings = 100;
+        this.player.shield = false;
+        this.player.invincTimer = 0;
+        this.player.shoesTimer = 0;
+        this.player.invulnTimer = 0;
         this.stageTime = 0;
         this.actClear = null;
         this.gotoCheckpoint(0);
@@ -964,8 +968,17 @@ class Game {
     gotoCheckpoint(i) {
         const count = this.terrain.checkpoints.length;
         this.cpIndex = ((Math.trunc(Number(i)) || 0) % count + count) % count;
-        // Warping out of a battle must release the arena lock and its projectiles.
-        if (this.terrain.boss) this.terrain.resetObjects();
+        // Cancel completion as well as arena locks: otherwise a checkpoint warp
+        // leaves controls disabled by the old signpost, rescue or results tally.
+        const T = this.terrain;
+        if (T.boss || this.actClear || (T.goalPost && (T.goalPost.spinning || T.goalPost.cleared))
+            || (T.capsule && (T.capsule.opened || T.capsule.cleared))) T.resetObjects();
+        this.actClear = null;
+        this.titleCard = null;
+        this.fadeAlpha = 0;
+        T.timeWarpTarget = null;
+        T.timeWarpCharge = 0;
+        T.timeWarpFlash = 0;
         const c = this.terrain.checkpoints[this.cpIndex];
         this.terrain.activeCheckpoint = c;
         this.player.place(c.x, 0, c.y);
@@ -1081,6 +1094,9 @@ class Game {
 
     /* ---------------- main loop ---------------- */
     frame(now) {
+        // Keep the loop alive if an individual render or browser audio call
+        // throws, so the following frame (and the Reset action) can recover.
+        requestAnimationFrame((t) => this.frame(t));
         const dt = Math.min((now - this.last) / 1000, 0.05);
         this.last = now;
         this.dt60 = dt * 60;
@@ -1131,7 +1147,6 @@ class Game {
                 this.input.endFrame();
                 this.loadStage(this.stageName);
                 this.render();
-                requestAnimationFrame((t) => this.frame(t));
                 return;
             }
         }
@@ -1141,7 +1156,6 @@ class Game {
             if (switched) {
                 this.input.endFrame();
                 this.render();
-                requestAnimationFrame((t) => this.frame(t));
                 return;
             }
         }
@@ -1188,7 +1202,6 @@ class Game {
         this.updateParticles(this.dt60);
         this.updateCamera(dt);
         this.render();
-        requestAnimationFrame((t) => this.frame(t));
     }
 
     /* ---------------- particles ---------------- */

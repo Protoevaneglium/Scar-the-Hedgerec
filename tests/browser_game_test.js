@@ -298,6 +298,77 @@ try {
 } finally { Object.assign(sandbox.localStorage,oldStorage); }
 console.log('  ✓ checkpoint warps, respawn HUD, arena exits, time-warp resets and corrupt saved progress recover correctly');
 
+for (const stage of ['palmtree', 'z1_act2', 'z2_act1']) {
+    for (const phase of ['spinning', 'tally', 'fadeOut']) {
+        game.loadStage(stage, { skipTitleCard: true, skipFade: true });
+        const goal = game.terrain.goalPost;
+        if (phase === 'spinning') {
+            goal.spinning = true; goal.spinTimer = 100;
+        } else {
+            goal.cleared = true;
+            game.updateActClear(1, false);
+            game.actClear.phase = phase;
+            game.fadeAlpha = .9;
+        }
+        game.gotoCheckpoint(0);
+        assert(!game.actClear && !game.terrain.goalPost.spinning && !game.terrain.goalPost.cleared,
+            `${stage}: checkpoint during ${phase} must cancel completion and release movement`);
+        assert.strictEqual(game.fadeAlpha, 0, 'a checkpoint must not retain the results fade');
+        const x = game.player.x;
+        game.input.press('right', true);
+        for (let i = 0; i < 20; i++) game.frame(game.last + 1000 / 60);
+        game.input.press('right', false);
+        assert(game.player.x > x + 1 && game.stageTime > 0,
+            `${stage}: controls and stage clock must work after leaving ${phase}`);
+    }
+}
+game.loadStage('z1_act3', { skipTitleCard: true, skipFade: true });
+game.terrain.boss.defeated = true;
+game.terrain.capsule.opened = true;
+game.gotoCheckpoint(0);
+assert(!game.terrain.capsule.opened && !game.actClear && !game.terrain.boss.active,
+    'leaving a rescue must cancel the sequence and restore a playable boss act');
+console.log('  ✓ checkpoint warps during sign animations, tallies, fades and rescues restore gameplay');
+
+for (const stage of game.getCampaignStages()) {
+    game.loadStage(stage, { skipTitleCard: true, skipFade: true });
+    const p = game.player;
+    p.shield = true; p.invincTimer = 900; p.shoesTimer = 900; p.invulnTimer = 120;
+    p.score = 1234; p.lives = 5;
+    p.die();
+    // Exercise a restart with temporary item state and a pending death camera cutoff.
+    p.shield = true; p.invincTimer = 900; p.shoesTimer = 900; p.invulnTimer = 120;
+    game.resetCurrentStage();
+    assert(!p.shield && !p.invincTimer && !p.shoesTimer && !p.invulnTimer,
+        `${stage}: resetting must clear shields, power-ups and damage flicker`);
+    assert(!p.deathOffscreenY && p.state !== sandbox.SonicEngine.STATE.DYING,
+        `${stage}: resetting during death must cancel the old death sequence`);
+    assert(p.score === 1234 && p.lives === 5 && !p.rings,
+        'a stage reset must preserve score and lives while resetting rings');
+}
+console.log('  ✓ resets during death clear temporary item and camera state while preserving rewards');
+
+// A one-off renderer failure must not cancel the only animation callback forever.
+const scheduleFrame = sandbox.requestAnimationFrame;
+const renderFrame = game.render;
+const scheduled = [];
+try {
+    sandbox.requestAnimationFrame = callback => scheduled.push(callback);
+    game.render = () => { throw new Error('transient rendering failure'); };
+    assert.throws(() => game.frame(game.last + 1000 / 60), /transient rendering failure/);
+    assert.strictEqual(scheduled.length, 1, 'a failed frame must leave the next frame scheduled');
+    game.render = renderFrame;
+    scheduled.shift()(game.last + 1000 / 60);
+    assert.strictEqual(scheduled.length, 1, 'recovery must schedule exactly one animation callback');
+    game.input.actions.push({ type: 'reset' });
+    scheduled.shift()(game.last + 1000 / 60);
+    assert.strictEqual(scheduled.length, 1, 'reset must keep a single active frame loop');
+} finally {
+    sandbox.requestAnimationFrame = scheduleFrame;
+    game.render = renderFrame;
+}
+console.log('  ✓ a transient frame error cannot permanently stop rendering or disable Reset');
+
 game.loadStage('palmtree', { skipTitleCard: true, skipFade: true });
 const loop = game.terrain.loops[1];
 const shelf = game.terrain.corkscrewFloor;

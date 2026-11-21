@@ -2,6 +2,7 @@
 const assert=require('assert');
 const {Terrain,Player,STATE}=require('../public/sonic-engine');
 require('../public/levels/zone1_act2');require('../public/levels/zone2_act1');
+require('../public/levels/kitt_boss');require('../public/levels/zone1_act3');
 console.log('\nSignpost completion');
 {
     const terrain=new Terrain('palmtree');
@@ -29,3 +30,44 @@ for(const stage of ['palmtree','z1_act2','z2_act1'])for(const hz of [30,60,144])
     assert.strictEqual(player.lives,3);assert.notStrictEqual(player.state,STATE.DYING);
 }
 console.log('  ✓ every normal act completes safely at 30/60/144 Hz while Run and Jump are held');
+
+console.log('\nDamage and rescue protection');
+for (const stage of ['palmtree', 'z1_act2', 'z1_act3', 'z2_act1']) {
+    const terrain = new Terrain(stage), player = new Player(terrain);
+    player.rings = 10;
+    terrain.hurtPlayer(player, player.x + 10);
+    assert.strictEqual(player.rings, 0);
+    assert.strictEqual(player.state, STATE.AIRBORNE);
+    terrain.hurtPlayer(player, player.x + 10);
+    assert.strictEqual(player.state, STATE.AIRBORNE,
+        `${stage}: a second damage source must respect the recovery window`);
+    assert.strictEqual(terrain.scatteredRings.length, 10, 'protected hits must not scatter rings twice');
+    player.invulnTimer = 0;
+    terrain.hurtPlayer(player, player.x + 10);
+    assert.strictEqual(player.state, STATE.DYING, 'damage must resume once protection expires');
+    player.shield = true;
+    terrain.hurtPlayer(player, player.x + 10);
+    assert.strictEqual(player.state, STATE.DYING, 'damage must never replace the death animation with knockback');
+}
+for (const hz of [30, 60, 144]) {
+    const terrain = new Terrain('z1_act3'), player = new Player(terrain);
+    terrain.boss.defeated = true;
+    const cap = terrain.capsule;
+    player.x = cap.x; player.y = cap.y - 130;
+    player.state = STATE.AIRBORNE; player.curled = true;
+    player.xsp = player.gsp = 0; player.ysp = 2;
+    let opened = false;
+    for (let i = 0; i < hz * 6; i++) {
+        player.update({}, 1 / hz);
+        if (cap.opened) {
+            opened = true;
+            terrain.hurtPlayer(player, player.x + 10);
+            assert.notStrictEqual(player.state, STATE.DYING, 'hazards must not interrupt a won capsule rescue');
+        }
+        if (cap.cleared) break;
+    }
+    assert(opened && cap.cleared && cap.releasedCount === 12,
+        `rescue under repeated hazard contact must finish at ${hz} Hz`);
+    assert.strictEqual(player.lives, 3);
+}
+console.log('  ✓ overlapping damage respects recovery and death; capsule rescues finish safely at 30/60/144 Hz');

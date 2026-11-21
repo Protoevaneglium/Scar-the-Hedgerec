@@ -1918,7 +1918,9 @@
         }
 
         hurtPlayer(player, hazardX) {
+            if (player.gameOver || player.state === STATE.DYING || player.invulnTimer > 0) return;
             if (this.goalPost && (this.goalPost.spinning || this.goalPost.cleared)) return;
+            if (this.capsule && (this.capsule.opened || this.capsule.cleared)) return;
             if (player.invincTimer && player.invincTimer > 0) return;
             if (player.shield) {
                 player.shield = false;
@@ -2150,6 +2152,7 @@
             this.onCoasterRail = false;
             this.boostTrailTimer = 0;
             this.deathTimer = 0;
+            this.deathOffscreenY = null;
             this.ballSpin = 0;
             this.runPhase = 0;
             this.airMotion = 'down';
