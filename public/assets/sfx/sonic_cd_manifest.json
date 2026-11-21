@@ -3,7 +3,7 @@
   "collection": "Sonic Sounds Complete / Sonic CD",
   "ripper": "Mr Lange",
   "format": "Original 44.1 kHz stereo 16-bit WAV recordings, copied byte-for-byte.",
-  "selectionNote": "The supplied collection deliberately identifies sounds only by sound-test number. Gameplay role names below are this games assignments, not claims about canonical sound names. FM cues only; no sampled voice lines.",
+  "selectionNote": "The supplied collection uses original sound-test numbers. FM gameplay roles are this game's assignments. Scar PCM phrases are identified by the original Sonic CD sound-test ID table.",
   "samples": [
     {
       "key": "lava_ignite",
@@ -36,6 +36,46 @@
       "durationSeconds": 2.673605,
       "sha256": "5534393c3d4fd6e91a4085dc903b24559a19637b703c4890b3d6c2ba38989bb6",
       "role": "A short melodic FM cue assigned to Rosies reunion; contains no invented character speech."
+    },
+    {
+      "key": "scar_alright",
+      "file": "assets/sfx/scar_alright.wav",
+      "source": "Sonic CD/SCD_PCM_02.wav",
+      "phrase": "Alright!",
+      "durationSeconds": 0.721315,
+      "sha256": "ba8edbc8c12bff3dfbff06648f658fdcece1b9949c1be83221cd9164f4f2d477",
+      "role": "Act completion at a signpost or boss capsule."
+    },
+    {
+      "key": "scar_outta_here",
+      "file": "assets/sfx/scar_outta_here.wav",
+      "source": "Sonic CD/SCD_PCM_03.wav",
+      "phrase": "I'm outta here!",
+      "durationSeconds": 0.70542,
+      "sha256": "9bbc1932082b1a2acf4f0ec9e39443a5529dfb74746d623db632a1ac39d74137",
+      "role": "A Super Peel-Out launch; ordinary voice cooldown applies."
+    },
+    {
+      "key": "scar_yes",
+      "file": "assets/sfx/scar_yes.wav",
+      "source": "Sonic CD/SCD_PCM_04.wav",
+      "phrase": "Yes!",
+      "durationSeconds": 0.423673,
+      "sha256": "aaf934399b407f2d3dcdb77e795606f17bc99899cfbcbfd09f2185b16bf9d717",
+      "role": "Extra-life celebration and alternating hug acknowledgement."
+    },
+    {
+      "key": "scar_yeah",
+      "file": "assets/sfx/scar_yeah.wav",
+      "source": "Sonic CD/SCD_PCM_05.wav",
+      "phrase": "Yeah!",
+      "durationSeconds": 0.501723,
+      "sha256": "cb8393eb424da4493d38bee615eb5bb9d438b1ddf40933cd2d617205e4c1cc70",
+      "role": "Alternating hug acknowledgement."
     }
-  ]
+  ],
+  "voiceMappingReference": {
+    "url": "https://github.com/sonicretro/scddisasm/blob/main/src/Title%20Screen/Secrets/Sound%20Test.asm",
+    "section": "SelectPCM .IDs table (zero-based sound-test IDs)"
+  }
 }

@@ -82,6 +82,11 @@ class RetroAudio {
         this.activeSources = new Set();
         this.fallbackVoices = [];
         this.voiceCursor = 0;
+        this.scarVoiceEffect = null;
+        this.scarVoiceMedia = null;
+        this.lastScarVoiceTime = -Infinity;
+        this.scarHugIndex = 0;
+        this.scarVoiceKeys = Object.freeze({ yeah: 'scarYeah', alright: 'scarAlright', yes: 'scarYes', outtaHere: 'scarOuttaHere' });
         this.sfxFiles = {
             jump: 'assets/jump.wav',
             ring: 'assets/rings.wav',
@@ -89,7 +94,11 @@ class RetroAudio {
             lavaIgnite: 'assets/sfx/lava_ignite.wav',
             heatWarning: 'assets/sfx/heat_warning.wav',
             thermalUpdraft: 'assets/sfx/thermal_updraft.wav',
-            rosieReunion: 'assets/sfx/rosie_reunion.wav'
+            rosieReunion: 'assets/sfx/rosie_reunion.wav',
+            scarYeah: 'assets/sfx/scar_yeah.wav',
+            scarAlright: 'assets/sfx/scar_alright.wav',
+            scarYes: 'assets/sfx/scar_yes.wav',
+            scarOuttaHere: 'assets/sfx/scar_outta_here.wav'
         };
         this.loadSFX();
 
@@ -155,12 +164,14 @@ class RetroAudio {
     }
     releaseSource(effect) {
         if (!effect || !this.activeSources.delete(effect)) return;
+        if (this.scarVoiceEffect === effect) this.scarVoiceEffect = null;
         for (const node of effect.nodes) { try { node.disconnect(); } catch (_) {} }
     }
     get enabled() { return this._enabled; }
     set enabled(val) {
         this._enabled = !!val;
         if (!this._enabled) {
+            this.stopScarVoice();
             this.pauseBGM();
             for (const effect of [...this.activeSources]) {
                 try { effect.source.stop(); } catch (_) {}
@@ -219,6 +230,59 @@ class RetroAudio {
             } catch (_) { return false; }
         }
         return false;
+    }
+    stopScarVoice() {
+        const effect = this.scarVoiceEffect;
+        this.scarVoiceEffect = null;
+        if (effect) {
+            try { effect.source.stop(); } catch (_) {}
+            this.releaseSource(effect);
+        }
+        if (this.scarVoiceMedia) {
+            try { this.scarVoiceMedia.pause(); } catch (_) {}
+            try { this.scarVoiceMedia.currentTime = 0; } catch (_) {}
+        }
+    }
+    scarVoice(cue, options = {}) {
+        if (!this.enabled || typeof cue !== 'string'
+            || !Object.prototype.hasOwnProperty.call(this.scarVoiceKeys, cue)) return false;
+        const rawNow = performance.now(), now = Number.isFinite(rawNow) ? Math.max(0, rawNow) : 0;
+        if (!(options && options.force) && now - this.lastScarVoiceTime < 2500) return false;
+        const key = this.scarVoiceKeys[cue];
+        this.stopScarVoice();
+        let source, gain, effect;
+        if (this.ctx && this.ctx.state === 'running' && this.buffers[key]) {
+            try {
+                source = this.ctx.createBufferSource(); source.buffer = this.buffers[key];
+                gain = this.ctx.createGain(); gain.gain.value = .7;
+                source.connect(gain); gain.connect(this.ctx.destination);
+                effect = this.trackSource(source, [gain]); this.scarVoiceEffect = effect;
+                source.start(0);
+                this.lastScarVoiceTime = now;
+                return true;
+            } catch (_) {
+                if (effect) this.releaseSource(effect);
+                else for (const node of [source, gain]) { try { if (node) node.disconnect(); } catch (_) {} }
+                try { if (source) source.stop(); } catch (_) {}
+            }
+        }
+        try {
+            if (!this.scarVoiceMedia) this.scarVoiceMedia = new Audio();
+            const media = this.scarVoiceMedia;
+            media.src = this.sfxFiles[key]; media.currentTime = 0; media.volume = .7;
+            const playing = media.play();
+            if (playing && playing.catch) playing.catch(() => {});
+            this.lastScarVoiceTime = now;
+            return true;
+        } catch (_) {
+            try { if (this.scarVoiceMedia) this.scarVoiceMedia.pause(); } catch (_) {}
+            return false;
+        }
+    }
+    scarHug() {
+        const played = this.scarVoice(this.scarHugIndex ? 'yeah' : 'yes', { force: true });
+        if (played) this.scarHugIndex = (this.scarHugIndex + 1) % 2;
+        return played;
     }
     playBGM() {
         if (!this._enabled || !this.bgm || !this.bgm.getAttribute('src')) return;
@@ -859,12 +923,13 @@ class Game {
             rosieReunion: () => audio.rosieReunion(),
             rosieTalk: () => audio.rosieTalk(),
             rosieHop: () => audio.rosieHop(),
+            rosieHug: () => audio.scarHug(),
             roll: () => audio.roll(),
             bonk: () => audio.bonk(),
             spindashRev: (rev, p) => { audio.rev(rev); this.dust(p, 5, -p.facing, 2.5); },
             spindashRelease: (v, p) => { audio.release(); this.dust(p, 8, -p.facing, 3.5); },
             peeloutRev: (charge, p) => { audio.peeloutRev(charge); this.dust(p, 2, -p.facing, 2.2, '#00e5ff'); },
-            peeloutRelease: (v, p) => { audio.peeloutRelease(); this.dust(p, 12, -p.facing, 4.4, '#ff2a85'); },
+            peeloutRelease: (v, p) => { audio.peeloutRelease(); audio.scarVoice('outtaHere'); this.dust(p, 12, -p.facing, 4.4, '#ff2a85'); },
             dropDashReady: (_data, p) => { audio.dropDashReady(); this.dust(p, 6, -p.facing, 2.5, '#00e5ff'); },
             dropDash: (v, p) => { audio.dropDashRelease(); this.dust(p, 11, -p.facing, 4.2, '#00e5ff'); },
             dashRing: (dr, p) => { audio.dashRing(); this.dust(p, 12, -p.facing, 4.6, '#ff2a85'); },
@@ -889,7 +954,7 @@ class Game {
                 // edge of this frozen view (sprite is ~48px tall above his origin) before the life is lost.
                 p.deathOffscreenY = this.camY + this.H + 64;
             },
-            oneUp: () => audio.oneUp(),
+            oneUp: () => { audio.oneUp(); audio.scarVoice('yes'); },
             gameOver: () => { this.gameOverTimer = 0; audio.gameOver(); },
             bouncePole: (bp, p) => { audio.bouncePole(); this.dust(p, 6, 1, 2.2); },
             spinner: () => audio.spinner(),
@@ -902,7 +967,7 @@ class Game {
             timePost: () => audio.timePost(),
             checkpoint: (cp) => { audio.timePost(); this.cpIndex = this.nearestCheckpointIndex(cp); this.updateCpButton(); },
             timeWarp: () => { audio.timeWarp(); this.updateEraButton(); },
-            goalPost: () => audio.goalPost(),
+            goalPost: () => { audio.goalPost(); audio.scarVoice('alright'); },
         });
 
         if (carryover) {
