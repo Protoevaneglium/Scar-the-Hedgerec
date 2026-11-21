@@ -9,7 +9,7 @@
 </head>
 <body>
 <div id="canvas-container">
-    <canvas id="game" aria-label="Scar the Hedgerec gameplay"></canvas>
+    <canvas id="game" tabindex="0" aria-label="Scar the Hedgerec gameplay"></canvas>
     <nav id="top-bar" aria-label="Stage controls">
         <button class="chip gold" id="btn-stage" title="Switch Stage (M)">Stage: Act 1</button>
         <button class="chip on" id="btn-era" title="Cycle Time Era (T)">Time: Good Future</button>
@@ -27,6 +27,17 @@
         </div>
         <div class="tgroup"><button class="tbtn jump" data-key="jump">JUMP</button></div>
     </div>
+    <button id="btn-talk" class="rosie-talk" hidden>Talk to Rosie · C</button>
+    <section id="rosie-dialogue" role="dialog" aria-modal="false" aria-labelledby="rosie-dialogue-title" hidden>
+        <header><div><span class="rosie-dialogue-eyebrow">A MOMENT IN THE SANCTUARY</span><h2 id="rosie-dialogue-title">Rosie</h2></div><button id="rosie-dialogue-close" data-conversation-control="close" aria-label="Leave conversation">×</button></header>
+        <p id="rosie-dialogue-line" aria-live="polite"></p>
+        <div class="rosie-dialogue-choices">
+            <button id="rosie-choice-0" data-conversation-control="choice" data-choice="0"></button>
+            <button id="rosie-choice-1" data-conversation-control="choice" data-choice="1"></button>
+            <button id="rosie-choice-2" data-conversation-control="choice" data-choice="2"></button>
+        </div>
+        <p class="rosie-dialogue-hint">1–3 to reply · C / Esc to leave · You can walk away</p>
+    </section>
 </div>
 
 <div id="intro">
@@ -45,6 +56,7 @@
 <script src="levels/zone2_act1.js"></script>
 <script src="levels/rosie.js"></script>
 <script src="levels/rosie_npc.js"></script>
+<script src="levels/rosie_dialogue.js"></script>
 <script src="levels/zone2_act2_art.js"></script>
 <script src="levels/zone2_act2.js"></script>
 <script>
@@ -378,7 +390,7 @@ const audio = new RetroAudio();
    INPUT — Left, Right, Down, Jump, Stage/Time/Debug toggles & Checkpoints
    ========================================================================== */
 class InputHandler {
-    constructor() {
+    constructor(conversation = {}) {
         this.left = this.right = this.up = this.down = this.jumpHeld = false;
         this.jumpPressed = false;
         this.upPressed = false;
@@ -388,12 +400,33 @@ class InputHandler {
         const KEY = {
             ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right',
             ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down',
-            Space: 'jump', KeyZ: 'jump', KeyX: 'jump', KeyC: 'jump', Enter: 'jump',
+            Space: 'jump', KeyZ: 'jump', KeyX: 'jump', Enter: 'jump',
         };
-        const SWALLOW = new Set([...Object.keys(KEY), 'Tab']);
+        const SWALLOW = new Set([...Object.keys(KEY), 'KeyC', 'Tab']);
         window.addEventListener('keydown', (e) => {
             audio.unlock();
             if (SWALLOW.has(e.code)) e.preventDefault();
+            const talking = !!conversation.isOpen?.() || this.actions.some(action => action.type === 'talk');
+            if (e.code === 'KeyC') {
+                if (talking || conversation.canTalk?.()) {
+                    if (!e.repeat) this.actions.push({ type: 'talk' });
+                } else if (!e.repeat) this.press('jump', true, 'key:KeyC');
+                return;
+            }
+            if (talking && (e.code === 'Escape' || e.code === 'Enter'
+                || (e.code === 'Space' && e.target?.dataset?.conversationControl))) {
+                e.preventDefault();
+                if (!e.repeat) this.actions.push(e.code === 'Escape' || e.target?.dataset?.conversationControl === 'close'
+                    ? { type: 'dialogueClose' }
+                    : { type: 'dialogueChoice', index: Number(e.target?.dataset?.choice || 0), revision: conversation.revision?.() });
+                return;
+            }
+            if (talking && /^Digit[1-7]$/.test(e.code)) {
+                e.preventDefault();
+                if (!e.repeat && /^Digit[1-3]$/.test(e.code)) this.actions.push({ type: 'dialogueChoice',
+                    index: Number(e.code.slice(-1)) - 1, revision: conversation.revision?.() });
+                return;
+            }
             const k = KEY[e.code];
             if (k) this.press(k, true, 'key:' + e.code);
             if (e.repeat) return;
@@ -406,6 +439,7 @@ class InputHandler {
         });
         window.addEventListener('keyup', (e) => {
             if (SWALLOW.has(e.code)) e.preventDefault();
+            if (e.code === 'KeyC') this.press('jump', false, 'key:KeyC');
             const k = KEY[e.code];
             if (k) this.press(k, false, 'key:' + e.code);
         });
@@ -700,7 +734,9 @@ class Game {
         this.mapImg.src = 'assets/palmtree_map.png';
 
         this.ui = new window.ScarUI(this);
-        this.input = new InputHandler();
+        this.input = new InputHandler({ canTalk: () => this.canTalkToRosie(),
+            isOpen: () => !!this.rosieConversationView()?.open,
+            revision: () => this.rosieConversationView()?.revision });
         this.showDebug = false;
         this.stageName = 'palmtree';
         this.stageTime = 0;
@@ -843,6 +879,8 @@ class Game {
             ring: () => audio.ring(),
             ringLoss: () => audio.ringLoss(),
             deathStart: (d, p) => {
+                const rosie = this.terrain.z2a2?.reunion;
+                if (rosie) { window.RosieNPC?.cancelHug(rosie); window.RosieDialogue?.close(rosie.conversation); }
                 audio.death();
                 if (this.scarTrail) this.scarTrail.length = 0;
                 if (d && d.fromPit) {
@@ -1004,6 +1042,84 @@ class Game {
         blurAfter(aud, () => { audio.enabled = !audio.enabled; aud.textContent = `Audio: ${audio.enabled ? 'ON' : 'OFF'}`; aud.classList.toggle('on', audio.enabled); aud.setAttribute('aria-pressed', String(audio.enabled)); });
         blurAfter(cp, () => this.gotoCheckpoint((this.cpIndex + 1) % this.terrain.checkpoints.length));
         blurAfter(rst, () => this.resetCurrentStage());
+        document.getElementById('btn-talk')?.addEventListener('click', () => {
+            audio.unlock(); this.input.actions.push({ type: 'talk' });
+        });
+        document.getElementById('rosie-dialogue-close')?.addEventListener('click', () => {
+            this.input.actions.push({ type: 'dialogueClose' });
+        });
+        for (let index = 0; index < 3; index++) {
+            const button = document.getElementById('rosie-choice-' + index);
+            button?.addEventListener('click', () => {
+                audio.unlock(); this.input.actions.push({ type: 'dialogueChoice', index,
+                    revision: Number(button.dataset.revision) });
+            });
+        }
+        this.syncRosieConversationUI();
+    }
+
+    rosieConversationView() {
+        const state = this.terrain?.z2a2?.reunion?.conversation;
+        return state && window.RosieDialogue ? window.RosieDialogue.view(state) : null;
+    }
+
+    canTalkToRosie() {
+        const n = this.terrain?.z2a2?.reunion, p = this.player;
+        return !!(n?.met && n.grounded && p?.grounded && !p.gameOver && p.state !== STATE.DYING
+            && !p.hurtPose && !(p.invulnTimer > 0) && !this.actClear && !window.INTRO_ACTIVE
+            && !this.terrain.goalPost?.spinning && !this.terrain.goalPost?.cleared
+            && Math.abs(p.x - n.actorX) <= 105 && Math.abs(p.y + p.radii.height - n.actorY) < 60);
+    }
+
+    handleRosieConversation(type, index, revision) {
+        const n = this.terrain?.z2a2?.reunion, dialogue = window.RosieDialogue;
+        if (!n?.conversation || !dialogue) return;
+        const view = dialogue.view(n.conversation);
+        if (type === 'dialogueClose' || (type === 'talk' && view.open) || !this.canTalkToRosie()) {
+            dialogue.close(n.conversation);
+        } else if (type === 'talk') {
+            dialogue.start(n.conversation, { rings: this.player.rings,
+                lavaActive: this.terrain.z2a2.lavaActive, huggedRecently: !!n.hugged });
+            n.hugged = false;
+            n.messageTimer = 0; n.actionTimer = 24;
+            window.RosieNPC?.cancelHug(n); audio.rosieTalk();
+        } else if (type === 'dialogueChoice' && view.open && dialogue.choose(n.conversation, index, revision)) {
+            n.actionTimer = 24; audio.rosieTalk();
+        }
+        this.syncRosieConversationUI();
+    }
+
+    syncRosieConversationUI() {
+        const n = this.terrain?.z2a2?.reunion, dialogue = window.RosieDialogue;
+        const p = this.player;
+        if (n?.conversation?.context && p) {
+            n.conversation.context.rings = p.rings;
+            n.conversation.context.lavaActive = !!this.terrain.z2a2.lavaActive;
+        }
+        if (n?.hugPhase && (!this.canTalkToRosie() || p.state !== STATE.STANDING
+            || Math.abs(p.gsp) > .25 || Math.sign(p.x - n.actorX) !== p.facing)) window.RosieNPC?.cancelHug(n);
+        if (n?.conversation && dialogue?.view(n.conversation).open && !this.canTalkToRosie()) dialogue.close(n.conversation);
+        const view = this.rosieConversationView();
+        const open = !!view?.open;
+        const panel = document.getElementById('rosie-dialogue');
+        const talk = document.getElementById('btn-talk');
+        if (talk) talk.hidden = open || !this.canTalkToRosie();
+        if (!panel) return;
+        const justOpened = panel.hidden && open;
+        panel.hidden = !open;
+        const key = open ? `${view.session}:${view.revision}:${view.text}` : 'closed';
+        if (this.dialogueUIRevision === key) return;
+        this.dialogueUIRevision = key;
+        if (!open) return;
+        document.getElementById('rosie-dialogue-line').textContent = view.text;
+        for (let index = 0; index < 3; index++) {
+            const button = document.getElementById('rosie-choice-' + index);
+            if (!button) continue;
+            button.hidden = !view.choices[index];
+            button.dataset.revision = String(view.revision);
+            button.textContent = view.choices[index] ? `${index + 1}  ${view.choices[index].label}` : '';
+        }
+        if (justOpened) document.getElementById('rosie-choice-0')?.focus?.({ preventScroll: true });
     }
 
     getStageOrder() {
@@ -1056,6 +1172,10 @@ class Game {
         // Cancel completion as well as arena locks: otherwise a checkpoint warp
         // leaves controls disabled by the old signpost, rescue or results tally.
         const T = this.terrain;
+        if (T.z2a2?.reunion) {
+            window.RosieNPC?.cancelHug(T.z2a2.reunion);
+            window.RosieDialogue?.close(T.z2a2.reunion.conversation);
+        }
         if (T.boss || this.actClear || (T.goalPost && (T.goalPost.spinning || T.goalPost.cleared))
             || (T.capsule && (T.capsule.opened || T.capsule.cleared))) T.resetObjects();
         this.actClear = null;
@@ -1190,11 +1310,16 @@ class Game {
 
         if (this.input.debugToggle) { this.toggleDebug(); this.input.debugToggle = false; }
         const actions = this.input.actions.splice(0);
+        let choseDialogue = false;
         for (const a of actions) {
             if (a.type === 'reset') this.resetCurrentStage();
             if (a.type === 'stage') this.toggleStage();
             if (a.type === 'era') this.cycleEra();
             if (a.type === 'checkpoint') this.gotoCheckpoint(a.index);
+            if (a.type === 'talk' || a.type === 'dialogueClose') this.handleRosieConversation(a.type);
+            if (a.type === 'dialogueChoice' && !choseDialogue) {
+                this.handleRosieConversation(a.type, a.index, a.revision); choseDialogue = true;
+            }
         }
 
         // Invalid/duplicate timestamps must not poison clocks or consume a tap
@@ -1382,6 +1507,7 @@ class Game {
         }
     }
     renderScene() {
+        this.syncRosieConversationUI();
         const ctx = this.ctx;
         this.drawBackground(ctx);
         ctx.save();

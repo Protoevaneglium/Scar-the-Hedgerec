@@ -13,6 +13,8 @@
     const blink = Object.freeze({ x: 419, y: 53, w: 21, h: 37, anchorX: 12, anchorY: 37 });
     const greeting1 = Object.freeze({ x: 283, y: 53, w: 21, h: 37, anchorX: 13, anchorY: 37 });
     const greeting2 = Object.freeze({ x: 315, y: 53, w: 21, h: 37, anchorX: 13, anchorY: 37 });
+    const hug = Object.freeze({ x: 293, y: 149, w: 25, h: 37, anchorX: 13, anchorY: 37 });
+    const hugArm = Object.freeze({ x: 311, y: 166, w: 7, h: 6 });
     const frames = Object.freeze({
         // Hold a planted-foot pose; the other rows are movement or distress.
         idle: Object.freeze([neutral]),
@@ -24,12 +26,14 @@
         ]),
         greet: Object.freeze([greeting1, greeting2, greeting1]),
         hop: Object.freeze([Object.freeze({ x: 251, y: 145, w: 26, h: 34, anchorX: 13, anchorY: 34 })]),
+        hug: Object.freeze([hug]),
     });
     function getFrame(state = 'idle', clock = 0) {
         const t = Math.max(0, Number.isFinite(clock) ? clock : 0);
         if (state === 'walk') return frames.walk[Math.floor(t / 7) % frames.walk.length];
         if (state === 'greet') return frames.greet[Math.min(frames.greet.length - 1, Math.floor(t / 10))];
         if (state === 'hop') return frames.hop[0];
+        if (state === 'hug') return hug;
         return t % 240 >= 234 ? blink : neutral;
     }
     let atlas = null, ready = false, failed = false;
@@ -58,6 +62,10 @@
 
     // A small pixel silhouette keeps the endpoint visible if the supplied PNG
     // is unavailable. Once loaded, only the original sheet sprites are drawn.
+    function fallbackHugGlove(ctx) {
+        ctx.fillStyle = '#9494a4'; ctx.fillRect(6, -24, 9, 7);
+        ctx.fillStyle = '#faf4e9'; ctx.fillRect(6, -24, 8, 5);
+    }
     function fallback(ctx, x, feetY, pose) {
         ctx.save(); ctx.translate(Math.round(x), Math.round(feetY));
         ctx.scale(pose.facing, 1);
@@ -68,9 +76,14 @@
         ctx.fillStyle = '#fff'; ctx.fillRect(-9, -31, 6, 7);
         ctx.fillStyle = '#16334a'; ctx.fillRect(-9, -30, 2, 4);
         ctx.fillStyle = '#50b148'; ctx.fillRect(-7, -18, 15, 13);
-        ctx.fillStyle = '#faf4e9';
-        ctx.fillRect(-13, -18, 6, 6);
-        ctx.fillRect(9, pose.state === 'greet' ? -28 : -18, 6, 6);
+        if (pose.state === 'hug') {
+            ctx.fillStyle = '#ffdbb0'; ctx.fillRect(0, -21, 8, 4);
+            fallbackHugGlove(ctx);
+        } else {
+            ctx.fillStyle = '#faf4e9';
+            ctx.fillRect(-13, -18, 6, 6);
+            ctx.fillRect(9, pose.state === 'greet' ? -28 : -18, 6, 6);
+        }
         ctx.fillStyle = '#5b3d9c'; ctx.fillRect(-9, -5, 9, 5); ctx.fillRect(4, -5, 9, 5);
         ctx.fillStyle = '#fff'; ctx.fillRect(-9, -2, 9, 2); ctx.fillRect(4, -2, 9, 2);
         ctx.restore();
@@ -90,8 +103,29 @@
         ctx.restore();
         return true;
     }
+    // The body stays behind Scar; the foreground pass adds only the same glove
+    // over him, using exactly the body's source-frame anchor and transform.
+    function drawHugArm(ctx, x, feetY, pose = {}) {
+        const options = pose && typeof pose === 'object' ? pose : {};
+        if (options.state !== 'hug') return false;
+        const facing = options.facing === 1 ? 1 : -1;
+        ctx.save();
+        try {
+            ctx.translate(Math.round(x), Math.round(feetY));
+            if (!ready || !atlas) {
+                ctx.scale(facing, 1);
+                fallbackHugGlove(ctx);
+                return false;
+            }
+            ctx.imageSmoothingEnabled = false;
+            ctx.scale(facing * 1.2, 1.2);
+            ctx.drawImage(atlas, hugArm.x, hugArm.y, hugArm.w, hugArm.h,
+                hugArm.x - hug.x - hug.anchorX, hugArm.y - hug.y - hug.anchorY, hugArm.w, hugArm.h);
+            return true;
+        } finally { ctx.restore(); }
+    }
     return {
-        source, frames, getFrame, draw,
+        source, frames, getFrame, draw, drawHugArm,
         sourceName: 'Sega CD - Sonic the Hedgehog CD - Miscellaneous - Amy Rose.png',
         character: 'Rosey (Rosie)',
         get loaded() { return ready; },

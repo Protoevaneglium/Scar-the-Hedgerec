@@ -192,8 +192,11 @@ Design research: [SEGA's Superstars manual](https://manual.sega.jp/sonicsupersta
 | **Down (▼)** + **Space / Z / X / C / JUMP** | Charge Spin Dash (Release **Down** to launch) |
 | **Mid-Air Hold JUMP** | Charge Mid-Air Drop Dash (hold while airborne to blast forward on landing) |
 | **Space / Z / X / C** or Touch **JUMP** | Jump (Release early for short hop; fast-forwards Act Clear tally) |
+| **C** near Rosie, or **Talk to Rosie** | Open / leave a branching conversation; **1 / 2 / 3** or click a reply to answer; **Esc** leaves. C remains Jump away from Rosie. |
 | **1 – 7** (or Top-Bar **Checkpoint** button) | Warp to Stage Checkpoints |
 | **T** (or Top-Bar **Time** button) | Cycle Time Era (*Good Future* / *Present* / *Past*) |
 | **M** (or Top-Bar **Stage** button) | Switch Stage (*Zone 1 Act 1*, *Act 2*, *Act 3 Boss*, *Zone 2 Act 1*, *Physics Test*) |
 | **Tab** or **G** | Toggle Debug HUD & Sensor Raycast Overlay |
 | **R** | Reset Stage & Objects (or Restart on Game Over) |
+
+In Molten Sanctuary, Rosie can approach and briefly hug Scar when he stands nearby facing away. Hearts rise from her head, and moving, turning or jumping ends the hug. Her local conversation library contains 35 branching exchanges about the ruins, routes, rings and future adventures. She remembers choices during the act, including whether Scar welcomes hugs, prefers to be asked, or wants space. Death closes the conversation while preserving those preferences; restarting the act begins fresh.

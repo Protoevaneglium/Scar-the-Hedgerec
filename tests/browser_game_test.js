@@ -61,6 +61,7 @@ load('public/levels/zone1_act3.js');
 load('public/levels/zone2_act1.js');
 load('public/levels/rosie.js');
 load('public/levels/rosie_npc.js');
+load('public/levels/rosie_dialogue.js');
 load('public/levels/zone2_act2_art.js');
 load('public/levels/zone2_act2.js');
 const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
@@ -270,7 +271,7 @@ const drawText = ctx.fillText, dialogueText = [];
 ctx.fillText = (...args) => { dialogueText.push(args[0]); return drawText(...args); };
 game.snapCamera(); game.render();
 ctx.fillText = drawText;
-assert(dialogueText.includes(sanctuary.reunion.message) && dialogueText.includes('↑ TALK'),
+assert(dialogueText.includes(sanctuary.reunion.message) && dialogueText.includes('C · TALK'),
     'Rosie must render her actual response and the nearby interaction prompt');
 game.input.press('jump', true); game.frame(game.last + 1000 / 60); game.input.press('jump', false);
 assert(sanctuary.reunion.actorY < sanctuary.reunion.y && sanctuary.reunion.state === 'hop',

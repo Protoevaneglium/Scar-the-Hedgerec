@@ -5,6 +5,7 @@
     if (!E) return;
     const { STATE, HITBOX } = E;
     const NPC = root.RosieNPC || (typeof require === 'function' ? require('./rosie_npc.js') : null);
+    const Dialogue = root.RosieDialogue || (typeof require === 'function' ? require('./rosie_dialogue.js') : null);
     const rise = (p, width, dy) => p.ease(width / 2, 0, 2 * dy / width).ease(width / 2, 2 * dy / width, 0);
     const art = (method, ...args) => {
         if (root.MarbleSkyArt && root.MarbleSkyArt[method]) root.MarbleSkyArt[method](...args);
@@ -134,6 +135,7 @@
             const z = terrain.z2a2;
             z.lavaAge = 0; z.ignitionFrames = 900; z.lavaActive = false;
             z.reunion = NPC.create(13920, 560);
+            z.reunion.conversation = Dialogue.create();
             z.vents = [{ x: 1320, power: -14.5 }, { x: 4310, power: -16 }, { x: 8580, power: -18.5 }]
                 .map(v => ({ ...v, y: z.mainSurf.f(v.x), phase: 0, active: true, cooldown: 0 }));
             z.lifts = terrain.platforms.filter(p => p.kind === 'skyLift');
@@ -148,8 +150,12 @@
         },
         onUpdate(terrain, player, h, input = {}) {
             const z = terrain.z2a2, gp = terrain.goalPost;
-            if (player.gameOver || player.state === STATE.DYING) return;
-            if (gp.spinning || gp.cleared) { NPC.finish(z.reunion, h); return; }
+            if (player.gameOver || player.state === STATE.DYING) {
+                NPC.cancelHug(z.reunion); Dialogue.close(z.reunion.conversation); return;
+            }
+            if (gp.spinning || gp.cleared) {
+                Dialogue.close(z.reunion.conversation); NPC.finish(z.reunion, h); return;
+            }
             if (z.playerRespawnSerial !== (player.respawnSerial || 0)) {
                 z.playerRespawnSerial = player.respawnSerial || 0;
                 for (const v of z.vents) v.cooldown = 0;
@@ -193,7 +199,8 @@
             }
             player.onMarbleSlide = !!sliding;
             const rosie = z.reunion;
-            const reaction = NPC.update(rosie, player, input, h);
+            const reaction = NPC.update(rosie, player, { ...input,
+                dialogueOpen: Dialogue.view(rosie.conversation).open }, h);
             if (reaction.met) {
                 player.score += 1000;
                 terrain.popups.push({ x: rosie.x, y: rosie.y - 70, text: 'ROSIE! +1000', life: 120 });
@@ -201,6 +208,7 @@
             }
             if (reaction.talk) player.emit('rosieTalk', rosie);
             if (reaction.hop) player.emit('rosieHop', rosie);
+            if (reaction.hug) { rosie.hugged = true; player.emit('rosieHug', rosie); }
             gp.locked = !rosie.met || rosie.timer > 0;
         },
         drawBackground: (c, g) => art('drawBackground', c, g),

@@ -126,6 +126,7 @@ test('Rosie follows Scar within the temple and stops beside him at 30/60/144 Hz'
         controller.update(npc, player, {}, h);
         assert(npc.met);
         player.place(npc.x + 150, 0, npc.y);
+        player.facing = -1; // This fixture tests ordinary following while Scar faces Rosie.
         const startX = npc.actorX;
         let moved = false;
         for (let frame = 0; frame < hz * 5; frame++) {
@@ -187,6 +188,7 @@ test('long idle patrols respect personal space and Rosie steps aside without pus
         const h = 60 / hz;
         controller.update(npc, player, {}, h);
         player.place(npc.x + 150, 0, npc.y);
+        player.facing = -1; // Quiet patrol spacing applies while Scar faces Rosie.
         for (let frame = 0; frame < hz * 3; frame++) controller.update(npc, player, {}, h);
         const scarX = player.x;
         assert(Math.abs(scarX - npc.actorX) >= 40, 'following must first stop outside the overlap range');

@@ -364,7 +364,7 @@
                         poly(c, [[x, y - 5], [x + 2, y - 1], [x + 6, y], [x + 2, y + 2], [x, y + 6], [x - 2, y + 2], [x - 6, y], [x - 2, y - 1]], '#fff4b7');
                     }
                 }
-                if (end.messageTimer > 0 && end.message) {
+                if (end.messageTimer > 0 && end.message && !end.conversation?.active) {
                     c.save(); c.font = 'bold 10px monospace'; c.textAlign = 'center';
                     const width = Math.min(240, c.measureText(end.message).width + 22);
                     const center = clamp(actorX, g.camX + width / 2 + 12, g.camX + g.W - width / 2 - 12);
@@ -374,15 +374,30 @@
                     poly(c, [[center - 5, top + 23], [center + 5, top + 23], [actorX, top + 31]], '#fff0cf');
                     c.fillStyle = '#4b3155'; c.fillText(end.message, center, top + 16, width - 12); c.restore();
                 }
-                if (end.canTalk) {
+                if (end.canTalk && !end.conversation?.active && (!g.canTalkToRosie || g.canTalkToRosie())) {
                     c.save(); c.font = 'bold 9px monospace'; c.textAlign = 'center';
-                    c.fillStyle = '#392b4c'; c.fillRect(actorX - 28, actorY + 9, 56, 17);
-                    c.fillStyle = '#fff0cf'; c.fillText('↑ TALK', actorX, actorY + 21); c.restore();
+                    c.fillStyle = '#392b4c'; c.fillRect(actorX - 37, actorY + 9, 74, 17);
+                    c.fillStyle = '#fff0cf'; c.fillText('C · TALK', actorX, actorY + 21); c.restore();
                 }
             }
         },
         drawForeground(c, g) {
             const z = g.terrain.z2a2, t = g.terrain.clock, v = g.view;
+            const end = z.reunion;
+            if (end?.state === 'hug' && end.heartTimer > 0 && visible(v, end.actorX, 160)) {
+                root.RosieArt?.drawHugArm?.(c, end.actorX, end.actorY, end);
+                c.save();
+                for (let i = 0; i < 3; i++) {
+                    const phase = mod(end.heartTimer + i * 22, 66);
+                    const x = end.actorX + (i - 1) * 12 + Math.sin(phase * .12 + i) * 4;
+                    const y = end.actorY - 52 - phase * .65;
+                    c.globalAlpha = Math.min(1, phase / 8, (66 - phase) / 14);
+                    poly(c, [[x - 6, y - 3], [x - 3, y - 5], [x, y - 2], [x + 3, y - 5],
+                        [x + 6, y - 3], [x + 6, y], [x, y + 6], [x - 6, y]], '#ff8dbd');
+                    c.fillStyle = '#ffe1ec'; c.fillRect(x - 4, y - 3, 2, 2);
+                }
+                c.restore();
+            }
             c.save();
             for (let i = 0; i < 14; i++) {
                 const x = v.x0 + mod(i * 137 + t * .3, v.x1 - v.x0);

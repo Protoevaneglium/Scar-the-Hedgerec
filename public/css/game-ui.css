@@ -198,6 +198,36 @@ canvas {
 #intro.title-fallback video { display: none; }
 #intro.title-fallback .intro-title-fallback { display: block; }
 
+.rosie-talk {
+    position: absolute; right: 24px; bottom: 104px; z-index: 12;
+    padding: 12px 18px; border: 2px solid #ffb8d9; border-radius: 24px;
+    background: #50294df0; color: #fff0d7; font: bold 14px Arial, sans-serif;
+    box-shadow: 0 4px 18px #170d29aa; cursor: pointer;
+}
+#rosie-dialogue {
+    position: absolute; left: 22px; bottom: 24px; z-index: 15;
+    width: min(450px, calc(100% - 44px)); max-height: calc(100% - 36px); overflow-y: auto;
+    padding: 18px; border: 2px solid #eab3d4; border-radius: 16px;
+    background: linear-gradient(145deg, #30273cf5, #4c2d4ff5); color: #fff3dc;
+    box-shadow: 0 8px 32px #160e2a99; text-align: left;
+}
+#rosie-dialogue[hidden], #btn-talk[hidden], .rosie-dialogue-choices button[hidden] { display: none; }
+#rosie-dialogue header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.rosie-dialogue-eyebrow { color: #e8b9cc; font-size: 9px; font-weight: bold; letter-spacing: 1.6px; }
+#rosie-dialogue h2 { margin-top: 4px; color: #ffd7e6; font-size: 22px; }
+#rosie-dialogue-close { width: 32px; height: 32px; border: 1px solid #c996b8; border-radius: 50%; background: #ffffff0a; color: #ffe4ef; font-size: 23px; cursor: pointer; }
+#rosie-dialogue-line { margin: 13px 0; font-size: 14px; line-height: 1.5; }
+.rosie-dialogue-choices { display: grid; gap: 7px; }
+.rosie-dialogue-choices button { min-height: 37px; padding: 9px 11px; border: 1px solid #b582a6; border-radius: 7px; background: #ffffff0b; color: #fff0db; font: 13px/1.35 Arial, sans-serif; text-align: left; cursor: pointer; }
+.rosie-dialogue-choices button:hover, .rosie-dialogue-choices button:focus-visible { background: #a653794d; border-color: #ffd4e5; outline: 2px solid #ffd4e5; outline-offset: 1px; }
+.rosie-dialogue-hint { margin-top: 11px; color: #d8bcd4; font-size: 10px; line-height: 1.5; }
+@media (pointer: coarse) { #rosie-dialogue { bottom: 94px; max-height: calc(100% - 106px); } }
+@media (max-width: 560px) {
+    #rosie-dialogue { left: 10px; width: calc(100% - 20px); padding: 13px; }
+    #rosie-dialogue-line { font-size: 13px; }
+    .rosie-talk { right: 14px; }
+}
+
 @media (pointer: coarse) {
     #touch { display: flex; }
     .chip { min-height: 34px; }
