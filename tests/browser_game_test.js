@@ -36,6 +36,9 @@ class ImageStub {
         if (value.includes('kitt_boss_poses')) {
             this.complete = true; this.naturalWidth = 1536; this.naturalHeight = 1024;
         }
+        if (value.includes('rosie.png')) {
+            this.complete = true; this.naturalWidth = 524; this.naturalHeight = 474;
+        }
         if (this.onload) this.onload();
     }
 }
@@ -56,6 +59,10 @@ load('public/levels/zone1_act2.js');
 load('public/levels/kitt_boss.js');
 load('public/levels/zone1_act3.js');
 load('public/levels/zone2_act1.js');
+load('public/levels/rosie.js');
+load('public/levels/rosie_npc.js');
+load('public/levels/zone2_act2_art.js');
+load('public/levels/zone2_act2.js');
 const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
 const script = html.match(/<script>\s*'use strict';([\s\S]*?)<\/script>/);
 assert(script, 'main game script exists');
@@ -222,6 +229,58 @@ game.resetCurrentStage();
 assert.strictEqual(game.terrain.rings.filter(r => r.collected).length, 0);
 assert.strictEqual(game.terrain.stage, 'z2_act1');
 console.log('  ✓ Zone 2 campaign carryover, changing skies, wall-kick callbacks, scenery, and reset render correctly');
+
+game.player.score = 7000; game.player.lives = 5; game.player.shield = true;
+game.terrain.goalPost.cleared = true;
+game.updateActClear(1, false);
+assert.strictEqual(game.actClear.nextStage, 'z2_act2');
+game.actClear.phase = 'fadeOut'; game.fadeAlpha = 1;
+assert(game.updateActClear(1, false));
+assert.strictEqual(game.stageName, 'z2_act2');
+assert(game.player.score === 7000 && game.player.lives === 5 && game.player.shield);
+const sanctuary = game.terrain.z2a2;
+game.titleCard = null; game.fadeAlpha = 0;
+for (const checkpoint of game.terrain.checkpoints) {
+    game.player.place(checkpoint.x, 0, checkpoint.y);
+    for (const active of [false, true]) {
+        sanctuary.lavaActive = active; sanctuary.lavaAge = active ? 1200 : 0;
+        for (const era of ['good_future', 'present', 'past']) {
+            game.terrain.timeEra = era;
+            game.snapCamera(); game.render();
+        }
+    }
+}
+const sanctuaryEvents = new Set();
+for (const name of ['thermalVent', 'marbleSlide', 'lavaIgnite', 'heatWarning', 'rosieReunion', 'rosieTalk', 'rosieHop']) {
+    const callback = game.player.events[name];
+    assert.strictEqual(typeof callback, 'function');
+    game.player.events[name] = (...args) => { sanctuaryEvents.add(name); return callback(...args); };
+}
+sanctuary.lavaAge = 599;
+game.player.place(120, 0, 360); game.player.update({}, 1 / 60);
+sanctuary.lavaAge = 899; game.player.update({}, 1 / 60);
+const vent = sanctuary.vents[0];
+game.player.place(vent.x, 0, vent.y); game.player.update({}, 1 / 60);
+game.player.place(950, 0, sanctuary.mainSurf.f(950));
+game.player.gsp = 9; game.player.update({ right: true }, 1 / 60);
+game.player.place(sanctuary.reunion.x - 30, 0, sanctuary.reunion.y);
+game.player.update({}, 1 / 60);
+game.input.press('up', true); game.input.press('up', false); game.frame(game.last + 1000 / 60);
+const drawText = ctx.fillText, dialogueText = [];
+ctx.fillText = (...args) => { dialogueText.push(args[0]); return drawText(...args); };
+game.snapCamera(); game.render();
+ctx.fillText = drawText;
+assert(dialogueText.includes(sanctuary.reunion.message) && dialogueText.includes('↑ TALK'),
+    'Rosie must render her actual response and the nearby interaction prompt');
+game.input.press('jump', true); game.frame(game.last + 1000 / 60); game.input.press('jump', false);
+assert(sanctuary.reunion.actorY < sanctuary.reunion.y && sanctuary.reunion.state === 'hop',
+    'the real game input must give Rosie a physical jump reaction');
+assert(sandbox.RosieArt.loaded && !sandbox.RosieArt.failed, 'the supplied Rosie atlas must load through its real color-key handler');
+assert([...['thermalVent', 'marbleSlide', 'lavaIgnite', 'heatWarning', 'rosieReunion', 'rosieTalk', 'rosieHop']].every(name => sanctuaryEvents.has(name)),
+    'the new gameplay events must invoke the actual browser audio and particle handlers');
+game.resetCurrentStage();
+assert(!game.terrain.z2a2.lavaAge && !game.terrain.z2a2.reunion.met);
+console.log('  ✓ Molten Sanctuary campaign entry, every route/era, lava phases, Rosie atlas and supplied SFX callbacks render correctly');
 
 for (const stage of game.getCampaignStages()) {
     game.loadStage(stage, { skipTitleCard: true, skipFade: true });

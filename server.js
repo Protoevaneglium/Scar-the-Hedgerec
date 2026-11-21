@@ -20,6 +20,7 @@ function createNativeStaticHandler(rootDir) {
     return (req, res) => {
         res.setHeader('X-Scar-Game', '1');
         const fail = (status, message, headers = {}) => {
+            if (res.destroyed) return;
             res.writeHead(status, { 'Content-Type': 'text/plain; charset=utf-8', ...headers });
             res.end(req.method === 'HEAD' ? undefined : message);
         };
@@ -37,9 +38,11 @@ function createNativeStaticHandler(rootDir) {
             fail(404, 'Not Found'); return;
         }
         fs.realpath(file, (realError, realFile) => {
+            if (res.destroyed) return;
             if (realError) { fail(realError.code === 'EACCES' ? 403 : 404, 'Not Found'); return; }
             if (!inside(realRoot, realFile)) { fail(403, 'Forbidden'); return; }
             fs.stat(realFile, (error, stat) => {
+                if (res.destroyed) return;
                 if (error || !stat.isFile()) { fail(404, 'Not Found'); return; }
                 const total = stat.size;
                 const headers = {
@@ -68,7 +71,10 @@ function createNativeStaticHandler(rootDir) {
                 stream.on('error', () => {
                     if (res.headersSent) res.destroy(); else fail(500, 'Unable to read asset');
                 });
-                stream.on('open', () => { res.writeHead(status, headers); stream.pipe(res); });
+                stream.on('open', () => {
+                    if (res.destroyed) { stream.destroy(); return; }
+                    res.writeHead(status, headers); stream.pipe(res);
+                });
                 res.on('close', () => stream.destroy());
             });
         });
@@ -79,7 +85,9 @@ function createStaticServer({ rootDir = PUBLIC_DIR, nativeOnly = false } = {}) {
         try {
             const express = require('express'), app = express();
             app.use((_req, res, next) => { res.setHeader('X-Scar-Game', '1'); next(); });
-            app.use(express.static(rootDir));
+            // Keep the optional dependency on the same canonical-path and
+            // streaming policy as the zero-dependency server (including symlinks).
+            app.use(createNativeStaticHandler(rootDir));
             app.use((error, _req, res, _next) => {
                 if (res.headersSent) { res.destroy(); return; }
                 const status = Number.isInteger(error.status) && error.status >= 400 && error.status <= 599 ? error.status : 500;
@@ -109,6 +117,12 @@ function startServer({ port = process.env.PORT ?? 3000, host = process.env.HOST 
     }
     const server = createStaticServer({ nativeOnly });
     let activePort = firstPort;
+    const localHost = ['0.0.0.0', '::', 'localhost'].includes(String(host).toLowerCase());
+    const browserUrl = address => {
+        const hostname = localHost ? 'localhost' : address;
+        return `http://${hostname.includes(':') ? '[' + hostname + ']' : hostname}:${activePort}`;
+    };
+    const probeHost = host === '0.0.0.0' ? '127.0.0.1' : host === '::' ? '::1' : host;
     const listen = p => { activePort = p; server.listen(p, host); };
     const fail = error => { console.error(`Unable to start Scar: ${error.message}`); process.exitCode = 1; };
     const next = () => {
@@ -117,7 +131,7 @@ function startServer({ port = process.env.PORT ?? 3000, host = process.env.HOST 
     };
     server.on('listening', () => {
         activePort = server.address().port;
-        const url = `http://localhost:${activePort}`;
+        const url = browserUrl(server.address().address);
         log(`Scar the Hedgerec running at ${url}`);
         log('(Press Ctrl+C in this window anytime to stop the server)');
         if (open) openUrl(url);
@@ -132,14 +146,15 @@ function startServer({ port = process.env.PORT ?? 3000, host = process.env.HOST 
             request.destroy();
             next();
         };
-        const request = http.get(`http://localhost:${activePort}/sonic-engine.js`, response => {
+        const request = http.get({ hostname: probeHost, port: activePort, path: '/sonic-engine.js' }, response => {
             response.resume();
             if (!settled && response.statusCode === 200 && response.headers['x-scar-game'] === '1') {
                 settled = true;
+                const url = browserUrl(response.socket.remoteAddress);
                 response.destroy();
                 request.destroy();
-                log(`Scar the Hedgerec is already running at http://localhost:${activePort} — launching browser...`);
-                openUrl(`http://localhost:${activePort}`);
+                log(`Scar the Hedgerec is already running at ${url} — launching browser...`);
+                openUrl(url);
                 server.emit('reused');
             } else retry();
         });

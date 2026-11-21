@@ -172,14 +172,15 @@ const entries = [
     { name: prefix + 'public/assets/goalpost.wav',         data: fs.readFileSync(path.join(ROOT, 'public', 'assets', 'goalpost.wav')) },
 ];
 
-function includeUiAssets(relativeDir) {
+function includeAssets(relativeDir) {
     for (const entry of fs.readdirSync(path.join(ROOT, 'public', relativeDir), { withFileTypes: true })) {
         const relative = relativeDir + '/' + entry.name;
-        if (entry.isDirectory()) includeUiAssets(relative);
+        if (entry.isDirectory()) includeAssets(relative);
         else entries.push({ name: prefix + 'public/' + relative, data: fs.readFileSync(path.join(ROOT, 'public', relative)) });
     }
 }
-includeUiAssets('assets/ui');
+includeAssets('assets/ui');
+includeAssets('assets/sfx');
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
 const zipBuf = buildZipBuffer(entries);

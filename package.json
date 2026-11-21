@@ -12,7 +12,9 @@
     "termux": "node server.js --open",
     "install:termux": "sh install-termux.sh",
     "build:template": "node scripts/build-template-zip.js",
-    "test": "node tests/sonic_engine_test.js && node tests/browser_game_test.js && node tests/act3_test.js && node tests/animals_test.js && node tests/zone2_test.js && node tests/intro_test.js && node tests/finish_test.js && node tests/input_test.js && node tests/server_test.js && node tests/template_package_test.js && node tests/asset_tools_test.js"
+    "verify:baseline": "node scripts/verify-baseline.js",
+    "test:adversarial": "node tests/engine_adversarial_test.js && node tests/lifecycle_adversarial_test.js && node tests/npc_adversarial_test.js && node tests/render_adversarial_test.js --stress",
+    "test": "node tests/sonic_engine_test.js && node tests/browser_game_test.js && node tests/act3_test.js && node tests/animals_test.js && node tests/zone2_test.js && node tests/zone2_act2_test.js && node tests/rosie_test.js && node tests/intro_test.js && node tests/finish_test.js && node tests/input_test.js && node tests/engine_adversarial_test.js && node tests/lifecycle_adversarial_test.js && node tests/npc_adversarial_test.js && node tests/render_adversarial_test.js && node tests/server_test.js && node tests/installer_test.js && node tests/template_package_test.js && node tests/asset_tools_test.js"
   },
   "keywords": [
     "sonic",

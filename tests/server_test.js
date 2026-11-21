@@ -14,6 +14,9 @@ fs.writeFileSync(path.join(root, 'empty.txt'), '');
 fs.writeFileSync(path.join(root, '.hidden'), 'hidden');
 fs.writeFileSync(path.join(root, 'vanishing.bin'), 'data');
 fs.writeFileSync(path.join(privateDir, 'private.txt'), 'private');
+let junction = false;
+try { fs.symlinkSync(privateDir, path.join(root, 'escape'), process.platform === 'win32' ? 'junction' : 'dir'); junction = true; }
+catch (error) { if (!['EPERM', 'EACCES'].includes(error.code)) throw error; }
 const servers = [], sockets = new Set();
 async function listen(server) {
     servers.push(server);
@@ -39,6 +42,12 @@ function started(server, event = 'listening') {
         server.once(event, () => { clearTimeout(timer); resolve(server); });
     });
 }
+function deadline(promise, message) {
+    let timer;
+    return Promise.race([promise, new Promise((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), 3000);
+    })]).finally(() => clearTimeout(timer));
+}
 (async () => {
     console.log('\nHTTP server and launcher');
     for (const nativeOnly of [true, false]) {
@@ -54,9 +63,19 @@ function started(server, event = 'listening') {
         assert.strictEqual((await request(port, '/media.wav', {Range:'bytes=99-100'})).status, 416);
         assert.strictEqual((await request(port, '/empty.txt')).status, 200);
         assert.strictEqual((await request(port, '/missing')).status, 404);
+        if (junction) assert.strictEqual((await request(port, '/escape/private.txt')).status, 403,
+            `${nativeOnly ? 'native' : 'optional Express'} serving must not expose files outside public through a symlink`);
+        const parallel = await Promise.all(Array.from({ length: 32 }, (_, index) =>
+            request(port, '/media.wav', { Range: `bytes=${index % 8}-${index % 8 + 2}` }, index % 4 ? 'GET' : 'HEAD')));
+        parallel.forEach((result, index) => {
+            assert.strictEqual(result.status, 206);
+            assert.strictEqual(result.headers['content-length'], '3');
+            assert.strictEqual(result.body, index % 4 ? '0123456789'.slice(index % 8, index % 8 + 3) : '');
+        });
     }
     console.log('  ✓ native and optional Express serving support full, suffix, open-ended, clipped and HEAD media ranges');
-    const port = await listen(createStaticServer({ rootDir: root, nativeOnly: true }));
+    const nativeServer = createStaticServer({ rootDir: root, nativeOnly: true });
+    const port = await listen(nativeServer);
     for (const url of ['/%', '/%E0%A4%A', '/%00']) assert.strictEqual((await request(port, url)).status, 400);
     assert.strictEqual((await request(port, '/../public-private/private.txt')).status, 403);
     assert.strictEqual((await request(port, '/..%5cpublic-private%5cprivate.txt')).status, process.platform === 'win32' ? 403 : 404);
@@ -73,13 +92,49 @@ function started(server, event = 'listening') {
     } finally { fs.createReadStream = originalRead; }
     assert.strictEqual((await request(port, '/')).status, 200, 'bad requests must not kill the server');
     console.log('  ✓ malformed URLs, path escapes, invalid ranges and read failures are handled without crashing');
-    let junction = false;
-    try { fs.symlinkSync(privateDir, path.join(root,'escape'), process.platform === 'win32' ? 'junction' : 'dir'); junction = true; }
-    catch (error) { if (!['EPERM','EACCES'].includes(error.code)) throw error; }
     if (junction) assert.strictEqual((await request(port, '/escape/private.txt')).status, 403);
+    const originalStat = fs.stat, originalStream = fs.createReadStream, abortedStreams = [];
+    let resumeStat, statReached;
+    const reachedStat = new Promise(resolve => { statReached = resolve; });
+    try {
+        fs.stat = (file, callback) => originalStat(file, (error, stat) => {
+            if (file.endsWith('media.wav')) { resumeStat = () => callback(error, stat); statReached(); }
+            else callback(error, stat);
+        });
+        fs.createReadStream = (...args) => { const stream = originalStream(...args); abortedStreams.push(stream); return stream; };
+        const serverDisconnected = new Promise(resolve => nativeServer.once('request', (_req, res) => res.once('close', resolve)));
+        const aborted = http.get({ host: '127.0.0.1', port, path: '/media.wav' }, res => res.resume());
+        aborted.on('error', () => {});
+        await deadline(reachedStat, 'The controlled media request never reached its disk callback');
+        const disconnected = new Promise(resolve => aborted.once('close', resolve));
+        aborted.destroy();
+        await deadline(Promise.all([disconnected, serverDisconnected]), 'The cancelled media request did not disconnect');
+        // The server has observed close before its pending disk callback completes.
+        resumeStat();
+        await new Promise(resolve => setTimeout(resolve, 30));
+        assert(abortedStreams.every(stream => stream.destroyed),
+            'disconnecting during stat must not leave a later-created media stream open forever');
+    } finally {
+        fs.stat = originalStat; fs.createReadStream = originalStream;
+        await Promise.all(abortedStreams.filter(stream => !stream.closed).map(stream => new Promise(resolve => {
+            stream.once('close', resolve); stream.destroy();
+        })));
+    }
+    console.log('  ✓ cancelled media requests do not leak file streams across asynchronous disk callbacks');
     for (const invalid of ['bad', -1, 70000, Infinity]) assert.throws(() => startServer({ port:invalid }), RangeError);
     const ephemeral = startServer({port:0, host:'127.0.0.1', open:false, log:()=>{}});
     await started(ephemeral); assert(ephemeral.address().port > 0);
+    const explicitUrls = [];
+    const explicit = startServer({ port: 0, host: '127.0.0.2', open: true, openUrl: url => explicitUrls.push(url), log: () => {} });
+    await started(explicit);
+    assert.strictEqual(new URL(explicitUrls[0]).hostname, '127.0.0.2',
+        'the browser URL must target the interface on which the game actually listens');
+    const explicitReusedUrls = [];
+    const explicitReused = startServer({ port: explicit.address().port, host: '127.0.0.2', open: true,
+        openUrl: url => explicitReusedUrls.push(url), log: () => {} });
+    await started(explicitReused, 'reused');
+    assert.deepStrictEqual(explicitReusedUrls, explicitUrls,
+        'a second launcher must probe and reuse the configured interface rather than a different localhost server');
     const reused = [];
     const already = startServer({port:ephemeral.address().port,host:'127.0.0.1',open:true,openUrl:url=>reused.push(url),log:()=>{}});
     await started(already, 'reused'); assert.strictEqual(reused.length, 1);

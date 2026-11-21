@@ -32,9 +32,24 @@ elif [ -f "./server.js" ]; then
     GAME_DIR="$(pwd)"
 else
     GAME_DIR="${HOME}/Scar-the-Hedgerec"
-    if [ -d "$GAME_DIR/.git" ]; then
+    if [ -e "$GAME_DIR/.git" ]; then
         echo "Updating existing Scar the Hedgerec in $GAME_DIR ..."
-        git -C "$GAME_DIR" pull --ff-only || true
+        # BEGIN SAFE EXISTING UPDATE
+        if ! command -v git >/dev/null 2>&1; then
+            echo "Skipping update: Git is unavailable. Local work preserved."
+        elif ! DIRTY="$(git -C "$GAME_DIR" status --porcelain 2>/dev/null)"; then
+            echo "Skipping update: cannot inspect this checkout. Local work preserved."
+        elif [ -n "$DIRTY" ]; then
+            echo "Skipping update: this checkout has local changes. Local work preserved."
+        else
+            BRANCH="$(git -C "$GAME_DIR" symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
+            if [ -z "$BRANCH" ]; then
+                echo "Skipping update: this checkout is detached. Local work preserved."
+            elif ! git -C "$GAME_DIR" pull --ff-only origin "$BRANCH"; then
+                echo "Could not fast-forward this checkout. Local commits and files preserved."
+            fi
+        fi
+        # END SAFE EXISTING UPDATE
     else
         echo "Cloning Scar the Hedgerec into $GAME_DIR ..."
         git clone "$REPO_URL" "$GAME_DIR"

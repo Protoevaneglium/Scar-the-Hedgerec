@@ -84,18 +84,24 @@ elif [ -f "./server.js" ]; then
     GAME_DIR="$(pwd)"
 else
     GAME_DIR="${HOME}/Scar-the-Hedgerec"
-    if [ -d "$GAME_DIR/.git" ] && command -v git >/dev/null 2>&1; then
+    if [ -e "$GAME_DIR/.git" ]; then
         log "Updating existing Scar the Hedgerec in $GAME_DIR ..."
-        git -C "$GAME_DIR" fetch origin || true
-        BRANCH="$(git -C "$GAME_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "master")"
-        if [ "$BRANCH" = "HEAD" ] || [ -z "$BRANCH" ]; then
-            BRANCH="master"
-        fi
-        if [ -z "$(git -C "$GAME_DIR" status --porcelain 2>/dev/null)" ]; then
-            git -C "$GAME_DIR" pull --ff-only origin "$BRANCH" 2>/dev/null || git -C "$GAME_DIR" pull origin "$BRANCH" || true
+        # BEGIN SAFE EXISTING UPDATE
+        if ! command -v git >/dev/null 2>&1; then
+            log "Skipping update: Git is unavailable. Local work preserved."
+        elif ! DIRTY="$(git -C "$GAME_DIR" status --porcelain 2>/dev/null)"; then
+            log "Skipping update: cannot inspect this checkout. Local work preserved."
+        elif [ -n "$DIRTY" ]; then
+            log "Skipping update: this checkout has local changes. Local work preserved."
         else
-            git -C "$GAME_DIR" pull --rebase --autostash origin "$BRANCH" 2>/dev/null || git -C "$GAME_DIR" pull origin "$BRANCH" || true
+            BRANCH="$(git -C "$GAME_DIR" symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
+            if [ -z "$BRANCH" ]; then
+                log "Skipping update: this checkout is detached. Local work preserved."
+            elif ! git -C "$GAME_DIR" pull --ff-only origin "$BRANCH"; then
+                log "Could not fast-forward this checkout. Local commits and files preserved."
+            fi
         fi
+        # END SAFE EXISTING UPDATE
     elif [ ! -d "$GAME_DIR" ] && command -v git >/dev/null 2>&1; then
         log "Cloning Scar the Hedgerec into $GAME_DIR ..."
         git clone "$REPO_URL" "$GAME_DIR"

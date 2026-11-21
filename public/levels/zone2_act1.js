@@ -127,7 +127,7 @@
         c.fillStyle='#e9e6b5';c.font='bold 10px monospace';c.textAlign='center';c.fillText(label,x,y-64);
     }
     E.Terrain.registerLevel('z2_act1', {
-        title:'Marble Canopy Act 1',zone:2,zoneName:'MARBLE CANOPY',act:1,isBossAct:false,
+        title:'Marble Canopy Act 1',zone:2,zoneName:'MARBLE CANOPY',act:1,isBossAct:false,nextStage:'z2_act2',
         bgm:'assets/marble_canopy_act1.wav',startX:0,endX:12000,deathY:1380,
         cameraMinY:-700,cameraMaxY:620,probeY:-800,wallJump:true,smoothPresentation:true,animalZone:'ehz',
         theme:{skyTop:'#1758bb',skyMid:'#46c8de',skyBottom:'#d8f9bf',groundA:'#816985',groundB:'#51416c',trimColor:'#398858',trimHighlight:'#b8e891'},

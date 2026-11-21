@@ -50,18 +50,24 @@ if ($ScriptDir -and (Test-Path (Join-Path $ScriptDir 'server.js'))) {
         if ($HasGit) {
             Write-Host "Updating existing Scar the Hedgerec in $GameDir ..." -ForegroundColor Green
             try {
-                git -C $GameDir fetch origin
-                # Older installers overwrote the tracked launchers; restore them so pull can't conflict
-                git -C $GameDir checkout -- scar.bat scar.cmd start-windows.bat 2>$null
-                $CurrentBranch = (git -C $GameDir rev-parse --abbrev-ref HEAD 2>$null)
-                if (-not $CurrentBranch -or $CurrentBranch -eq 'HEAD') { $CurrentBranch = 'master' }
-                $Dirty = git -C $GameDir status --porcelain
-                if (-not $Dirty) {
-                    git -C $GameDir checkout -B $CurrentBranch "origin/$CurrentBranch" 2>$null
-                    git -C $GameDir pull --ff-only origin $CurrentBranch 2>$null
+                # BEGIN SAFE EXISTING UPDATE
+                $Dirty = @(git -C $GameDir status --porcelain 2>$null)
+                if ($LASTEXITCODE -ne 0) {
+                    Write-Host "Skipping update: cannot inspect this checkout. Local work preserved." -ForegroundColor Yellow
+                } elseif ($Dirty.Count -gt 0) {
+                    Write-Host "Skipping update: this checkout has local changes. Local work preserved." -ForegroundColor Yellow
                 } else {
-                    git -C $GameDir pull --rebase --autostash origin $CurrentBranch 2>$null
+                    $CurrentBranch = (git -C $GameDir symbolic-ref --quiet --short HEAD 2>$null)
+                    if ($LASTEXITCODE -ne 0 -or -not $CurrentBranch) {
+                        Write-Host "Skipping update: this checkout is detached. Local work preserved." -ForegroundColor Yellow
+                    } else {
+                        git -C $GameDir pull --ff-only origin $CurrentBranch
+                        if ($LASTEXITCODE -ne 0) {
+                            Write-Host "Could not fast-forward this checkout. Local commits and files preserved." -ForegroundColor Yellow
+                        }
+                    }
                 }
+                # END SAFE EXISTING UPDATE
             } catch {
                 Write-Host "Git update encountered a minor warning, continuing..." -ForegroundColor Yellow
             }

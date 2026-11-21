@@ -31,6 +31,9 @@ for(const name of ['scar.sh','start-termux.sh','start-linux-mac.sh','install-lin
 }
 const html=entries.get('public/index.html').data.toString();
 for(const match of html.matchAll(/<script src="([^"]+)"/g)) assert(entries.has('public/'+match[1]),`missing starter script ${match[1]}`);
+for(const match of html.matchAll(/\w+: '(assets\/(?:sfx\/)?[^']+\.wav)'/g)) {
+    assert(entries.has('public/'+match[1]), `missing starter sound ${match[1]}`);
+}
 assert(!html.includes('<div id="intro">'),'the blank starter must not depend on the campaign cinematic');
 assert(html.includes('window.DEFAULT_STAGE = "template"'));
 console.log('  ✓ the archive contains current code, shared sprites, all bootstrap scripts, and executable shell launchers');

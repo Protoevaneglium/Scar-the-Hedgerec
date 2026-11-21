@@ -461,6 +461,7 @@
             this.popups = [];
             this.timeEra = 'good_future'; // 'good_future' | 'present' | 'past'
             this.timeWarpTarget = null;
+            this.timeWarpSource = null;
             this.timeWarpCharge = 0;
             this.timeWarpFlash = 0;
             this.clock = 0;
@@ -472,11 +473,22 @@
         }
 
         resetObjects() {
-            this.timeWarpTarget = null;
-            this.timeWarpCharge = 0;
-            this.timeWarpFlash = 0;
+            this.cancelTimeWarp();
             if (this.levelDef) this.setupCustomObjects(this.levelDef);
             else if (this.stage === 'palmtree') this.setupPalmtreeObjects();
+        }
+
+        /** Cancel an unfinished trip and let its source post offer a new try. */
+        cancelTimeWarp() {
+            if (this.timeWarpTarget) {
+                const sources = this.timeWarpSource ? [this.timeWarpSource]
+                    : this.timePosts.filter(tp => tp.active && (tp.kind === 'FUTURE' ? 'good_future' : 'past') === this.timeWarpTarget);
+                for (const tp of sources) { tp.active = false; tp.spin = 0; }
+            }
+            this.timeWarpTarget = null;
+            this.timeWarpSource = null;
+            this.timeWarpCharge = 0;
+            this.timeWarpFlash = 0;
         }
 
         buildCustomLevel(def) {
@@ -553,11 +565,16 @@
             // Moving platforms
             this.platforms = (src.platforms || []).map((d) => {
                 const w = d.w || (d.large ? 64 : 48), h = d.h || 24;
-                const surf = addObjSurface(new LineSurface(d.x - w / 2, d.y, d.x + w / 2, d.y, 0, -1, -1, 'platform', { oneWay: true }));
                 const obj = {
                     ampX: 0, ampY: 0, speed: 0.035, phase: 0,
-                    ...d, baseX: d.x, baseY: d.y, w, h, dx: 0, dy: 0, surface: surf,
+                    ...d, baseX: d.x, baseY: d.y, w, h, dx: 0, dy: 0,
                 };
+                obj.x = obj.baseX + Math.sin(obj.phase) * obj.ampX;
+                obj.y = obj.baseY + Math.sin(obj.phase) * obj.ampY;
+                obj.velocityX = Math.cos(obj.phase) * obj.speed * obj.ampX;
+                obj.velocityY = Math.cos(obj.phase) * obj.speed * obj.ampY;
+                const surf = addObjSurface(new LineSurface(obj.x - w / 2, obj.y, obj.x + w / 2, obj.y, 0, -1, -1, 'platform', { oneWay: true }));
+                obj.surface = surf;
                 surf.ownerPlatform = obj;
                 return obj;
             });
@@ -661,9 +678,13 @@
         setupRouteObjects(src, addObjSurface) {
             this.swingPlatforms = (src.swingPlatforms || []).map(d => {
                 const config = { len: 76, maxAngle: .85, speed: .035, phase: 0, ...d };
-                const x = config.pivotX, y = config.pivotY + config.len;
+                const angle = Math.sin(config.phase) * config.maxAngle;
+                const x = config.pivotX + Math.sin(angle) * config.len, y = config.pivotY + Math.cos(angle) * config.len;
                 const surface = addObjSurface(new LineSurface(x - 24, y - 6, x + 24, y - 6, 0, -1, -1, 'swing platform', { oneWay: true }));
-                const obj = { ...config, x, y, angle: 0, dx: 0, dy: 0, surface };
+                const angularSpeed = Math.cos(config.phase) * config.speed * config.maxAngle;
+                const obj = { ...config, x, y, angle, dx: 0, dy: 0, surface,
+                    velocityX: Math.cos(angle) * config.len * angularSpeed,
+                    velocityY: -Math.sin(angle) * config.len * angularSpeed };
                 surface.ownerPlatform = obj;
                 return obj;
             });
@@ -1072,8 +1093,11 @@
             ];
             this.platforms = platDefs.map((d) => {
                 const w = d.large ? 64 : 32, h = 32;
-                const surf = addObjSurface(new LineSurface(d.x - w / 2, d.y, d.x + w / 2, d.y, 0, -1, -1, 'platform', { oneWay: true }));
-                const obj = { ...d, baseX: d.x, baseY: d.y, w, h, dx: 0, dy: 0, surface: surf };
+                const x = d.x + Math.sin(d.phase) * d.ampX, y = d.y + Math.sin(d.phase) * d.ampY;
+                const surf = addObjSurface(new LineSurface(x - w / 2, y, x + w / 2, y, 0, -1, -1, 'platform', { oneWay: true }));
+                const obj = { ...d, x, y, baseX: d.x, baseY: d.y, w, h, dx: 0, dy: 0, surface: surf,
+                    velocityX: Math.cos(d.phase) * d.speed * d.ampX,
+                    velocityY: Math.cos(d.phase) * d.speed * d.ampY };
                 surf.ownerPlatform = obj;
                 return obj;
             });
@@ -1450,7 +1474,8 @@
         }
 
         /** Step all dynamic stage & common Sonic objects for substep `h` (in 60Hz frames). */
-        updateObjects(player, h) {
+        updateObjects(player, h, input = {}) {
+            if (!Number.isFinite(h) || h <= 0 || player.gameOver || player.state === STATE.DYING) return;
             if (this.stage !== 'palmtree' && !this.hasObjects) return;
             this.clock += h;
 
@@ -1460,6 +1485,8 @@
                 const ny = p.baseY + Math.sin(this.clock * p.speed + p.phase) * p.ampY;
                 p.dx = nx - p.x;
                 p.dy = ny - p.y;
+                p.velocityX = Math.cos(this.clock * p.speed + p.phase) * p.speed * p.ampX;
+                p.velocityY = Math.cos(this.clock * p.speed + p.phase) * p.speed * p.ampY;
                 p.x = nx; p.y = ny;
                 p.surface.setEndpoints(p.x - p.w / 2, p.y, p.x + p.w / 2, p.y);
                 if (player.grounded && player.groundSurface === p.surface) {
@@ -1475,6 +1502,9 @@
                 const ny = sw.pivotY + Math.cos(sw.angle) * sw.len;
                 sw.dx = nx - sw.x;
                 sw.dy = ny - sw.y;
+                const angularSpeed = Math.cos(this.clock * sw.speed + sw.phase) * sw.speed * sw.maxAngle;
+                sw.velocityX = Math.cos(sw.angle) * sw.len * angularSpeed;
+                sw.velocityY = -Math.sin(sw.angle) * sw.len * angularSpeed;
                 sw.x = nx; sw.y = ny;
                 sw.surface.setEndpoints(sw.x - 24, sw.y - 6, sw.x + 24, sw.y - 6);
                 if (player.grounded && player.groundSurface === sw.surface) {
@@ -1703,6 +1733,7 @@
                         player.emit('enemyPop', en);
                     } else if (!player.invulnTimer || player.invulnTimer <= 0) {
                         this.hurtPlayer(player, ex);
+                        if (player.state === STATE.DYING) return;
                     }
                 }
             }
@@ -1776,6 +1807,7 @@
                     if (Math.abs(player.x - sc.x) < 18 && feetY >= sc.y - 30 && feetY <= sc.y + 4 && player.ysp >= 0) {
                         if ((!player.invulnTimer || player.invulnTimer <= 0) && (!player.invincTimer || player.invincTimer <= 0)) {
                             this.hurtPlayer(player, sc.x);
+                            if (player.state === STATE.DYING) return;
                         }
                     }
                 }
@@ -1849,6 +1881,7 @@
                     tp.active = true;
                     tp.spin = 75;
                     this.timeWarpTarget = tp.kind === 'FUTURE' ? 'good_future' : 'past';
+                    this.timeWarpSource = tp;
                     this.timeWarpCharge = 0;
                     player.emit('timePost', tp);
                 }
@@ -1860,6 +1893,7 @@
                     if (this.timeWarpCharge >= 90) {
                         this.timeEra = this.timeWarpTarget;
                         this.timeWarpTarget = null;
+                        this.timeWarpSource = null;
                         this.timeWarpCharge = 0;
                         this.timeWarpFlash = 35;
                         player.score = (player.score || 0) + 500;
@@ -1875,7 +1909,7 @@
             // 13. Goal Signpost (End of Act 1 at x = 9950)
             if (this.goalPost) {
                 const gp = this.goalPost;
-                if (!gp.spinning && !gp.cleared && player.x >= gp.x && Math.abs(feetY - gp.y) < 120) {
+                if (!gp.locked && !gp.spinning && !gp.cleared && player.x >= gp.x && Math.abs(feetY - gp.y) < 120) {
                     gp.spinning = true;
                     gp.spinTimer = 110;
                     // The results tally awards the ring bonus once, after this sign animation.
@@ -1913,7 +1947,7 @@
                 if (pp.life <= 0) this.popups.splice(i, 1);
             }
             if (this.levelDef && typeof this.levelDef.onUpdate === 'function') {
-                this.levelDef.onUpdate(this, player, h);
+                this.levelDef.onUpdate(this, player, h, input);
             }
         }
 
@@ -1922,6 +1956,17 @@
             if (this.goalPost && (this.goalPost.spinning || this.goalPost.cleared)) return;
             if (this.capsule && (this.capsule.opened || this.capsule.cleared)) return;
             if (player.invincTimer && player.invincTimer > 0) return;
+            // Ring/shield knockback cancels the previous attack and restores the
+            // standing hitbox using the same sole-preserving offset as landing.
+            player.uncurl();
+            player.groundSurface = null;
+            player.dropDashCharging = false;
+            player.dropDashCharge = 0;
+            player.dropDashReady = false;
+            player.boostTrailTimer = 0;
+            player.springTwirl = false;
+            player.onCoasterRail = false;
+            player.onMarbleSlide = false;
             if (player.shield) {
                 player.shield = false;
                 player.invulnTimer = 120;
@@ -2023,19 +2068,26 @@
         emit(name, data) { const fn = this.events[name]; if (fn) fn(data, this); }
 
         addRings(n = 1) {
-            this.rings = (this.rings || 0) + n;
+            if (!Number.isSafeInteger(n) || n <= 0) return;
+            const total = (this.rings || 0) + n;
+            if (!Number.isSafeInteger(total)) return;
+            this.rings = total;
             if (!this.nextLifeRings) this.nextLifeRings = 100;
-            while (this.rings >= this.nextLifeRings) {
-                this.nextLifeRings += 100;
-                this.addLife();
+            if (this.rings >= this.nextLifeRings) {
+                // A single large grant must not run one iteration per earned
+                // life. Award the batch once and play one pickup jingle.
+                const earned = Math.floor((this.rings - this.nextLifeRings) / 100) + 1;
+                this.nextLifeRings += earned * 100;
+                this.addLife(earned);
             }
             this.emit('ring', this.rings);
         }
 
-        addLife() {
-            this.lives = (this.lives !== undefined ? this.lives : 3) + 1;
+        addLife(count = 1) {
+            if (!Number.isSafeInteger(count) || count <= 0) return;
+            this.lives = (this.lives !== undefined ? this.lives : 3) + count;
             if (this.terrain && this.terrain.popups) {
-                this.terrain.popups.push({ x: this.x, y: this.y - 28, text: '1UP!', life: 55 });
+                this.terrain.popups.push({ x: this.x, y: this.y - 28, text: count === 1 ? '1UP!' : `${count}UP!`, life: 55 });
             }
             this.emit('oneUp', this.lives);
         }
@@ -2048,6 +2100,7 @@
          */
         die(reason = 'GAME OVER', fromPit = false) {
             if (this.gameOver || this.state === STATE.DYING) return;
+            this.terrain.cancelTimeWarp();
             this.state = STATE.DYING;
             this.uncurl();
             this.groundSurface = null;
@@ -2067,6 +2120,7 @@
             this.springTwirl = false;
             this.hurtPose = false;
             this.onCoasterRail = false;
+            this.onMarbleSlide = false;
             this.dropDashCharging = false;
             this.dropDashCharge = 0;
             this.dropDashReady = false;
@@ -2150,6 +2204,7 @@
             this.wallKickLock = 0;
             this.hurtPose = false;
             this.onCoasterRail = false;
+            this.onMarbleSlide = false;
             this.boostTrailTimer = 0;
             this.deathTimer = 0;
             this.deathOffscreenY = null;
@@ -2162,6 +2217,8 @@
 
         respawn() {
             this.respawnSerial = (this.respawnSerial || 0) + 1;
+            this.terrain.cancelTimeWarp();
+            this.invulnTimer = Math.max(this.invulnTimer || 0, 120);
             if (this.terrain.activeCheckpoint) {
                 const ac = this.terrain.activeCheckpoint;
                 this.place(ac.x, 0, ac.y);
@@ -2180,14 +2237,18 @@
          * dtSeconds: real elapsed time. Scaled to 60 FPS frames and sub-stepped (each step <= 1 frame).
          */
         update(input, dtSeconds) {
-            const dt60 = Math.max(0, dtSeconds) * 60;
+            if (!Number.isFinite(dtSeconds) || dtSeconds <= 0) return;
+            input = input && typeof input === 'object' ? input : {};
+            // Discard long suspended-tab backlog instead of blocking the UI by
+            // replaying arbitrarily many physics frames in one call.
+            const dt60 = Math.min(dtSeconds, .25) * 60;
             if (dt60 <= 0) return;
             const steps = Math.max(1, Math.ceil(dt60 - 1e-6));
             const h = dt60 / steps;
-            for (let i = 0; i < steps; i++) this.step(input, h, i === 0 && !!input.jumpPressed);
+            for (let i = 0; i < steps; i++) this.step(input, h, i === 0 && !!input.jumpPressed, i === 0 && !!input.upPressed);
         }
 
-        step(inp, h, jumpPressed) {
+        step(inp, h, jumpPressed, upPressed = !!inp.upPressed) {
             if (this.gameOver) return;
             this.prevX = this.x;
             this.prevY = this.y;
@@ -2197,7 +2258,7 @@
                 return;
             }
             if (this.boostTrailTimer > 0) this.boostTrailTimer = Math.max(0, this.boostTrailTimer - h);
-            if (this.terrain.updateObjects) this.terrain.updateObjects(this, h);
+            if (this.terrain.updateObjects) this.terrain.updateObjects(this, h, { ...inp, jumpPressed, upPressed });
             if (this.state === STATE.DYING) return;
             // Winning is latched when the sign starts spinning. Holding a direction
             // must not run Scar past the finite stage while the sign animates.
@@ -2372,7 +2433,8 @@
             const a = this.angle;
             // Inherit any moving/swinging platform velocity
             const plat = this.groundSurface && this.groundSurface.ownerPlatform;
-            const pvx = plat ? plat.dx : 0, pvy = plat ? plat.dy : 0;
+            const pvx = plat ? (Number.isFinite(plat.velocityX) ? plat.velocityX : plat.dx || 0) : 0;
+            const pvy = plat ? (Number.isFinite(plat.velocityY) ? plat.velocityY : plat.dy || 0) : 0;
             // Xsp/Ysp from gsp (§3.3), then the perpendicular impulse (§5)
             this.xsp = this.gsp * Math.cos(a) - PHYS.JMP * Math.sin(a) + pvx;
             this.ysp = -this.gsp * Math.sin(a) - PHYS.JMP * Math.cos(a) + pvy;

@@ -5,7 +5,8 @@ require('../public/levels/zone1_act2.js');
 require('../public/levels/kitt_boss.js');
 require('../public/levels/zone1_act3.js');
 require('../public/levels/zone2_act1.js');
-const CAMPAIGN = ['palmtree', 'z1_act2', 'z1_act3', 'z2_act1'];
+require('../public/levels/zone2_act2.js');
+const CAMPAIGN = ['palmtree', 'z1_act2', 'z1_act3', 'z2_act1', 'z2_act2'];
 
 function fixture(stage = 'z1_act3') {
     const terrain = new Terrain(stage);
@@ -50,7 +51,7 @@ test('normal acts use signposts and the boss act uses a locked capsule', () => {
 
 test('every act frees its animal pair from badniks at 30, 60, and 144 Hz; monitors free none', () => {
     const pairs = { palmtree: ['flicky', 'ricky'], z1_act2: ['flicky', 'becky'],
-        z1_act3: ['cucky', 'micky'], z2_act1: ['flicky', 'ricky'] };
+        z1_act3: ['cucky', 'micky'], z2_act1: ['flicky', 'ricky'], z2_act2: ['locky', 'wocky'] };
     for (const stage of CAMPAIGN) for (const hz of [30, 60, 144]) {
         const { terrain, player } = fixture(stage);
         const enemy = terrain.enemies.find(en => en.kind === 'crab');

@@ -139,6 +139,13 @@ and press **Enter** — it starts the local server and opens your Android browse
   - Original 156 BPM FM/marimba soundtrack with jungle percussion. Rebuild its seamless 74-second loop with `node scripts/compose-zone2-music.js`.
   - Reuses the earlier acts' pinball bumpers, swinging platforms, smashable walls and rocks, collapsing bridges, trap doors, and sparkling step shortcuts, alongside the core rings, monitors, springs, checkpoints and giant ring.
   - Continues after Kitt's capsule rescue, or open `http://localhost:3000/?nointro&stage=z2_act1`. Steer toward marked walls and tap Jump repeatedly to alternate kicks; ring trails show the climbs.
+- **Zone 2 Act 2 — Molten Sanctuary**:
+  - A 14,400px course combining purple marble lava galleries with floating ivory temples, mossy arches, and a peach cloud sea, inspired by the supplied Marble Zone and Sky Sanctuary maps.
+  - Lava ignites globally after **15 seconds of active play**. A countdown and supplied Sonic CD warning effects announce ignition; hot lava then causes normal ring/shield damage on contact. Elevated skyways and basalt stepping stones provide safe crossings. Death pauses the timer; Reset restarts it.
+  - Six marble slides build rolling momentum; three turquoise thermal updrafts launch Scar into looping sky routes, while rising sanctuary lifts and wall kicks offer alternate climbs.
+  - The complete shared object kit includes rescuable badnik animals, rings, monitors, star posts, springs, giant ring, swinging platforms, bumpers, breakable walls/rocks/bridges, trap doors, and sparkling steps.
+  - Rosie notices and waves to Scar, paces around the final temple, and follows him with room to move. Tap **Up / ▲** near her to talk; she reacts to his speed and hops along when he jumps. Her movement, planted idle/blink, greetings, and real hops use the supplied Sonic CD Amy Rose/Rosey sprite sheet. The reunion awards its bonus once and opens the final goal; conversations never lock Scar's controls. The supplied sound pack adds ignition, warning, updraft, and reunion cues; original file IDs and credits are retained in `public/assets/sfx/sonic_cd_manifest.json`.
+  - Continues after Marble Canopy Act 1, or open `http://localhost:3000/?nointro&stage=z2_act2`.
 - **Custom Character Rig & Advanced High-Speed Techniques**:
   - **Scar the Hedgerec**: Full 7-frame sprite rig (`idle`, `walk1`, `walk2`, `run1`, `run2`, `death1`, `death2`) + Spin Dash ball.
   - **Sonic CD Super Peel-Out (`↑ + Jump`)**: Rev Figure-8 legs in place with cyan/magenta vortex particles, launching uncurled at supersonic speed (`12.0`).
@@ -149,7 +156,7 @@ and press **Enter** — it starts the local server and opens your Android browse
   - **Act 1 Badniks**: Motobug, Crabmeat, Buzz Bomber, Spikes (Yadorin), Caterkiller, Burrobot, Batbrain, and Chopper.
   - **Act 2 Sonic 2 Badniks (14 Species, 29 Enemies)**: Masher (waterfall leaps), Buzzer (targeting stingers), Coconuts (palm tree windup), Sping, Grounder, Crawl (star bumper thrust), Shellcracker, Slicer, Balkiry, Nebula, Octus, Chop, Turtloid, and Asteron.
 - **Classic Sonic Common Objects**: Animated **Rings & Ring Sparkles**, **Item Monitors** (*Blue Shield*, *Invincibility*, *Super Ring +10*, *Speed Shoes*, *Scar 1-Up*), **Checkpoint Star Posts**, **Red & Yellow Springs**, **Spikes**, **Giant Ring (Okina Ring)**, spinning **Robotnik / Sonic Goal Post**, and **Act 3 Boss Animal Capsule**.
-- **Animal rescues in every campaign act**: Badniks free animated animals in Zone 1 Acts 1–3 and Zone 2 Act 1. Act 3 also keeps its boss capsule rescue. Animals hop on the real terrain and use the shared animal sprite sheet; stage resets restore the encounters.
+- **Animal rescues in every campaign act**: Badniks free animated animals in Zone 1 Acts 1–3 and Zone 2 Acts 1–2. Act 3 also keeps its boss capsule rescue. Animals hop on the real terrain and use the shared animal sprite sheet; stage resets restore the encounters.
 - **Authentic Audio**: Looping soundtrack (`level1.mp3`) + custom WAV and synthesized retro sound effects (Jump, Rings, Goal Post, Peel-Out, Drop Dash, Dash Rings, Death Sting, 1-Up, and Tally).
 - **Exact 16-Bit Fixed-Point Physics (`60 FPS` Sub-stepped)**:
   - Six analytical raycast sensors (**A/B** Ground, **C/D** Ceiling, **E/F** Wall Push) across Floor (`Mode 0`), Right Wall (`Mode 1`), Ceiling (`Mode 2`), and Left Wall (`Mode 3`), with 360° loop traversal on multiple layers.
@@ -161,6 +168,8 @@ and press **Enter** — it starts the local server and opens your Android browse
 ```bash
 npm test
 ```
+
+For a complete rebuilt baseline with reproducible adversarial checks and a source fingerprint, run `npm run verify:baseline -- --stress`. See [TESTING.md](TESTING.md) for coverage, seeds, reports, and the manual playtest pass.
 
 Image-tool development uses Node.js 20.9+ and `npm ci`. This installs the optional image-processing dependency and enables the image fixture tests. The game launcher and core verification suite still work without developer dependencies on Node.js 18+.
 

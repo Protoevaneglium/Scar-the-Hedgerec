@@ -1,0 +1,41 @@
+{
+  "sourceArchive": "Sega CD - Sonic the Hedgehog CD - Miscellaneous - Sound Effects (1).zip",
+  "collection": "Sonic Sounds Complete / Sonic CD",
+  "ripper": "Mr Lange",
+  "format": "Original 44.1 kHz stereo 16-bit WAV recordings, copied byte-for-byte.",
+  "selectionNote": "The supplied collection deliberately identifies sounds only by sound-test number. Gameplay role names below are this games assignments, not claims about canonical sound names. FM cues only; no sampled voice lines.",
+  "samples": [
+    {
+      "key": "lava_ignite",
+      "file": "assets/sfx/lava_ignite.wav",
+      "source": "Sonic CD/SCD_FM_44.wav",
+      "durationSeconds": 1.210839,
+      "sha256": "5d8d27850add55b6e520152ba50b64f16305e56a6e6565d38f75cb5d6b8cf308",
+      "role": "A low electronic rumble assigned to lava ignition."
+    },
+    {
+      "key": "heat_warning",
+      "file": "assets/sfx/heat_warning.wav",
+      "source": "Sonic CD/SCD_FM_21.wav",
+      "durationSeconds": 0.179456,
+      "sha256": "59ea5d2da529d203a2ae7a8a4de74d574be2c753712ff821b87fa9a7ca587cda",
+      "role": "A short tonal alert assigned to the last seconds of the heat countdown."
+    },
+    {
+      "key": "thermal_updraft",
+      "file": "assets/sfx/thermal_updraft.wav",
+      "source": "Sonic CD/SCD_FM_79.wav",
+      "durationSeconds": 1.013469,
+      "sha256": "cd6e55b477a178b373f47c8bbf57a9d164b90ba18b93e10ef9c0975f5e7ed152",
+      "role": "A rising electronic cue assigned to the thermal updraft launch."
+    },
+    {
+      "key": "rosie_reunion",
+      "file": "assets/sfx/rosie_reunion.wav",
+      "source": "Sonic CD/SCD_FM_71.wav",
+      "durationSeconds": 2.673605,
+      "sha256": "5534393c3d4fd6e91a4085dc903b24559a19637b703c4890b3d6c2ba38989bb6",
+      "role": "A short melodic FM cue assigned to Rosies reunion; contains no invented character speech."
+    }
+  ]
+}

@@ -32,13 +32,17 @@ if exist "%SELF_DIR%server.js" (
 set "GAME_DIR=%USERPROFILE%\Scar-the-Hedgerec"
 
 where git >nul 2>nul
-if errorlevel 1 goto :ZipInstall
+if errorlevel 1 (
+    if exist "%GAME_DIR%\.git" (
+        echo Skipping update: Git is unavailable. Local work preserved.
+        goto :HaveGame
+    )
+    goto :ZipInstall
+)
 
 if exist "%GAME_DIR%\.git" (
     echo Updating existing Scar the Hedgerec in %GAME_DIR% ...
-    REM Older installers overwrote the tracked launchers; restore them so pull can't conflict
-    git -C "%GAME_DIR%" checkout -- scar.bat scar.cmd start-windows.bat >nul 2>nul
-    git -C "%GAME_DIR%" pull --rebase --autostash
+    call :UpdateExisting
     goto :HaveGame
 )
 if exist "%GAME_DIR%\server.js" goto :ZipInstall
@@ -120,6 +124,30 @@ if "%QUIET%"=="0" (
 )
 endlocal
 exit /b 0
+
+REM BEGIN SAFE EXISTING UPDATE
+:UpdateExisting
+git -C "%GAME_DIR%" status --porcelain >nul 2>nul
+if errorlevel 1 (
+    echo Skipping update: cannot inspect this checkout. Local work preserved.
+    exit /b 0
+)
+set "UPDATE_DIRTY="
+for /f "delims=" %%D in ('git -C "%GAME_DIR%" status --porcelain 2^>nul') do set "UPDATE_DIRTY=1"
+if defined UPDATE_DIRTY (
+    echo Skipping update: this checkout has local changes. Local work preserved.
+    exit /b 0
+)
+set "UPDATE_BRANCH="
+for /f "delims=" %%B in ('git -C "%GAME_DIR%" symbolic-ref --quiet --short HEAD 2^>nul') do set "UPDATE_BRANCH=%%B"
+if not defined UPDATE_BRANCH (
+    echo Skipping update: this checkout is detached. Local work preserved.
+    exit /b 0
+)
+git -C "%GAME_DIR%" pull --ff-only origin "%UPDATE_BRANCH%"
+if errorlevel 1 echo Could not fast-forward this checkout. Local commits and files preserved.
+exit /b 0
+REM END SAFE EXISTING UPDATE
 
 :WriteLauncher
 (
