@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Scar the Hedgerec</title>
     <link rel="icon" href="data:,">
     <link rel="stylesheet" href="css/game-ui.css">
@@ -54,6 +54,7 @@
     <video id="intro-video" src="assets/intro.mp4" poster="assets/intro_title.png" playsinline preload="auto" autoplay></video>
     <img class="intro-title-fallback" src="assets/intro_title.png" alt="Scar the Hedgerec — Press Enter to start">
     <p id="intro-controller-hint" hidden></p>
+    <p id="intro-credit">by Gavin and Travis Stange</p>
 </div>
 
 <audio id="bgm" src="assets/level1.mp3" loop preload="auto"></audio>
@@ -61,6 +62,7 @@
 
 <script src="sonic-engine.js"></script>
 <script src="js/modern-hud.js"></script>
+<script src="js/android-host.js"></script>
 <script src="levels/zone1_act2.js"></script>
 <script src="levels/kitt_boss.js"></script>
 <script src="levels/zone1_act3.js"></script>
@@ -84,6 +86,7 @@ class RetroAudio {
     constructor() {
         this.ctx = null;
         this._enabled = true;
+        this.suspended = false;
         this.lastSkid = 0;
         this.bgm = document.getElementById('bgm') || new Audio('assets/level1.mp3');
         this.bgm.loop = true;
@@ -185,16 +188,22 @@ class RetroAudio {
     set enabled(val) {
         this._enabled = !!val;
         if (!this._enabled) {
-            this.stopScarVoice();
-            this.pauseBGM();
-            for (const effect of [...this.activeSources]) {
-                try { effect.source.stop(); } catch (_) {}
-                this.releaseSource(effect);
-            }
-            for (const voice of this.fallbackVoices) { try { voice.pause(); } catch (_) {} }
+            this.stopPlayback();
         } else {
             this.playBGM();
         }
+    }
+    stopPlayback() {
+        this.stopScarVoice(); this.pauseBGM();
+        for (const effect of [...this.activeSources]) {
+            try { effect.source.stop(); } catch (_) {}
+            this.releaseSource(effect);
+        }
+        for (const voice of this.fallbackVoices) { try { voice.pause(); } catch (_) {} }
+    }
+    setSuspended(value) {
+        this.suspended = !!value;
+        if (this.suspended) this.stopPlayback(); else this.unlock();
     }
     unlock() {
         if (this.ctx && this.ctx.state === 'closed') { this.ctx = null; this.decoding.clear(); }
@@ -202,7 +211,7 @@ class RetroAudio {
             const AC = window.AudioContext || window.webkitAudioContext;
             try { if (AC) this.ctx = new AC(); } catch (_) {}
         }
-        if (this.ctx && this.ctx.state === 'suspended') {
+        if (!this.suspended && this.ctx && this.ctx.state === 'suspended') {
             try { const resume = this.ctx.resume(); if (resume && resume.catch) resume.catch(() => {}); } catch (_) {}
         }
         if (this.ctx && this.sfxData) {
@@ -215,7 +224,7 @@ class RetroAudio {
         }
     }
     playWav(key, vol = 0.5) {
-        if (!this.enabled) return true;
+        if (!this.enabled || this.suspended) return true;
         let effect;
         if (this.ctx && this.buffers[key]) {
             try {
@@ -258,7 +267,7 @@ class RetroAudio {
         }
     }
     scarVoice(cue, options = {}) {
-        if (!this.enabled || typeof cue !== 'string'
+        if (!this.enabled || this.suspended || typeof cue !== 'string'
             || !Object.prototype.hasOwnProperty.call(this.scarVoiceKeys, cue)) return false;
         const rawNow = performance.now(), now = Number.isFinite(rawNow) ? Math.max(0, rawNow) : 0;
         if (!(options && options.force) && now - this.lastScarVoiceTime < 2500) return false;
@@ -299,7 +308,7 @@ class RetroAudio {
         return played;
     }
     playBGM() {
-        if (!this._enabled || !this.bgm || !this.bgm.getAttribute('src')) return;
+        if (!this._enabled || this.suspended || !this.bgm || !this.bgm.getAttribute('src')) return;
         if (window.INTRO_ACTIVE) return;
         if (this.bgm.paused) {
             try {
@@ -331,7 +340,7 @@ class RetroAudio {
         }
     }
     tone(type, f0, f1, dur, vol = 0.14, delay = 0) {
-        if (!this.enabled || !this.ctx) return;
+        if (!this.enabled || this.suspended || !this.ctx) return;
         let effect;
         try {
             const t = this.ctx.currentTime + delay, o = this.ctx.createOscillator(), g = this.ctx.createGain();
@@ -342,7 +351,7 @@ class RetroAudio {
         } catch (_) { this.releaseSource(effect); }
     }
     noise(dur, freq, vol = 0.12) {
-        if (!this.enabled || !this.ctx) return;
+        if (!this.enabled || this.suspended || !this.ctx) return;
         let effect;
         try {
             const t = this.ctx.currentTime, n = Math.floor(this.ctx.sampleRate * dur);
@@ -398,6 +407,10 @@ class RetroAudio {
     shatter() {
         this.noise(0.22, 420, 0.18);
         this.tone('sawtooth', 220, 65, 0.18, 0.15, 0);
+    }
+    trapDoor(open) {
+        this.noise(0.06, 700, 0.07);
+        this.tone('square', open ? 220 : 110, open ? 110 : 220, 0.07, 0.07);
     }
     boost() {
         this.tone('sawtooth', 300, 1100, 0.24, 0.16, 0);
@@ -530,6 +543,9 @@ class InputHandler {
                 return;
             }
             const k = KEY[e.code];
+            // A repeat arriving after blur is still the old held key. Require a
+            // fresh press instead of turning focus recovery into a jump or run.
+            if (e.repeat && k && !this.heldSources.get(k)?.has('key:' + e.code)) return;
             if (k) this.press(k, true, 'key:' + e.code);
             if (e.repeat) return;
             if (e.code === 'Tab' || e.code === 'KeyG') this.debugToggle = true;
@@ -1114,6 +1130,7 @@ class Game {
             breakWall: () => audio.shatter(),
             breakRock: () => audio.shatter(),
             breakFloor: () => audio.shatter(),
+            trapDoor: (door) => audio.trapDoor(door.isOpen),
             houdini: () => audio.spinner(),
             enemyPop: () => audio.spinner(),
             boost: (sb, p) => { audio.boost(); this.dust(p, 10, -p.facing, 3.8, '#00e5ff'); },
@@ -1286,8 +1303,7 @@ class Game {
         this.paused = next;
         const now = performance.now();
         if (Number.isFinite(now)) this.last = now;
-        if (next) { audio.pauseBGM(); audio.stopScarVoice(); }
-        else audio.playBGM();
+        audio.setSuspended(next);
         this.syncControllerUI();
         if (next) document.getElementById('btn-resume')?.focus?.({ preventScroll: true });
         else this.canvas?.focus?.({ preventScroll: true });
@@ -3719,6 +3735,7 @@ function runIntro(onDone) {
     const holdTitle = (fallback = false) => {
         if (finished) return;
         waitingForStart = true;
+        if (wrap) wrap.classList.add('title-held');
         if (startupTimer !== null) { clearTimeout(startupTimer); startupTimer = null; }
         if (vid) { try { vid.pause(); } catch (_) {} }
         if (fallback && wrap) wrap.classList.add('title-fallback');

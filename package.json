@@ -1,6 +1,6 @@
 {
   "name": "scar-the-hedgerec",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "Scar the Hedgerec — A high-speed 16-bit retro platformer with 360-degree loop and slope physics (Windows, Linux, macOS, Termux/Android)",
   "main": "server.js",
   "bin": {
@@ -15,8 +15,12 @@
     "build:enemy-atlases": "node scripts/build-enemy-atlases.js",
     "verify:baseline": "node scripts/verify-baseline.js",
     "test:adversarial": "node tests/engine_adversarial_test.js && node tests/lifecycle_adversarial_test.js && node tests/npc_adversarial_test.js && node tests/render_adversarial_test.js --stress",
-    "test": "node tests/sonic_engine_test.js && node tests/browser_game_test.js && node tests/act3_test.js && node tests/animals_test.js && node tests/zone2_test.js && node tests/zone2_act2_test.js && node tests/zone2_act3_test.js && node tests/sanctuary_duo_boss_test.js && node tests/duo_boss_art_test.js && node tests/zone2_act3_browser_test.js && node tests/rosie_test.js && node tests/rosie_hug_test.js && node tests/rosie_hug_art_test.js && node tests/rosie_dialogue_test.js && node tests/rosie_interaction_browser_test.js && node tests/intro_test.js && node tests/finish_test.js && node tests/input_test.js && node tests/gamepad_input_test.js && node tests/gamepad_intro_test.js && node tests/gamepad_game_test.js && node tests/scar_voice_test.js && node tests/enemy_sprite_provenance_test.js && node tests/enemy_sprite_render_test.js && node tests/engine_adversarial_test.js && node tests/lifecycle_adversarial_test.js && node tests/npc_adversarial_test.js && node tests/render_adversarial_test.js && node tests/server_test.js && node tests/installer_test.js && node tests/template_package_test.js && node tests/asset_tools_test.js",
-    "build:duo-boss-atlas": "node scripts/build-duo-boss-atlas.js"
+    "test": "node tests/sonic_engine_test.js && node tests/level_consistency_test.js && node tests/browser_game_test.js && node tests/act3_test.js && node tests/animals_test.js && node tests/zone2_test.js && node tests/zone2_act2_test.js && node tests/zone2_act3_test.js && node tests/sanctuary_duo_boss_test.js && node tests/duo_boss_art_test.js && node tests/zone2_act3_browser_test.js && node tests/rosie_test.js && node tests/rosie_hug_test.js && node tests/rosie_hug_art_test.js && node tests/rosie_dialogue_test.js && node tests/rosie_interaction_browser_test.js && node tests/intro_test.js && node tests/finish_test.js && node tests/input_test.js && node tests/android_host_test.js && node tests/android_package_test.js && node tests/gamepad_input_test.js && node tests/gamepad_intro_test.js && node tests/gamepad_game_test.js && node tests/scar_voice_test.js && node tests/enemy_sprite_provenance_test.js && node tests/enemy_sprite_render_test.js && node tests/engine_adversarial_test.js && node tests/lifecycle_adversarial_test.js && node tests/npc_adversarial_test.js && node tests/render_adversarial_test.js && node tests/server_test.js && node tests/installer_test.js && node tests/template_package_test.js && node tests/asset_tools_test.js",
+    "build:duo-boss-atlas": "node scripts/build-duo-boss-atlas.js",
+    "test:consistency": "node tests/level_consistency_test.js",
+    "build:android": "node scripts/build-android.js",
+    "verify:apk": "node scripts/verify-android-apk.js",
+    "test:android": "node scripts/test-android.js"
   },
   "keywords": [
     "sonic",

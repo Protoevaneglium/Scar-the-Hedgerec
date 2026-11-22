@@ -132,6 +132,7 @@ indexHtml = indexHtml.replace(
     [
         '<script src="sonic-engine.js"></script>',
         '<script src="js/modern-hud.js"></script>',
+        '<script src="js/android-host.js"></script>',
         '<script src="levels/level_template.js"></script>',
         '<script src="levels/boss_act_template.js"></script>',
         '<script>window.DEFAULT_STAGE = "template"; window.CAMPAIGN_STAGES = ["template", "boss_template"]; window.STAGE_ORDER = ["template", "boss_template", "test"];</script>',
@@ -172,6 +173,7 @@ const entries = [
     { name: prefix + 'public/sonic-engine.js',  data: fs.readFileSync(path.join(rootDir, 'public', 'sonic-engine.js')) },
     { name: prefix + 'public/css/game-ui.css',  data: fs.readFileSync(path.join(rootDir, 'public', 'css', 'game-ui.css')) },
     { name: prefix + 'public/js/modern-hud.js',  data: fs.readFileSync(path.join(rootDir, 'public', 'js', 'modern-hud.js')) },
+    { name: prefix + 'public/js/android-host.js', data: fs.readFileSync(path.join(rootDir, 'public', 'js', 'android-host.js')) },
     { name: prefix + 'public/levels/level_template.js',    data: fs.readFileSync(path.join(rootDir, 'templates', 'level_template.js')) },
     { name: prefix + 'public/levels/boss_act_template.js', data: fs.readFileSync(path.join(rootDir, 'templates', 'boss_act_template.js')) },
     { name: prefix + 'public/assets/scar_sheet.png',       data: fs.readFileSync(path.join(rootDir, 'public', 'assets', 'scar_sheet.png')) },

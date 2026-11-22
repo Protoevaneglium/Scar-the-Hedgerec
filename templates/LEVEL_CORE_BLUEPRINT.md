@@ -10,6 +10,19 @@ No map layouts, enemies, music, or bosses are pre-forced onto future levels — 
 
 Every new level registered with `SonicEngine.Terrain.registerLevel(id, config)` automatically gets:
 
+### Shared Formula: Rules for Every Act
+
+All campaign acts, including Palmtree Panic, use the same object initialization, physics, interactions, rewards, sound events, and reset path in `public/sonic-engine.js` and `public/index.html`.
+
+- Keep Scar's acceleration, jump, rolling, Spin Dash, Super Peel-Out, Drop Dash, hitboxes, damage, lives, and controls in the shared core. New acts inherit them automatically.
+- Place common objects through `objects` / `setupObjects`. Their sprites, collisions, rewards, power-up durations, audio cues, and reset behavior come from the foundation. A ring always gives 1 ring and 10 points; the giant ring gives 50 rings and 10,000 points; shoes and invincibility last 900 gameplay frames; every 100 rings grants a life.
+- Declare enemy `type` explicitly when choosing a species. Ground (`kind: 'crab'`) and flying (`kind: 'buzz'`) defaults are Crabmeat and Buzz Bomber. Motion and rendering use the same species; enemy list position never chooses its appearance. Use `type: 'chopper'` / `'masher'` for leaping fish, not hovering guards.
+- Use shared player events for sound feedback. Trap doors play the same opening/closing cues wherever placed; common actions and Scar's voice cues keep their mappings across acts. Stage music remains configurable.
+- Keep title cards, completion tally, checkpoint recovery and restart behavior. Score, lives and shield carry between acts; rings, act time and temporary power-ups start fresh.
+- Layouts, palettes, music, enemy rosters and optional object placements remain creative choices. Marked wall-kick routes, Kitt's locked boss capsule, and Molten Sanctuary's lava and Rosie gate are intentional extensions of the foundation.
+
+Run `npm run test:consistency` after changing an act or the core. It discovers campaign registrations from the shipped page and checks movement at 30/60/144 Hz, rewards, damage/recovery, sounds, title cards, carryover, and repeated resets. `npm test` and `npm run verify:baseline` include this check. Rebuild the starter with `npm run build:template` after changing shared code or templates.
+
 ### A. Classic 3-Act Zone Progression & 16-Bit Title Cards
 - **3-Act Zone Campaign Flow**:
   - `Act 1` → `Act 2` → `Act 3 (Boss Act)` → `Next Zone Act 1`!
@@ -63,6 +76,7 @@ Every new level registered with `SonicEngine.Terrain.registerLevel(id, config)` 
 - **Core WAV SFX & Jingles**: `assets/jump.wav`, `assets/rings.wav`, `assets/goalpost.wav` + 16-bit Web Audio synth for 1-Up fanfare, Score Tally ticks/chime, Game Over cadence, Spin Dash, skids, springs, checkpoints, and shattering.
 - **Per-Level Looping BGM**: Set `bgm: 'assets/zone2.mp3'` (loops seamlessly).
 - **Controls**: Full Desktop Keyboard + Android / Termux Multi-Touch D-Pad (`◀`, `▼`, `▶`, `JUMP`).
+- **Shared Moves & Xbox Controls**: Super Peel-Out (Up + Jump), Drop Dash (press and hold Jump again in the air), and standard gamepad support inherit the same behavior and audio in every act. Wall kicks use the same rules on marked climb walls in enabled acts.
 
 ---
 

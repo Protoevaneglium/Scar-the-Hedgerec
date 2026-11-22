@@ -1,0 +1,50 @@
+import groovy.json.JsonSlurper
+plugins { id 'com.android.application' }
+def scarRelease = new JsonSlurper().parse(rootProject.file('../release.json'))
+def signingPath = System.getenv('SCAR_KEYSTORE_PATH')
+android {
+    namespace scarRelease.applicationId
+    compileSdk 35
+    buildToolsVersion '36.0.0'
+    defaultConfig {
+        applicationId scarRelease.applicationId
+        minSdk scarRelease.minSdk
+        targetSdk scarRelease.targetSdk
+        versionCode scarRelease.versionCode
+        versionName scarRelease.version
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+    }
+    signingConfigs {
+        release {
+            if (signingPath) {
+                storeFile file(signingPath)
+                storePassword System.getenv('SCAR_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('SCAR_KEY_ALIAS')
+                keyPassword System.getenv('SCAR_KEY_PASSWORD')
+            }
+        }
+    }
+    buildTypes {
+        release { signingConfig signingConfigs.release; minifyEnabled false; debuggable false }
+    }
+    testBuildType 'release'
+    buildFeatures { buildConfig true }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    androidResources { noCompress += ['mp4', 'mp3', 'wav'] }
+    sourceSets.main.assets.srcDir layout.buildDirectory.dir('generated/gameAssets').get().asFile
+    lint { abortOnError true }
+}
+tasks.register('stageGameAssets', Exec) {
+    workingDir rootProject.projectDir.parentFile
+    commandLine 'node', 'scripts/stage-android-assets.js'
+    inputs.files(fileTree(rootProject.file('../public')) { exclude 'downloads/**' })
+    inputs.file(rootProject.file('../release.json'))
+    outputs.dir layout.buildDirectory.dir('generated/gameAssets')
+}
+tasks.named('preBuild').configure { dependsOn 'stageGameAssets' }
+dependencies {
+    implementation 'androidx.webkit:webkit:1.14.0'
+    androidTestImplementation 'androidx.test:runner:1.6.2'
+    androidTestImplementation 'androidx.test:core:1.6.1'
+    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+}

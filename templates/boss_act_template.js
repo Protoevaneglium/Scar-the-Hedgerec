@@ -33,6 +33,8 @@
 
     const LEVEL_ID = 'boss_template'; // <-- Change to 'z2_act3', 'z3_act3', etc.
 
+    // Boss acts inherit the same moves, objects, rewards, audio and resets as normal acts.
+    // Extend the foundation with boss hooks; see the Shared Formula in LEVEL_CORE_BLUEPRINT.md.
     SonicEngine.Terrain.registerLevel(LEVEL_ID, {
         title: 'Boss Starter (Act 3)',
         zone: 2,

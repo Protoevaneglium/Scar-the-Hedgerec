@@ -14,12 +14,14 @@ function fingerprint() {
     const files = [];
     function walk(relative) {
         for (const entry of fs.readdirSync(path.join(root, relative), { withFileTypes: true })) {
+            if (entry.isDirectory() && ['build', '.gradle'].includes(entry.name)) continue;
+            if (entry.isFile() && (entry.name === 'local.properties' || /\.(?:jks|keystore)$/.test(entry.name))) continue;
             const child = relative + '/' + entry.name;
             if (entry.isDirectory()) walk(child);
             else if (entry.isFile()) files.push(child);
         }
     }
-    for (const dir of ['public', 'scripts', 'templates', 'tests', 'bin', '.github']) walk(dir);
+    for (const dir of ['public', 'scripts', 'templates', 'tests', 'bin', '.github', 'android']) walk(dir);
     for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
         if (entry.isFile() && entry.name !== 'HANDOFF.md'
             && (/\.(?:js|json|md|bat|cmd|ps1|sh)$/i.test(entry.name) || ['.gitattributes', '.gitignore'].includes(entry.name))) {

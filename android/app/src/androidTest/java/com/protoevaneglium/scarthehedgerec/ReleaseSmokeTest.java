@@ -1,0 +1,186 @@
+package com.protoevaneglium.scarthehedgerec;
+
+import android.app.Instrumentation;
+import android.graphics.Bitmap;
+import android.os.SystemClock;
+import android.util.Log;
+import android.view.InputDevice;
+import android.view.MotionEvent;
+import android.webkit.WebView;
+import androidx.lifecycle.Lifecycle;
+import androidx.test.core.app.ActivityScenario;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
+import androidx.test.platform.app.InstrumentationRegistry;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.json.JSONTokener;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import static org.junit.Assert.*;
+
+/** Exercises the signed release APK's real WebView, native touch, media and lifecycle. */
+@RunWith(AndroidJUnit4.class)
+public final class ReleaseSmokeTest {
+    private ActivityScenario<MainActivity> scenario;
+    private final Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
+    private String js(String expression) throws Exception {
+        AtomicReference<String> value = new AtomicReference<>();
+        CountDownLatch latch = new CountDownLatch(1);
+        scenario.onActivity(activity -> {
+            WebView view = activity.getGameView();
+            if (view == null) { value.set("null"); latch.countDown(); }
+            else view.evaluateJavascript(expression, answer -> { value.set(answer); latch.countDown(); });
+        });
+        assertTrue("WebView callback must not freeze", latch.await(20, TimeUnit.SECONDS));
+        return value.get();
+    }
+    private void until(String expression) throws Exception {
+        until(expression, 45000);
+    }
+    private void until(String expression, long timeout) throws Exception {
+        long deadline = SystemClock.uptimeMillis() + timeout;
+        String result;
+        do { result = js("Boolean(" + expression + ")"); if ("true".equals(result)) return; SystemClock.sleep(150); }
+        while (SystemClock.uptimeMillis() < deadline);
+        fail("Timed out: " + expression + " result=" + result);
+    }
+    private JSONObject object(String expression) throws Exception {
+        Object json = new JSONTokener(js("JSON.stringify(" + expression + ")")).nextValue();
+        return new JSONObject((String)json);
+    }
+    private float[] button(String selector) throws Exception {
+        JSONObject point = object("(()=>{const v=document.querySelector(" + JSONObject.quote(selector) + ").getBoundingClientRect();return{x:v.left+v.width/2,y:v.top+v.height/2,w:innerWidth,h:innerHeight};})()");
+        int[] origin = new int[2], dimensions = new int[2];
+        scenario.onActivity(activity -> { WebView view = activity.getGameView(); view.getLocationOnScreen(origin); dimensions[0]=view.getWidth(); dimensions[1]=view.getHeight(); });
+        float[] target = { (float)(point.getDouble("x") * dimensions[0] / point.getDouble("w")) + origin[0],
+            (float)(point.getDouble("y") * dimensions[1] / point.getDouble("h")) + origin[1] };
+        Log.i("ScarQA", "Touch " + selector + " at " + target[0] + "," + target[1] + " view=" + dimensions[0] + "x" + dimensions[1]);
+        return target;
+    }
+    private void tap(float[] point) {
+        long down = SystemClock.uptimeMillis();
+        MotionEvent event = MotionEvent.obtain(down, down, MotionEvent.ACTION_DOWN, point[0], point[1], 0);
+        event.setSource(InputDevice.SOURCE_TOUCHSCREEN); sendTouch(event); event.recycle();
+        event = MotionEvent.obtain(down, SystemClock.uptimeMillis(), MotionEvent.ACTION_UP, point[0], point[1], 0);
+        event.setSource(InputDevice.SOURCE_TOUCHSCREEN); sendTouch(event); event.recycle();
+    }
+    private void sendTouch(MotionEvent event) {
+        // Deliver native MotionEvents through the release WebView. UiAutomation's
+        // global display synchronization can hang on continuously drawn emulator
+        // surfaces; game predicates below acknowledge actual Chromium input.
+        scenario.onActivity(activity -> {
+            WebView view=activity.getGameView(); int[] origin=new int[2]; view.getLocationOnScreen(origin);
+            event.offsetLocation(-origin[0], -origin[1]);
+            assertTrue("WebView accepts native touch", view.dispatchTouchEvent(event));
+        });
+    }
+    private void pairEvent(long down, int action, float[] first, float[] second, int count) {
+        MotionEvent.PointerProperties[] properties = new MotionEvent.PointerProperties[count];
+        MotionEvent.PointerCoords[] coords = new MotionEvent.PointerCoords[count];
+        for (int i=0;i<count;i++) {
+            properties[i] = new MotionEvent.PointerProperties(); properties[i].id = i; properties[i].toolType = MotionEvent.TOOL_TYPE_FINGER;
+            coords[i] = new MotionEvent.PointerCoords(); coords[i].x = i == 0 ? first[0] : second[0]; coords[i].y = i == 0 ? first[1] : second[1]; coords[i].pressure = 1; coords[i].size = 1;
+        }
+        MotionEvent event = MotionEvent.obtain(down, SystemClock.uptimeMillis(), action, count, properties, coords, 0, 0, 1, 1, 0, 0, InputDevice.SOURCE_TOUCHSCREEN, 0);
+        sendTouch(event); event.recycle();
+    }
+    private void startGame() throws Exception {
+        until("window.ScarHost && document.getElementById('intro-video')");
+        js("document.getElementById('intro-video').dispatchEvent(new Event('error'));true");
+        until("getComputedStyle(document.getElementById('intro-credit')).display!=='none'");
+        assertEquals("\"by Gavin and Travis Stange\"", js("document.getElementById('intro-credit').textContent"));
+        until("document.querySelector('.intro-title-fallback').naturalWidth>0");
+        js("window.__painted=false;requestAnimationFrame(()=>requestAnimationFrame(()=>window.__painted=true));true"); until("window.__painted");
+        SystemClock.sleep(500);
+        capture("v0.0.1-android-title.png");
+        tap(button("#intro"));
+        until("window.sonicGame && !window.INTRO_ACTIVE");
+        js("window.__qaErrors=[];window.addEventListener('error',e=>window.__qaErrors.push(String(e.message)));window.addEventListener('unhandledrejection',e=>window.__qaErrors.push(String(e.reason)));window.sonicGame.titleCard=null;window.sonicGame.fadeAlpha=0;true");
+    }
+    private void capture(String name) throws Exception {
+        Bitmap shot = instrumentation.getUiAutomation().takeScreenshot();
+        assertNotNull("Android screenshot", shot);
+        File target = new File(instrumentation.getTargetContext().getExternalFilesDir(null), name);
+        try (FileOutputStream stream = new FileOutputStream(target)) { shot.compress(Bitmap.CompressFormat.PNG, 100, stream); }
+        shot.recycle();
+    }
+    private void mediaRange(String asset, String header, long offset, int length) throws Exception {
+        js("window.__mediaCheck=null;fetch("+JSONObject.quote(asset)+",{headers:{Range:"+JSONObject.quote(header)+"}}).then(async r=>window.__mediaCheck={status:r.status,bytes:Array.from(new Uint8Array(await r.arrayBuffer()))}).catch(e=>window.__mediaCheck={error:String(e)});true");
+        until("window.__mediaCheck !== null");
+        JSONObject response = object("window.__mediaCheck"); assertEquals(206, response.getInt("status"));
+        JSONArray actual = response.getJSONArray("bytes"); assertEquals(length, actual.length());
+        try (InputStream source = instrumentation.getTargetContext().getAssets().open("game/"+asset)) {
+            long remaining = offset;
+            while (remaining > 0) { long skipped=source.skip(remaining); assertTrue(skipped>0); remaining-=skipped; }
+            for (int i=0;i<length;i++) assertEquals("Wrong media byte at "+(offset+i), source.read(), actual.getInt(i));
+        }
+    }
+    @Test public void offlineReleaseSurvivesTouchMediaAllActsAndLifecycleChurn() throws Exception {
+        Log.i("ScarQA", "Launching signed release activity");
+        scenario = ActivityScenario.launch(MainActivity.class);
+        try {
+            Log.i("ScarQA", "Activity resumed; checking offline media");
+            until("window.ScarHost && document.getElementById('intro-video')");
+            mediaRange("assets/sfx/scar_alright.wav", "bytes=4-19", 4, 16);
+            mediaRange("assets/sfx/scar_alright.wav", "bytes=0-19", 0, 20);
+            long videoSize;
+            try (android.content.res.AssetFileDescriptor descriptor = instrumentation.getTargetContext().getAssets().openFd("game/assets/intro.mp4")) { videoSize=descriptor.getLength(); }
+            mediaRange("assets/intro.mp4", "bytes=-128", videoSize-128, 128);
+            mediaRange("assets/intro.mp4", "bytes="+(videoSize-32)+"-", videoSize-32, 32);
+            startGame();
+            Log.i("ScarQA", "Intro Start works; checking simultaneous touch controls");
+            assertEquals("\"" + BuildConfig.VERSION_NAME + "\"", js("window.sonicGame ? '" + BuildConfig.VERSION_NAME + "' : ''"));
+            js("window.sonicGame.loadStage('palmtree',{skipTitleCard:true,skipFade:true});true");
+            until("getComputedStyle(document.getElementById('touch')).display==='flex'");
+            double beforeX = Double.parseDouble(js("window.sonicGame.player.x"));
+            float[] right = button("[data-key=right]"), jump = button("[data-key=jump]");
+            long down = SystemClock.uptimeMillis();
+            pairEvent(down, MotionEvent.ACTION_DOWN, right, jump, 1);
+            pairEvent(down, MotionEvent.ACTION_POINTER_DOWN | (1 << MotionEvent.ACTION_POINTER_INDEX_SHIFT), right, jump, 2);
+            until("window.sonicGame.input.right && window.sonicGame.input.jumpHeld");
+            until("window.sonicGame.player.x>"+beforeX);
+            pairEvent(down, MotionEvent.ACTION_POINTER_UP | (1 << MotionEvent.ACTION_POINTER_INDEX_SHIFT), right, jump, 2);
+            pairEvent(down, MotionEvent.ACTION_UP, right, jump, 1);
+            until("!window.sonicGame.input.right && !window.sonicGame.input.jumpHeld");
+
+            JSONArray stages = new JSONArray((String)new JSONTokener(js("JSON.stringify(window.sonicGame.getCampaignStages())")).nextValue());
+            assertEquals(6, stages.length());
+            for (int i=0;i<stages.length();i++) {
+                String stage = stages.getString(i);
+                Log.i("ScarQA", "Rendering checkpoints and lifecycle test: " + stage);
+                js("window.sonicGame.loadStage(" + JSONObject.quote(stage) + ",{skipTitleCard:true,skipFade:true});window.sonicGame.player.invincTimer=10000;true");
+                until("window.sonicGame.enemySheetLoaded");
+                int count = Integer.parseInt(js("window.sonicGame.terrain.checkpoints.length"));
+                for (int cp=0;cp<count;cp++) for (String era : new String[] {"good_future", "present", "past"}) {
+                    assertEquals("true", js("(()=>{let g=window.sonicGame;g.gotoCheckpoint("+cp+");g.player.invincTimer=10000;g.terrain.timeEra="+JSONObject.quote(era)+";g.render();return Number.isFinite(g.player.x)&&Number.isFinite(g.camX);})()"));
+                }
+                scenario.moveToState(Lifecycle.State.CREATED);
+                scenario.moveToState(Lifecycle.State.RESUMED);
+                until("window.sonicGame.paused");
+                String time = js("window.sonicGame.stageTime"); SystemClock.sleep(300);
+                assertEquals(time, js("window.sonicGame.stageTime"));
+                tap(button("#btn-resume"));
+                until("!window.sonicGame.paused");
+                double clock = Double.parseDouble(js("window.sonicGame.terrain.clock"));
+                until("window.sonicGame.terrain.clock>" + clock, 10000);
+            }
+            for (int i=0;i<8;i++) { scenario.moveToState(Lifecycle.State.CREATED); scenario.moveToState(Lifecycle.State.RESUMED); }
+            Log.i("ScarQA", "Rapid lifecycle churn complete; checking Rosie assist");
+            until("window.sonicGame.paused"); tap(button("#btn-resume")); until("!window.sonicGame.paused");
+            js("localStorage.setItem('scar_apk_qa','persisted');window.sonicGame.loadStage('z2_act3',{skipTitleCard:true,skipFade:true});window.sonicGame.gotoCheckpoint(1);window.sonicGame.player.invincTimer=10000;true");
+            until("window.sonicGame.terrain.boss.active && window.SanctuaryDuetArt.loaded");
+            tap(button("#btn-talk"));
+            until("window.sonicGame.terrain.boss.ally.assistCount>0", 120000);
+            assertEquals("0", js("window.__qaErrors.length"));
+            capture("v0.0.1-android-arena.png");
+            scenario.recreate(); startGame(); assertEquals("\"persisted\"", js("localStorage.getItem('scar_apk_qa')"));
+            Log.i("ScarQA", "All release smoke checks completed");
+        } finally { if (scenario != null) scenario.close(); }
+    }
+}

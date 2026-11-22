@@ -46,3 +46,11 @@ Desktop.ini
 tmp/
 temp/
 *.tmp
+
+# Local QA, Android builds and private APK signing material
+output/
+.gradle/
+local.properties
+*.jks
+*.keystore
+android/app/src/main/assets/

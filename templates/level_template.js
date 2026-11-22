@@ -8,7 +8,7 @@
  * (For Act 3 Boss Acts, see `templates/boss_act_template.js`!)
  *
  * ALREADY INCLUDED AUTOMATICALLY BY THE CORE ENGINE (No extra code needed!):
- *   - 360-degree 6-sensor fixed-point physics, slopes, rolling, variable jump & Spin Dash
+ *   - Shared 360-degree physics, slopes, rolling, variable jump, Spin Dash, Peel-Out & Drop Dash
  *   - Scar's 5-state speed-reactive sprite animations + Spin Dash ball + Shield/Invincibility auras
  *   - Classic 3-Act Zone Progression & Transitions:
  *       * 16-bit sliding Zone/Act Title Card banner (`zone`, `zoneName`, `act`, `isBossAct`)
@@ -191,6 +191,8 @@
             // bot_walk2: { sx: 34, sy: 0, w: 32, h: 24, ax: 16, ay: 24 },
         },
         enemies: [
+            // Choose `type` explicitly for shared species; unspecified kinds default to Crabmeat / Buzz Bomber.
+            // Keep common movement, rewards and sound events in the shared core (see LEVEL_CORE_BLUEPRINT.md).
             // Ground patrol enemy (`kind: 'crab'`):
             // { kind: 'crab', x: 1050, y: 560, minX: 960, maxX: 1180, vx: 1.1, frames: ['bot_walk1', 'bot_walk2'], animRate: 0.2 },
             // Hovering / flying enemy (`kind: 'buzz'`):

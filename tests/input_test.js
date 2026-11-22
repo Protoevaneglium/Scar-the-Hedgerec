@@ -54,3 +54,14 @@ assert(!input.right && !input.jumpHeld && !input.jumpPressed && !input.upPressed
 document.hidden=false; document.dispatch('visibilitychange');
 key('KeyD'); assert(input.right); key('KeyD',false); assert(!input.right);
 console.log('  ✓ overlapping keyboard keys, mixed touch/pointer input and focus loss keep correct control state');
+
+for (const code of ['Space', 'ArrowRight', 'ArrowUp']) {
+    key(code); input.endFrame(); window.dispatch('blur'); window.dispatch('focus');
+    window.dispatch('keydown', { code, repeat: true });
+    assert(!input.jumpHeld && !input.jumpPressed && !input.right && !input.up && !input.upPressed,
+        `${code}: OS repeats after focus recovery must wait for release and a fresh press`);
+    key(code, false); key(code);
+    assert(input.jumpHeld || input.right || input.up, `${code}: a fresh physical press must still work`);
+    key(code, false); input.endFrame();
+}
+console.log('  ✓ held keyboard repeats after blur cannot create a fresh jump, run or Up edge');

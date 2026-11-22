@@ -1065,22 +1065,8 @@
 
         /** Create / reset all dynamic Sonic CD Palmtree Panic objects and their collision surfaces. */
         setupPalmtreeObjects() {
-            // Remove any previous dynamic object surfaces before rebuilding
-            this.surfaces = this.surfaces.filter((s) => !s.dynamicObject);
-            this.lines = this.lines.filter((s) => !s.dynamicObject);
-
-            const addObjSurface = (s) => {
-                s.dynamicObject = true;
-                return this.add(s);
-            };
-
-            this.debris = [];
-            this.splashes = [];
-            this.popups = [];
-            this.scatteredRings = [];
-            this.animals = [];
-            this.animalSerial = 0;
-            this.clock = 0;
+            // Act 1 supplies placements; the same foundation initializes every act.
+            const objects = {};
 
             // 1. FLOATING & MOVING PLATFORMS (platformSmall 32x32, platformLarge 64x32)
             const platDefs = [
@@ -1094,16 +1080,7 @@
                 { x: 5580, y: 600, large: true,  ampX: 65, ampY: 0,  speed: 0.035, phase: 0 },
                 { x: 7480, y: 410, large: true,  ampX: 0,  ampY: 50, speed: 0.035, phase: 1.5 },
             ];
-            this.platforms = platDefs.map((d) => {
-                const w = d.large ? 64 : 32, h = 32;
-                const x = d.x + Math.sin(d.phase) * d.ampX, y = d.y + Math.sin(d.phase) * d.ampY;
-                const surf = addObjSurface(new LineSurface(x - w / 2, y, x + w / 2, y, 0, -1, -1, 'platform', { oneWay: true }));
-                const obj = { ...d, x, y, baseX: d.x, baseY: d.y, w, h, dx: 0, dy: 0, surface: surf,
-                    velocityX: Math.cos(d.phase) * d.speed * d.ampX,
-                    velocityY: Math.cos(d.phase) * d.speed * d.ampY };
-                surf.ownerPlatform = obj;
-                return obj;
-            });
+            objects.platforms = platDefs.map(d => ({ ...d, w: d.large ? 64 : 32, h: 32 }));
 
             // 2. SWINGING PLATFORMS (swingPivot 16x16, swingChain 16x16, swingLedge 48x16)
             const swingDefs = [
@@ -1124,7 +1101,7 @@
                 { x: 7610, y: 724, dir: 1,  power: -12.0 }, // Launches up to Waterfall Fortress
                 { x: 8680, y: 724, dir: -1, power: -12.0 }, // Launches out of Fortress Basin
             ];
-            this.bouncePoles = poleDefs.map((d) => ({ ...d, state: 'straight', timer: 0 }));
+            objects.bouncePoles = poleDefs;
 
             // 4. SPINNERS (spinnerSilver & spinnerDark pinball bumpers)
             const spinnerDefs = [
@@ -1137,7 +1114,7 @@
                 { x: 7420, y: 350, variant: 'dark'   },
                 { x: 8360, y: 470, variant: 'silver' },
             ];
-            this.spinners = spinnerDefs.map((d) => ({ ...d, cooldown: 0, spinTimer: 0 }));
+            objects.spinners = spinnerDefs;
 
             // 5. HOUDINI STEPS (houdiniTrigger 24x24 + 4 sparkling step platforms)
             const houdiniDefs = [
@@ -1188,14 +1165,14 @@
                 { x: 4980, y: 720 },
                 { x: 7220, y: 730 },
             ];
-            this.setupRouteObjects({
+            Object.assign(objects, {
                 swingPlatforms: swingDefs, houdiniGroups: houdiniDefs,
                 breakableWalls: wallDefs, breakableFloors: floorDefs,
                 trapDoors: trapDefs, rocks: rockDefs,
-            }, addObjSurface);
+            });
 
             // 10. SPEED BOOSTERS (classic Sonic CD ground boosters before loops & giant climbs)
-            this.speedBoosters = [
+            objects.speedBoosters = [
                 { x: 1690, y: 742, boost: 11.8, cooldown: 0 }, // Before Loop #1
                 { x: 4090, y: 380, boost: 11.0, cooldown: 0 }, // Before Giant Dome Arch Crest
                 { x: 6390, y: 742, boost: 11.8, cooldown: 0 }, // Before Loop #2
@@ -1204,13 +1181,13 @@
             ];
 
             // 11. TIME POSTS, CHECKPOINT STAR POSTS, SPRINGS, MONITORS, SPIKES, GIANT RING & GOAL SIGNPOST
-            this.timePosts = [
+            objects.timePosts = [
                 { x: 420,  y: 420, kind: 'FUTURE', spin: 0, active: false },
                 { x: 2420, y: 540, kind: 'PAST',   spin: 0, active: false },
                 { x: 3060, y: 340, kind: 'FUTURE', spin: 0, active: false },
                 { x: 6220, y: 742, kind: 'FUTURE', spin: 0, active: false },
             ];
-            this.starPosts = [
+            objects.starPosts = [
                 { x: 1680, y: 742, active: false, spinTimer: 0 },
                 { x: 2300, y: 540, active: false, spinTimer: 0 },
                 { x: 3920, y: 700, active: false, spinTimer: 0 },
@@ -1218,8 +1195,7 @@
                 { x: 7680, y: 530, active: false, spinTimer: 0 },
                 { x: 9200, y: 574, active: false, spinTimer: 0 },
             ];
-            this.activeCheckpoint = null;
-            this.monitors = [
+            objects.monitors = [
                 { x: 205,  y: 420, item: 'shield', broken: false },
                 { x: 640,  y: 250, item: 'rings',  broken: false },
                 { x: 1480, y: 250, item: '1up',    broken: false },
@@ -1234,24 +1210,24 @@
                 { x: 8580, y: 530, item: '1up',    broken: false },
                 { x: 9360, y: 574, item: 'rings',  broken: false },
             ];
-            this.springs = [
+            objects.springs = [
                 { x: 1080, y: 742, color: 'red',    power: -13.5, timer: 0 },
                 { x: 2245, y: 540, color: 'red',    power: -13.2, timer: 0 },
                 { x: 4055, y: 540, color: 'yellow', power: -11.0, timer: 0 },
                 { x: 5960, y: 490, color: 'red',    power: -13.2, timer: 0 },
                 { x: 7655, y: 530, color: 'red',    power: -13.5, timer: 0 },
             ];
-            this.spikeClusters = [
+            objects.spikeClusters = [
                 { x: 840,  y: 250 },
                 { x: 2860, y: 540 },
                 { x: 4480, y: 540 },
                 { x: 8050, y: 530 },
             ];
-            this.bigRing = { x: 9830, y: 536, collected: false, flashTimer: 0 };
-            this.goalPost = { x: 9950, y: 574, spinning: false, cleared: false, spinTimer: 0, angle: 0 };
+            objects.bigRing = { x: 9830, y: 536 };
+            objects.goalPost = { x: 9950, y: 574 };
 
             // 12. BADNIKS (Varied Badnik roster: Motobug, Crabmeat, Buzz Bomber, Spikes, Caterkiller, Burrobot, Batbrain, Chopper)
-            this.enemies = [
+            objects.enemies = [
                 { kind: 'crab', type: 'motobug',     x: 260,  y: 420, minX: 210,  maxX: 330,  vx: 1.1, alive: true },
                 { kind: 'buzz', type: 'buzz',        x: 360,  y: 310, baseX: 360,  baseY: 310, phase: 0.4, alive: true },
                 { kind: 'crab', type: 'spikes',      x: 740,  y: 250, minX: 580,  maxX: 920,  vx: 1.0, alive: true },
@@ -1274,20 +1250,20 @@
             ];
 
             // 13. RINGS — Generous Sonic CD ring arcs across High, Mid, and Low routes + inside both Loops!
-            this.rings = [];
+            objects.rings = [];
             const addRingLine = (x0, y0, dx, dy, count) => {
-                for (let i = 0; i < count; i++) this.rings.push({ x: x0 + dx * i, y: y0 + dy * i, collected: false });
+                for (let i = 0; i < count; i++) objects.rings.push({ x: x0 + dx * i, y: y0 + dy * i });
             };
             const addSurfaceRings = (surf, x0, step, count, offset = 18) => {
                 for (let i = 0; i < count; i++) {
                     const rx = x0 + i * step;
-                    this.rings.push({ x: rx, y: surf.f(rx) - offset, collected: false });
+                    objects.rings.push({ x: rx, y: surf.f(rx) - offset });
                 }
             };
             const addLoopRings = (lp, n = 10) => {
                 for (let i = 0; i < n; i++) {
                     const a = (i / n) * TAU;
-                    this.rings.push({ x: lp.cx + (lp.r - 22) * Math.sin(a), y: lp.cy + (lp.r - 22) * Math.cos(a), collected: false });
+                    objects.rings.push({ x: lp.cx + (lp.r - 22) * Math.sin(a), y: lp.cy + (lp.r - 22) * Math.cos(a) });
                 }
             };
 
@@ -1307,14 +1283,14 @@
             addRingLine(2780, 714, 42, 0, 8);
             for (let i = 0; i < 12; i++) {
                 const rx = 2480 + i * 95;
-                this.rings.push({ x: rx, y: 310 - Math.sin((i / 11) * Math.PI) * 35, collected: false });
+                objects.rings.push({ x: rx, y: 310 - Math.sin((i / 11) * Math.PI) * 35 });
             }
             // Section 3: Giant Dome Arch Crest + Hollow Dome Interior + Low Cavern
             for (let i = 0; i < 16; i++) {
                 const rx = 4140 + i * 75;
                 const t = (rx - 4060) / 1320;
                 const archY = 380 - 168 * (1 - Math.cos(TAU * t)) / 2;
-                this.rings.push({ x: rx, y: archY - 22, collected: false });
+                objects.rings.push({ x: rx, y: archY - 22 });
             }
             addRingLine(4200, 512, 42, 0, 8);
             addSurfaceRings(this.mainFloor, 4380, 65, 12, 20);
@@ -1329,6 +1305,7 @@
             addSurfaceRings(this.mainFloor, 8780, 42, 8, 22);
             // Section 6: Final Palmtree Straightaway celebration rings
             addRingLine(9280, 548, 36, 0, 16);
+            this.setupCustomObjects({ objects });
         }
 
         shatterWall(wall, player) {

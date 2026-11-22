@@ -197,8 +197,10 @@ canvas {
 #intro .intro-title-fallback { display: none; width: 100%; height: 100%; object-fit: contain; }
 #intro.title-fallback video { display: none; }
 #intro.title-fallback .intro-title-fallback { display: block; }
-#intro-controller-hint { position: absolute; bottom: max(24px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px); padding: 10px 18px; border: 1px solid #95d7ff; border-radius: 8px; background: #071c36ed; color: #fff0ae; font: bold 14px/1.4 Arial, sans-serif; text-align: center; }
+#intro-controller-hint { position: absolute; bottom: max(36px, calc(env(safe-area-inset-bottom) + 28px)); left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px); padding: 10px 18px; border: 1px solid #95d7ff; border-radius: 8px; background: #071c36ed; color: #fff0ae; font: bold 14px/1.4 Arial, sans-serif; text-align: center; }
 #intro-controller-hint[hidden] { display: none; }
+#intro-credit { display: none; position: absolute; bottom: max(8px, env(safe-area-inset-bottom)); left: 16px; right: 16px; color: #f4e6c9; text-align: center; font: 12px/1.3 Arial, sans-serif; text-shadow: 0 1px 3px #000; pointer-events: none; }
+#intro.title-held #intro-credit { display: block; }
 
 .rosie-talk {
     position: absolute; right: 24px; bottom: 104px; z-index: 12;

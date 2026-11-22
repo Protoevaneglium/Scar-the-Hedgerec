@@ -28,6 +28,7 @@ function eventTarget(extra = {}) {
             }
             return event;
         },
+        dispatchEvent(event) { return !this.dispatch(event.type, event).defaultPrevented; },
     });
 }
 
@@ -151,6 +152,7 @@ function createGameHarness(options = {}) {
     const storage = options.storage || { getItem: () => null, setItem: noop };
     const sandbox = Object.assign(win, {
         console, URLSearchParams, Math, Image: ImageStub, ArrayBuffer, Uint8ClampedArray,
+        Event: class Event { constructor(type) { this.type = type; } },
         Audio: function (src) { const media = makeElement(`audio-${nextTimer++}`, 'audio'); if (src) media.setAttribute('src', src); return media; },
         AudioContext: options.audioContext, document: doc, navigator: { maxTouchPoints: 0 },
         location: { search: `?nointro&stage=${options.stage || 'palmtree'}` },
