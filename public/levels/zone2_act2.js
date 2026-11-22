@@ -122,10 +122,11 @@
                 trapDoors: [{ x: 6720, y: 570, w: 64, period: 240, openDuration: 70 }],
                 houdiniGroups: [{ triggerX: 11500, triggerY: 680, steps: [
                     { x: 11540, y: 650 }, { x: 11580, y: 615 }, { x: 11620, y: 580 }, { x: 11660, y: 545 }] }],
-                enemies: [680, 3240, 3890, 5440, 7120, 7840, 9660, 11790, 12740].map(x => ({
-                    kind: 'crab', x, y: m.f(x), minX: x - 45, maxX: x + 45, vx: 1.2 }))
-                    .concat([{ kind: 'buzz', x: 2350, y: 175, phase: .2 }, { kind: 'buzz', x: 5570, y: 40, phase: 2 },
-                        { kind: 'buzz', x: 9630, y: -195, phase: 1 }, { kind: 'buzz', x: 11100, y: 100, phase: .7 }]),
+                enemies: [680, 3240, 3890, 5440, 7120, 7840, 9660, 11790, 12740].map((x, i) => ({
+                    kind: 'crab', type: ['motobug', 'crab', 'spikes', 'caterkiller', 'burrobot'][i % 5],
+                    x, y: m.f(x), minX: x - 45, maxX: x + 45, vx: 1.2 }))
+                    .concat([{ kind: 'buzz', type: 'buzz', x: 2350, y: 175, phase: .2 }, { kind: 'buzz', type: 'batbrain', x: 5570, y: 40, phase: 2 },
+                        { kind: 'buzz', type: 'buzz', x: 9630, y: -195, phase: 1 }, { kind: 'buzz', type: 'buzz', x: 11100, y: 100, phase: .7 }]),
                 spikeClusters: [{ x: 6740, y: 570 }],
                 timePosts: [{ x: 3820, y: m.f(3820), kind: 'PAST' }, { x: 13230, y: 560, kind: 'FUTURE' }],
                 bigRing: { x: 11950, y: -24 }, goalPost: { x: 14100, y: 560 }, capsule: null,

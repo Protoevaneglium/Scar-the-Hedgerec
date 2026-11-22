@@ -664,6 +664,9 @@
                 baseY: en.baseY !== undefined ? en.baseY : en.y,
                 phase: en.phase || 0,
                 ...en,
+                // Species is gameplay data, shared by motion and rendering.
+                // Unspecified ground/flying badniks use the same defaults in every act.
+                type: en.type || (en.kind === 'buzz' ? 'buzz' : 'crab'),
             }));
 
             // Optional Boss state (owner decides per level)

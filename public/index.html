@@ -735,37 +735,37 @@ const FAINT = {
 const GAME_OVER_CONTINUE_DELAY = 130;
 
 const ENEMY_FRAMES = {
-    crab_idle:   { sx: 2,   sy: 2, w: 31, h: 22, ax: 16, ay: 22 },
-    crab_walk1:  { sx: 37,  sy: 2, w: 31, h: 22, ax: 16, ay: 22 },
-    crab_walk2:  { sx: 72,  sy: 2, w: 31, h: 28, ax: 16, ay: 28 },
-    crab_walk3:  { sx: 107, sy: 2, w: 32, h: 28, ax: 16, ay: 28 },
-    crab_attack: { sx: 143, sy: 2, w: 35, h: 21, ax: 18, ay: 21 },
-    buzz_fly1:   { sx: 182, sy: 2, w: 32, h: 18, ax: 16, ay: 9 },
-    buzz_fly2:   { sx: 218, sy: 2, w: 32, h: 14, ax: 16, ay: 7 },
-    buzz_fly3:   { sx: 254, sy: 2, w: 33, h: 18, ax: 17, ay: 9 },
-    buzz_fly4:   { sx: 291, sy: 2, w: 33, h: 14, ax: 17, ay: 7 },
-    buzz_aim:    { sx: 328, sy: 2, w: 29, h: 26, ax: 15, ay: 13 },
-    buzz_fire:   { sx: 361, sy: 2, w: 31, h: 27, ax: 16, ay: 14 },
-    moto_1:      { sx: 396, sy: 2, w: 27, h: 21, ax: 14, ay: 21 },
-    moto_2:      { sx: 427, sy: 2, w: 28, h: 21, ax: 14, ay: 21 },
-    moto_3:      { sx: 459, sy: 2, w: 27, h: 20, ax: 14, ay: 20 },
-    moto_4:      { sx: 490, sy: 2, w: 28, h: 20, ax: 14, ay: 20 },
-    chopper_1:   { sx: 522, sy: 2, w: 21, h: 23, ax: 11, ay: 12 },
-    chopper_2:   { sx: 547, sy: 2, w: 21, h: 23, ax: 11, ay: 12 },
-    spikes_1:    { sx: 572, sy: 2, w: 28, h: 25, ax: 14, ay: 25 },
-    spikes_2:    { sx: 604, sy: 2, w: 29, h: 27, ax: 15, ay: 27 },
-    spikes_3:    { sx: 637, sy: 2, w: 25, h: 27, ax: 13, ay: 27 },
-    cater_1:     { sx: 666, sy: 2, w: 29, h: 23, ax: 15, ay: 23 },
-    cater_2:     { sx: 699, sy: 2, w: 29, h: 22, ax: 15, ay: 22 },
-    cater_3:     { sx: 732, sy: 2, w: 36, h: 17, ax: 18, ay: 17 },
-    cater_4:     { sx: 772, sy: 2, w: 36, h: 17, ax: 18, ay: 17 },
-    bat_1:       { sx: 812, sy: 2, w: 22, h: 21, ax: 11, ay: 11 },
-    bat_2:       { sx: 838, sy: 2, w: 19, h: 14, ax: 10, ay: 7 },
-    bat_3:       { sx: 861, sy: 2, w: 17, h: 19, ax: 9,  ay: 10 },
-    burro_1:     { sx: 882, sy: 2, w: 17, h: 33, ax: 9,  ay: 33 },
-    burro_2:     { sx: 903, sy: 2, w: 18, h: 33, ax: 9,  ay: 33 },
-    burro_3:     { sx: 925, sy: 2, w: 18, h: 30, ax: 9,  ay: 30 },
-    burro_4:     { sx: 947, sy: 2, w: 18, h: 30, ax: 9,  ay: 30 }
+    crab_idle: { sx: 2, sy: 2, w: 42, h: 31, dw: 31, dh: 22, ax: 16, ay: 22 },
+    crab_walk1: { sx: 48, sy: 2, w: 44, h: 31, dw: 31, dh: 22, ax: 16, ay: 22 },
+    crab_walk2: { sx: 96, sy: 2, w: 42, h: 38, dw: 31, dh: 28, ax: 16, ay: 28 },
+    crab_walk3: { sx: 142, sy: 2, w: 44, h: 38, dw: 32, dh: 28, ax: 16, ay: 28 },
+    crab_attack: { sx: 190, sy: 2, w: 48, h: 30, dw: 35, dh: 21, ax: 18, ay: 21 },
+    buzz_fly1: { sx: 242, sy: 2, w: 45, h: 24, dw: 32, dh: 18, ax: 16, ay: 9 },
+    buzz_fly2: { sx: 291, sy: 2, w: 45, h: 19, dw: 32, dh: 14, ax: 16, ay: 7 },
+    buzz_fly3: { sx: 340, sy: 2, w: 46, h: 24, dw: 33, dh: 18, ax: 17, ay: 9 },
+    buzz_fly4: { sx: 390, sy: 2, w: 46, h: 19, dw: 33, dh: 14, ax: 17, ay: 7 },
+    buzz_aim: { sx: 440, sy: 2, w: 36, h: 29, dw: 29, dh: 26, ax: 15, ay: 13 },
+    buzz_fire: { sx: 480, sy: 2, w: 37, h: 35, dw: 31, dh: 27, ax: 16, ay: 14 },
+    moto_1: { sx: 521, sy: 2, w: 39, h: 29, dw: 27, dh: 21, ax: 14, ay: 21 },
+    moto_2: { sx: 564, sy: 2, w: 39, h: 29, dw: 28, dh: 21, ax: 14, ay: 21 },
+    moto_3: { sx: 607, sy: 2, w: 39, h: 28, dw: 27, dh: 20, ax: 14, ay: 20 },
+    moto_4: { sx: 650, sy: 2, w: 39, h: 28, dw: 28, dh: 20, ax: 14, ay: 20 },
+    chopper_1: { sx: 693, sy: 2, w: 30, h: 32, dw: 21, dh: 23, ax: 11, ay: 12 },
+    chopper_2: { sx: 727, sy: 2, w: 29, h: 31, dw: 21, dh: 23, ax: 11, ay: 12 },
+    spikes_1: { sx: 760, sy: 2, w: 40, h: 36, dw: 28, dh: 25, ax: 14, ay: 25 },
+    spikes_2: { sx: 804, sy: 2, w: 40, h: 39, dw: 29, dh: 27, ax: 15, ay: 27 },
+    spikes_3: { sx: 848, sy: 2, w: 35, h: 39, dw: 25, dh: 27, ax: 13, ay: 27 },
+    cater_1: { sx: 887, sy: 2, w: 40, h: 31, dw: 29, dh: 23, ax: 15, ay: 23 },
+    cater_2: { sx: 931, sy: 2, w: 40, h: 30, dw: 29, dh: 22, ax: 15, ay: 22 },
+    cater_3: { sx: 975, sy: 2, w: 51, h: 24, dw: 36, dh: 17, ax: 18, ay: 17 },
+    cater_4: { sx: 1030, sy: 2, w: 51, h: 24, dw: 36, dh: 17, ax: 18, ay: 17 },
+    bat_1: { sx: 1085, sy: 2, w: 32, h: 30, dw: 22, dh: 21, ax: 11, ay: 11 },
+    bat_2: { sx: 1121, sy: 2, w: 30, h: 20, dw: 19, dh: 14, ax: 10, ay: 7 },
+    bat_3: { sx: 1155, sy: 2, w: 24, h: 28, dw: 17, dh: 19, ax: 9, ay: 10 },
+    burro_1: { sx: 1183, sy: 2, w: 24, h: 46, dw: 17, dh: 33, ax: 9, ay: 33 },
+    burro_2: { sx: 1211, sy: 2, w: 24, h: 46, dw: 18, dh: 33, ax: 9, ay: 33 },
+    burro_3: { sx: 1239, sy: 2, w: 25, h: 42, dw: 18, dh: 30, ax: 9, ay: 30 },
+    burro_4: { sx: 1268, sy: 2, w: 25, h: 42, dw: 18, dh: 30, ax: 9, ay: 30 },
 };
 
 const COMMON_SPRITES = {
@@ -2913,6 +2913,19 @@ class Game {
         ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, x - Math.floor(f.w / 2), y - Math.floor(f.h / 2), f.w, f.h);
     }
 
+    drawEnemyUnavailable(ctx, en) {
+        const y = en.kind === 'crab' ? en.y - 12 : en.y;
+        ctx.save();
+        ctx.translate(Math.round(en.x), Math.round(y));
+        ctx.fillStyle = 'rgba(18,23,41,.92)';
+        ctx.strokeStyle = '#ffdb66'; ctx.lineWidth = 2;
+        ctx.fillRect(-12, -12, 24, 24); ctx.strokeRect(-12, -12, 24, 24);
+        ctx.fillStyle = '#ffdb66'; ctx.font = 'bold 18px monospace';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('!', 0, 0);
+        ctx.restore();
+    }
+
     drawEnemy(ctx, en, idx = 0) {
         const def = this.terrain.levelDef;
         if (def && typeof def.drawEnemy === 'function') {
@@ -2922,10 +2935,12 @@ class Game {
                 player: this.player,
                 sheet: this.customEnemySheetLoaded ? this.customEnemySheet : null,
                 frames: def.enemyFrames || {},
+                fallback: () => this.drawEnemyUnavailable(ctx, en),
             });
             return;
         }
-        if (def && def.enemyFrames && this.customEnemySheetLoaded && en.frames && en.frames.length) {
+        if (def && def.enemyFrames && en.frames && en.frames.length) {
+            if (!this.customEnemySheetLoaded) { this.drawEnemyUnavailable(ctx, en); return; }
             const rate = en.animRate || 0.2;
             const key = en.frames[Math.floor(this.terrain.clock * rate + idx) % en.frames.length];
             const frame = def.enemyFrames[key];
@@ -2934,24 +2949,22 @@ class Game {
                 const movingRight = en.kind === 'crab' ? (en.vx > 0) : (this.player.x > en.x);
                 const flipX = nativeFacesLeft ? (movingRight ? -1 : 1) : (movingRight ? 1 : -1);
                 ctx.save();
+                ctx.imageSmoothingEnabled = false;
                 ctx.translate(Math.round(en.x), Math.round(en.y));
                 ctx.scale(flipX, 1);
-                ctx.drawImage(this.customEnemySheet, frame.sx, frame.sy, frame.w, frame.h, -frame.ax, -frame.ay, frame.w, frame.h);
+                ctx.drawImage(this.customEnemySheet, frame.sx, frame.sy, frame.w, frame.h, -frame.ax, -frame.ay, frame.dw || frame.w, frame.dh || frame.h);
                 ctx.restore();
                 return;
             }
+            this.drawEnemyUnavailable(ctx, en); return;
         }
         if (!this.enemySheetLoaded) {
-            const x = en.x, y = en.kind === 'crab' ? en.y - 12 : en.y;
-            ctx.fillStyle = en.kind === 'crab' ? '#e53935' : '#fdd835';
-            ctx.beginPath(); ctx.ellipse(x, y, 14, 10, 0, 0, TAU); ctx.fill();
+            this.drawEnemyUnavailable(ctx, en);
             return;
         }
 
         const clock = this.terrain.clock;
-        const groundTypes = ['motobug', 'crab', 'spikes', 'caterkiller', 'burrobot'];
-        const airTypes = ['buzz', 'batbrain', 'chopper'];
-        const type = en.type || (en.kind === 'crab' ? groundTypes[idx % groundTypes.length] : airTypes[idx % airTypes.length]);
+        const type = en.type || (en.kind === 'buzz' ? 'buzz' : 'crab');
 
         let frameKey = 'crab_idle';
         let flipX = 1;
@@ -3009,12 +3022,13 @@ class Game {
         const frame = ENEMY_FRAMES[frameKey] || ENEMY_FRAMES.crab_idle;
 
         ctx.save();
+        ctx.imageSmoothingEnabled = false;
         ctx.translate(Math.round(en.x), Math.round(en.y));
         ctx.scale(flipX, 1);
         ctx.drawImage(
             this.enemySheet,
             frame.sx, frame.sy, frame.w, frame.h,
-            -frame.ax, -frame.ay, frame.w, frame.h
+            -frame.ax, -frame.ay, frame.dw || frame.w, frame.dh || frame.h
         );
         ctx.restore();
     }

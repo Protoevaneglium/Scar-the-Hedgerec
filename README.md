@@ -181,6 +181,10 @@ Image-tool development uses Node.js 20.9+ and `npm ci`. This installs the option
 
 The Act 3 layout takes inspiration from the supplied **Emerald Hill Act 2** and **Carnival Night Act 1** maps; its orange canyon, violet fortress, and cat insignia come from the supplied Kitt artwork. The transparent boss poses and fortress panorama were adapted with the built-in image generation tool; the exact prompts are saved in [`public/assets/kitt_art_prompts.json`](public/assets/kitt_art_prompts.json).
 
+Regular campaign enemies use the supplied Sonic 1 and Sonic 2 Badnik sprite sheets, including Marble Canopy's enemies. Both original sheets, with their credit headers intact, are preserved in [`public/assets/enemy_sources`](public/assets/enemy_sources). The [crop manifest](public/assets/enemy_sources/manifest.json) records the source rectangle and pixel hash for every one of the 77 animation frames. Packing only removes the documented sheet background colors; rendering uses nearest-neighbor scaling and the established display sizes and anchors. Species are declared explicitly so reordering enemies cannot change their appearance. Kitt remains the custom cat boss described above.
+
+After installing development dependencies, `npm run build:enemy-atlases` rebuilds the packed enemy images from those sources. The dependency-free provenance and rendering checks in `npm test` verify the native pixels and every campaign roster; the starter kit includes the original sheets, manifest and both atlases.
+
 Design research: [SEGA's Superstars manual](https://manual.sega.jp/sonicsuperstars/en/index.html) describes multiple routes and zone-specific loops, springs, and other contraptions. [Hirokazu Yasuhara's design interview](https://www.gamedeveloper.com/design/game-design-psychology-the-full-hirokazu-yasuhara-interview) discusses visible intermediate goals, player control, and planning layered layouts in three dimensions. Here those ideas inform the visible upper viaducts, spring-to-climb connections, speed-fed loops, and lower recovery road.
 
 | Input | Action |

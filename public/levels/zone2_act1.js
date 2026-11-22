@@ -180,7 +180,7 @@
                 springs.push({x:s.x0+30,y:s.steps[0],color:'yellow',power:-10.2});
                 monitors.push({x:(s.x0+s.x1)/2,y:m.f((s.x0+s.x1)/2),item:'rings'});
             }
-            const groundBots=[2420,3330,4470,5810,6720,8150,9320,10770].map(x=>({kind:'crab',x,y:m.f(x),minX:x-65,maxX:x+65,vx:1.2}));
+            const groundBots=[2420,3330,4470,5810,6720,8150,9320,10770].map((x,i)=>({kind:'crab',type:['motobug','crab','spikes','caterkiller','burrobot'][i%5],x,y:m.f(x),minX:x-65,maxX:x+65,vx:1.2}));
             return {
                 monitors,springs,starPosts:[2660,4620,7160,9550,11080].map(x=>({x,y:m.f(x)})),
                 speedBoosters:[620,1630,3100,4940,5970,8270,10260].map(x=>({x,y:m.f(x),boost:12.6})).concat([{x:3090,y:160,boost:12.5},{x:3290,y:160,boost:12.5},{x:5030,y:-180,boost:12.6},{x:5210,y:-180,boost:12.6},{x:7560,y:-340,boost:12.5},{x:7750,y:-340,boost:12.6},{x:8170,y:-340,boost:12.6},{x:10080,y:-80,boost:12.4}]),
@@ -194,7 +194,7 @@
                 trapDoors:[{x:4400,y:500,w:48,period:210,openDuration:75}],
                 rocks:[{x:2220,y:m.f(2220)},{x:9070,y:m.f(9070)}],
                 houdiniGroups:[{triggerX:2140,triggerY:678,steps:[{x:2180,y:650},{x:2220,y:618},{x:2260,y:586},{x:2300,y:554}]}],
-                enemies:groundBots.concat([{kind:'buzz',x:3700,y:70,phase:.2},{kind:'buzz',x:6200,y:-80,phase:2},{kind:'buzz',x:8260,y:-180,phase:1}]),
+                enemies:groundBots.concat([{kind:'buzz',type:'buzz',x:3700,y:70,phase:.2},{kind:'buzz',type:'buzz',x:6200,y:-80,phase:2},{kind:'buzz',type:'batbrain',x:8260,y:-180,phase:1}]),
                 spikeClusters:[{x:4180,y:500}],bigRing:{x:8690,y:-478},goalPost:{x:11640,y:560},capsule:null,
                 timePosts:[{x:2290,y:700,kind:'PAST'},{x:10120,y:m.f(10120),kind:'FUTURE'}],
             };
@@ -289,14 +289,6 @@
             const z=g.terrain.z2;road(c,z.mainSurf,g.view,true,g.terrain.clock);
             for(const f of g.terrain.floors)if(f!==z.mainSurf)road(c,f,g.view,false,g.terrain.clock);
             for(const vault of z.ceilings){const x0=Math.max(vault.x0,g.view.x0),x1=Math.min(vault.x1,g.view.x1);if(x1>x0)line(c,[[x0,vault.f(x0)],[x1,vault.f(x1)]],'#d6b48d',4);}
-        },
-        drawEnemy(c,en,info) {
-            const x=en.x,y=en.kind==='crab'?en.y-13:en.y,t=info.clock;
-            c.save();c.translate(x,y);
-            if(en.kind==='crab')for(const dir of [-1,1])for(let i=0;i<3;i++)line(c,[[dir*8,0],[dir*(17+i*2),4+Math.sin(t*.2+i)*3],[dir*(21+i*2),12]],'#d6ac80',3);
-            else for(const dir of [-1,1])poly(c,[[dir*8,0],[dir*32,-11-Math.sin(t*.35)*9],[dir*25,8],[dir*11,5]],'#a48aa8');
-            c.fillStyle='#473954';c.beginPath();c.ellipse(0,0,16,11,0,0,TAU);c.fill();c.fillStyle='#9a769f';c.beginPath();c.ellipse(-2,-3,12,7,0,0,TAU);c.fill();line(c,[[0,-9],[0,7]],'#d6b284',2);
-            c.fillStyle='#f4dc82';c.fillRect(-11,-2,6,3);c.fillRect(5,-2,6,3);c.restore();
         },
         drawPlatform(c,p) {pillar(c,p.x-p.w/2,p.y,p.y+23,p.w);},
         drawFront(c,g) {

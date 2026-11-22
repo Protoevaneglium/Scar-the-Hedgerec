@@ -195,9 +195,9 @@
                 platforms:[{x:5180,y:400,w:88,ampX:35,ampY:55,speed:.024},{x:7330,y:150,w:96,ampX:65,ampY:35,speed:.02}],
                 // Badnik rescues remain part of the approach, before the boss capsule crowd.
                 enemies:[
-                    ...[1710,2410,4550,6070,7630].map(x=>({kind:'crab',x,y:f.f(x),minX:x-45,maxX:x+45,vx:1.1})),
-                    {kind:'crab',x:1450,y:z.sunDeck.f(1450),minX:1390,maxX:1510,vx:1},
-                    {kind:'crab',x:4310,y:z.upperA.f(4310),minX:4260,maxX:4370,vx:1.1},
+                    ...[1710,2410,4550,6070,7630].map((x,i)=>({kind:'crab',type:['motobug','crab','spikes','caterkiller','burrobot'][i],x,y:f.f(x),minX:x-45,maxX:x+45,vx:1.1})),
+                    {kind:'crab',type:'motobug',x:1450,y:z.sunDeck.f(1450),minX:1390,maxX:1510,vx:1},
+                    {kind:'crab',type:'crab',x:4310,y:z.upperA.f(4310),minX:4260,maxX:4370,vx:1.1},
                 ],
                 timePosts:[{x:1800,y:f.f(1800),kind:'PAST'},{x:6990,y:f.f(6990),kind:'FUTURE'}],
                 spikeClusters:[],bigRing:{x:6820,y:-348},goalPost:null,

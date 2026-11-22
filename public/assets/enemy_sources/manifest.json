@@ -1,0 +1,1759 @@
+{
+  "schema": 1,
+  "description": "Native crops from the owner-provided Sonic 1/2 badnik sheets. Only sheet background colors become transparent; no resampling or recoloring. Legacy display dimensions and anchors are applied by the nearest-neighbor renderer.",
+  "sources": {
+    "sonic1": {
+      "file": "assets/enemy_sources/sonic1_badniks.png",
+      "originalName": "Sega Genesis - Sonic the Hedgehog - Enemies & Bosses - Badniks.png",
+      "sha256": "65c58b678821393d54f8fba867527abb180db3e4057604a548fa5d6d2dcb6324",
+      "width": 1430,
+      "height": 1087,
+      "transparentColors": [
+        [
+          37,
+          102,
+          26
+        ],
+        [
+          13,
+          72,
+          7
+        ]
+      ]
+    },
+    "sonic2": {
+      "file": "assets/enemy_sources/sonic2_badniks.png",
+      "originalName": "Sega Genesis - Sonic the Hedgehog 2 - Enemies & Bosses - Badniks.png",
+      "sha256": "19dd81211d64a041e573667c48cd0468ae8a803241e6ff47a11642984f708ae7",
+      "width": 1036,
+      "height": 1240,
+      "transparentColors": [
+        [
+          65,
+          169,
+          184
+        ],
+        [
+          16,
+          112,
+          132
+        ],
+        [
+          153,
+          217,
+          234
+        ]
+      ]
+    }
+  },
+  "atlases": {
+    "base": {
+      "file": "assets/enemies.png",
+      "frames": {
+        "crab_idle": {
+          "source": "sonic1",
+          "sourceRect": {
+            "x": 27,
+            "y": 203,
+            "w": 42,
+            "h": 31
+          },
+          "display": {
+            "w": 31,
+            "h": 22,
+            "ax": 16,
+            "ay": 22
+          },
+          "atlasRect": {
+            "x": 2,
+            "y": 2,
+            "w": 42,
+            "h": 31
+          },
+          "pixelSha256": "d9784eceda51733effe8f48701819c985cea24f2ac874438e14ad4a409cc6424"
+        },
+        "crab_walk1": {
+          "source": "sonic1",
+          "sourceRect": {
+            "x": 82,
+            "y": 203,
+            "w": 44,
+            "h": 31
+          },
+          "display": {
+            "w": 31,
+            "h": 22,
+            "ax": 16,
+            "ay": 22
+          },
+          "atlasRect": {
+            "x": 48,
+            "y": 2,
+            "w": 44,
+            "h": 31
+          },
+          "pixelSha256": "bc04b7abce41383f79ba4c20b11f97dd696503c7e43fa6bf4345e72becea1edf"
+        },
+        "crab_walk2": {
+          "source": "sonic1",
+          "sourceRect": {
+            "x": 139,
+            "y": 199,
+            "w": 42,
+            "h": 38
+          },
+          "display": {
+            "w": 31,
+            "h": 28,
+            "ax": 16,
+            "ay": 28
+          },
+          "atlasRect": {
+            "x": 96,
+            "y": 2,
+            "w": 42,
+            "h": 38
+          },
+          "pixelSha256": "f87c0d1ade3401d5e3e9da419b0217c5694063080a46306b7fa89c5db6e4ea95"
+        },
+        "crab_walk3": {
+          "source": "sonic1",
+          "sourceRect": {
+            "x": 194,
+            "y": 199,
+            "w": 44,
+            "h": 38
+          },
+          "display": {
+            "w": 32,
+            "h": 28,
+            "ax": 16,
+            "ay": 28
+          },
+          "atlasRect": {
+            "x": 142,
+            "y": 2,
+            "w": 44,
+            "h": 38
+          },
+          "pixelSha256": "7d39fd13995ea18ddad65f9e364c20481c08f42e0d34f59ffa52d757652fce84"
+        },
+        "crab_attack": {
+          "source": "sonic1",
+          "sourceRect": {
+            "x": 248,
+            "y": 204,
+            "w": 48,
+            "h": 30
+          },
+          "display": {
+            "w": 35,
+            "h": 21,
+            "ax": 18,
+            "ay": 21
+          },
+          "atlasRect": {
+            "x": 190,
+            "y": 2,
+            "w": 48,
+            "h": 30
+          },
+          "pixelSha256": "4a12fd3003a29e93eadad57491fe931857a3fae615bf2d01fc02da238f5fdfb3"
+        },
+        "buzz_fly1": {
+          "source": "sonic1",
+          "sourceRect": {
+            "x": 24,
+            "y": 352,
+            "w": 45,
+            "h": 24
+          },
+          "display": {
+            "w": 32,
+            "h": 18,
+            "ax": 16,
+            "ay": 9
+          },
+          "atlasRect": {
+            "x": 242,
+            "y": 2,
+            "w": 45,
+            "h": 24
+          },
+          "pixelSha256": "b403b38871e13779ad3dcc975864c47e1d435f0964f4c16d15102109670c446b"
+        },
+        "buzz_fly2": {
+          "source": "sonic1",
+          "sourceRect": {
+            "x": 24,
+            "y": 389,
+            "w": 45,
+            "h": 19
+          },
+          "display": {
+            "w": 32,
+            "h": 14,
+            "ax": 16,
+            "ay": 7
+          },
+          "atlasRect": {
+            "x": 291,
+            "y": 2,
+            "w": 45,
+            "h": 19
+          },
+          "pixelSha256": "6ee4c0031241028ebc6b87d8fac7b8a8d0ca26131dac8508d0b080852ec61494"
+        },
+        "buzz_fly3": {
+          "source": "sonic1",
+          "sourceRect": {
+            "x": 80,
+            "y": 352,
+            "w": 46,
+            "h": 24
+          },
+          "display": {
+            "w": 33,
+            "h": 18,
+            "ax": 17,
+            "ay": 9
+          },
+          "atlasRect": {
+            "x": 340,
+            "y": 2,
+            "w": 46,
+            "h": 24
+          },
+          "pixelSha256": "82c8dbf2ab6426d73b76c912592c41e64c1e6fcf933dbe9fe6c4fd18b7c38fc5"
+        },
+        "buzz_fly4": {
+          "source": "sonic1",
+          "sourceRect": {
+            "x": 80,
+            "y": 389,
+            "w": 46,
+            "h": 19
+          },
+          "display": {
+            "w": 33,
+            "h": 14,
+            "ax": 17,
+            "ay": 7
+          },
+          "atlasRect": {
+            "x": 390,
+            "y": 2,
+            "w": 46,
+            "h": 19
+          },
+          "pixelSha256": "9faf5465eb33a2b699e959a80a939ca7dfa0d0a33304afde930037e0fdd80aaf"
+        },
+        "buzz_aim": {
+          "source": "sonic1",
+          "sourceRect": {
+            "x": 40,
+            "y": 426,
+            "w": 36,
+            "h": 29
+          },
+          "display": {
+            "w": 29,
+            "h": 26,
+            "ax": 15,
+            "ay": 13
+          },
+          "atlasRect": {
+            "x": 440,
+            "y": 2,
+            "w": 36,
+            "h": 29
+          },
+          "pixelSha256": "5d9eba1d8e9c6f5107b1cfe64cbc7659bed61b288c302fa5834840420ef635d9"
+        },
+        "buzz_fire": {
+          "source": "sonic1",
+          "sourceRect": {
+            "x": 104,
+            "y": 424,
+            "w": 37,
+            "h": 35
+          },
+          "display": {
+            "w": 31,
+            "h": 27,
+            "ax": 16,
+            "ay": 14
+          },
+          "atlasRect": {
+            "x": 480,
+            "y": 2,
+            "w": 37,
+            "h": 35
+          },
+          "pixelSha256": "6be8f292e0d2af9d3efbe7f899d7bcceb7a3825f5409f8509ee0267c7e1fc6dd"
+        },
+        "moto_1": {
+          "source": "sonic1",
+          "sourceRect": {
+            "x": 174,
+            "y": 276,
+            "w": 39,
+            "h": 29
+          },
+          "display": {
+            "w": 27,
+            "h": 21,
+            "ax": 14,
+            "ay": 21
+          },
+          "atlasRect": {
+            "x": 521,
+            "y": 2,
+            "w": 39,
+            "h": 29
+          },
+          "pixelSha256": "ae5b84c3d4ad9af2ac746c41dbaf78d4c0f541e961acd211cb6f139376c4b6c7"
+        },
+        "moto_2": {
+          "source": "sonic1",
+          "sourceRect": {
+            "x": 229,
+            "y": 276,
+            "w": 39,
+            "h": 29
+          },
+          "display": {
+            "w": 28,
+            "h": 21,
+            "ax": 14,
+            "ay": 21
+          },
+          "atlasRect": {
+            "x": 564,
+            "y": 2,
+            "w": 39,
+            "h": 29
+          },
+          "pixelSha256": "76176bbb233be300114d2341e4736dce227af5e909626ad6b6a7a7efc5038a74"
+        },
+        "moto_3": {
+          "source": "sonic1",
+          "sourceRect": {
+            "x": 174,
+            "y": 316,
+            "w": 39,
+            "h": 28
+          },
+          "display": {
+            "w": 27,
+            "h": 20,
+            "ax": 14,
+            "ay": 20
+          },
+          "atlasRect": {
+            "x": 607,
+            "y": 2,
+            "w": 39,
+            "h": 28
+          },
+          "pixelSha256": "ddac6c674ebd15213b51e06a0abcd235004d556e7e91c698518b0a662cfc428a"
+        },
+        "moto_4": {
+          "source": "sonic1",
+          "sourceRect": {
+            "x": 229,
+            "y": 316,
+            "w": 39,
+            "h": 28
+          },
+          "display": {
+            "w": 28,
+            "h": 20,
+            "ax": 14,
+            "ay": 20
+          },
+          "atlasRect": {
+            "x": 650,
+            "y": 2,
+            "w": 39,
+            "h": 28
+          },
+          "pixelSha256": "e3fb43100d495a0a404fcf1a3b7a949535a4796cbafacdc488d4a2ff3f469d1c"
+        },
+        "chopper_1": {
+          "source": "sonic1",
+          "sourceRect": {
+            "x": 173,
+            "y": 382,
+            "w": 30,
+            "h": 32
+          },
+          "display": {
+            "w": 21,
+            "h": 23,
+            "ax": 11,
+            "ay": 12
+          },
+          "atlasRect": {
+            "x": 693,
+            "y": 2,
+            "w": 30,
+            "h": 32
+          },
+          "pixelSha256": "49f83972fe4c97fb5ca431d65c29d3e2df3d1a4c7176527c439276e9a7070752"
+        },
+        "chopper_2": {
+          "source": "sonic1",
+          "sourceRect": {
+            "x": 214,
+            "y": 382,
+            "w": 29,
+            "h": 31
+          },
+          "display": {
+            "w": 21,
+            "h": 23,
+            "ax": 11,
+            "ay": 12
+          },
+          "atlasRect": {
+            "x": 727,
+            "y": 2,
+            "w": 29,
+            "h": 31
+          },
+          "pixelSha256": "2186fcbf7ec9599ba717986bf08b7eacc3b49fcddb5aa360eb9bd7ab99f09d68"
+        },
+        "spikes_1": {
+          "source": "sonic1",
+          "sourceRect": {
+            "x": 360,
+            "y": 400,
+            "w": 40,
+            "h": 36
+          },
+          "display": {
+            "w": 28,
+            "h": 25,
+            "ax": 14,
+            "ay": 25
+          },
+          "atlasRect": {
+            "x": 760,
+            "y": 2,
+            "w": 40,
+            "h": 36
+          },
+          "pixelSha256": "3ce358c97f815582b294fe6cfea2a9108e10baafddfd8ca060a2fc204fe4562a"
+        },
+        "spikes_2": {
+          "source": "sonic1",
+          "sourceRect": {
+            "x": 408,
+            "y": 400,
+            "w": 40,
+            "h": 39
+          },
+          "display": {
+            "w": 29,
+            "h": 27,
+            "ax": 15,
+            "ay": 27
+          },
+          "atlasRect": {
+            "x": 804,
+            "y": 2,
+            "w": 40,
+            "h": 39
+          },
+          "pixelSha256": "bd29c05114bd7ffd25e4d11299a46c7db4115f2ab0d41c13b62cfde41955a828"
+        },
+        "spikes_3": {
+          "source": "sonic1",
+          "sourceRect": {
+            "x": 461,
+            "y": 400,
+            "w": 35,
+            "h": 39
+          },
+          "display": {
+            "w": 25,
+            "h": 27,
+            "ax": 13,
+            "ay": 27
+          },
+          "atlasRect": {
+            "x": 848,
+            "y": 2,
+            "w": 35,
+            "h": 39
+          },
+          "pixelSha256": "d3b1ef092f34442897481399172bd0446c63749c244465021b1f702cc5c8d5ff"
+        },
+        "cater_1": {
+          "source": "sonic1",
+          "sourceRect": {
+            "x": 360,
+            "y": 248,
+            "w": 40,
+            "h": 31
+          },
+          "display": {
+            "w": 29,
+            "h": 23,
+            "ax": 15,
+            "ay": 23
+          },
+          "atlasRect": {
+            "x": 887,
+            "y": 2,
+            "w": 40,
+            "h": 31
+          },
+          "pixelSha256": "a91502b4226c999eaf33f59f878766917399644c16989df7cd65e87c27c48733"
+        },
+        "cater_2": {
+          "source": "sonic1",
+          "sourceRect": {
+            "x": 408,
+            "y": 248,
+            "w": 40,
+            "h": 30
+          },
+          "display": {
+            "w": 29,
+            "h": 22,
+            "ax": 15,
+            "ay": 22
+          },
+          "atlasRect": {
+            "x": 931,
+            "y": 2,
+            "w": 40,
+            "h": 30
+          },
+          "pixelSha256": "0e751e4f7316c51b48bc225f86dfb0b04143a82bac32e37670c34b8481200d6a"
+        },
+        "cater_3": {
+          "source": "sonic1",
+          "sourceRect": {
+            "x": 360,
+            "y": 304,
+            "w": 51,
+            "h": 24
+          },
+          "display": {
+            "w": 36,
+            "h": 17,
+            "ax": 18,
+            "ay": 17
+          },
+          "atlasRect": {
+            "x": 975,
+            "y": 2,
+            "w": 51,
+            "h": 24
+          },
+          "pixelSha256": "c1af13ea4976add8073934575f70ed54b078caa4f680b07c1bf728514cc3d6fa"
+        },
+        "cater_4": {
+          "source": "sonic1",
+          "sourceRect": {
+            "x": 424,
+            "y": 304,
+            "w": 51,
+            "h": 24
+          },
+          "display": {
+            "w": 36,
+            "h": 17,
+            "ax": 18,
+            "ay": 17
+          },
+          "atlasRect": {
+            "x": 1030,
+            "y": 2,
+            "w": 51,
+            "h": 24
+          },
+          "pixelSha256": "7297e12575b6e5f8b928938d59a23b80a0a4adfabc376b83fa67dad2cfd03e33"
+        },
+        "bat_1": {
+          "source": "sonic1",
+          "sourceRect": {
+            "x": 516,
+            "y": 241,
+            "w": 32,
+            "h": 30
+          },
+          "display": {
+            "w": 22,
+            "h": 21,
+            "ax": 11,
+            "ay": 11
+          },
+          "atlasRect": {
+            "x": 1085,
+            "y": 2,
+            "w": 32,
+            "h": 30
+          },
+          "pixelSha256": "13ccde1dae2738e42ecb05e673eb47e1c4cb81bfbe85e7ac2df83e9bdd694629"
+        },
+        "bat_2": {
+          "source": "sonic1",
+          "sourceRect": {
+            "x": 557,
+            "y": 247,
+            "w": 30,
+            "h": 20
+          },
+          "display": {
+            "w": 19,
+            "h": 14,
+            "ax": 10,
+            "ay": 7
+          },
+          "atlasRect": {
+            "x": 1121,
+            "y": 2,
+            "w": 30,
+            "h": 20
+          },
+          "pixelSha256": "5833ada35712525b7de314a4495bd84c06f2470a7282cc5bf297f9a34940c863"
+        },
+        "bat_3": {
+          "source": "sonic1",
+          "sourceRect": {
+            "x": 596,
+            "y": 243,
+            "w": 24,
+            "h": 28
+          },
+          "display": {
+            "w": 17,
+            "h": 19,
+            "ax": 9,
+            "ay": 10
+          },
+          "atlasRect": {
+            "x": 1155,
+            "y": 2,
+            "w": 24,
+            "h": 28
+          },
+          "pixelSha256": "18460eccb6be49e8df0c2e159e57eee01e1c5d885664983617889607eae4449e"
+        },
+        "burro_1": {
+          "source": "sonic1",
+          "sourceRect": {
+            "x": 656,
+            "y": 215,
+            "w": 24,
+            "h": 46
+          },
+          "display": {
+            "w": 17,
+            "h": 33,
+            "ax": 9,
+            "ay": 33
+          },
+          "atlasRect": {
+            "x": 1183,
+            "y": 2,
+            "w": 24,
+            "h": 46
+          },
+          "pixelSha256": "c2e52f988dee0d10215ccde6b9cbf260bce0eb0a2be85ef5e4e07d442b835b13"
+        },
+        "burro_2": {
+          "source": "sonic1",
+          "sourceRect": {
+            "x": 688,
+            "y": 215,
+            "w": 24,
+            "h": 46
+          },
+          "display": {
+            "w": 18,
+            "h": 33,
+            "ax": 9,
+            "ay": 33
+          },
+          "atlasRect": {
+            "x": 1211,
+            "y": 2,
+            "w": 24,
+            "h": 46
+          },
+          "pixelSha256": "9648139637c66cb568dc9520c823033cced2458432740e1f5a1603711865e73d"
+        },
+        "burro_3": {
+          "source": "sonic1",
+          "sourceRect": {
+            "x": 720,
+            "y": 219,
+            "w": 25,
+            "h": 42
+          },
+          "display": {
+            "w": 18,
+            "h": 30,
+            "ax": 9,
+            "ay": 30
+          },
+          "atlasRect": {
+            "x": 1239,
+            "y": 2,
+            "w": 25,
+            "h": 42
+          },
+          "pixelSha256": "78ea82d215f59a883be35051d3dc2022ab40c251f66f36a5c84646121aecc1f0"
+        },
+        "burro_4": {
+          "source": "sonic1",
+          "sourceRect": {
+            "x": 753,
+            "y": 219,
+            "w": 25,
+            "h": 42
+          },
+          "display": {
+            "w": 18,
+            "h": 30,
+            "ax": 9,
+            "ay": 30
+          },
+          "atlasRect": {
+            "x": 1268,
+            "y": 2,
+            "w": 25,
+            "h": 42
+          },
+          "pixelSha256": "3664fb69306c3f957228ce3c9005e4dd845d78b27e52a0145335b4d784f42b6b"
+        }
+      },
+      "width": 1295,
+      "height": 50
+    },
+    "act2": {
+      "file": "assets/enemies_act2.png",
+      "frames": {
+        "buzzer_1": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 24,
+            "y": 346,
+            "w": 48,
+            "h": 16
+          },
+          "display": {
+            "w": 40,
+            "h": 14,
+            "ax": 20,
+            "ay": 7
+          },
+          "atlasRect": {
+            "x": 2,
+            "y": 2,
+            "w": 48,
+            "h": 16
+          },
+          "pixelSha256": "874e7028baebf06a33da864c1eb633dc1e4c929b7bca170ee31f17f02cfaab81"
+        },
+        "buzzer_2": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 80,
+            "y": 346,
+            "w": 48,
+            "h": 16
+          },
+          "display": {
+            "w": 40,
+            "h": 14,
+            "ax": 20,
+            "ay": 7
+          },
+          "atlasRect": {
+            "x": 54,
+            "y": 2,
+            "w": 48,
+            "h": 16
+          },
+          "pixelSha256": "33ad028867211300906706adeb0162ae292d9c31c1a311151639867a640ac3dd"
+        },
+        "buzzer_3": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 24,
+            "y": 370,
+            "w": 48,
+            "h": 16
+          },
+          "display": {
+            "w": 40,
+            "h": 14,
+            "ax": 20,
+            "ay": 7
+          },
+          "atlasRect": {
+            "x": 106,
+            "y": 2,
+            "w": 48,
+            "h": 16
+          },
+          "pixelSha256": "af7576580e0c9f4a7c0cc45922cea7d919c97e36a9489d331bfd66907f1ee7ad"
+        },
+        "buzzer_aim": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 80,
+            "y": 370,
+            "w": 40,
+            "h": 31
+          },
+          "display": {
+            "w": 33,
+            "h": 26,
+            "ax": 17,
+            "ay": 13
+          },
+          "atlasRect": {
+            "x": 158,
+            "y": 2,
+            "w": 40,
+            "h": 31
+          },
+          "pixelSha256": "b463c003bec73f69adb346ad21e1de8a61d4b8c5aec0f0e2224b523f39c26552"
+        },
+        "masher_1": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 212,
+            "y": 356,
+            "w": 20,
+            "h": 32
+          },
+          "display": {
+            "w": 20,
+            "h": 27,
+            "ax": 10,
+            "ay": 14
+          },
+          "atlasRect": {
+            "x": 202,
+            "y": 2,
+            "w": 20,
+            "h": 32
+          },
+          "pixelSha256": "8a4a139cc103541aa00a2d87a3ef70c0db915d63431cf0e2cb08cd2049bfb017"
+        },
+        "masher_2": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 243,
+            "y": 356,
+            "w": 26,
+            "h": 30
+          },
+          "display": {
+            "w": 26,
+            "h": 27,
+            "ax": 13,
+            "ay": 14
+          },
+          "atlasRect": {
+            "x": 226,
+            "y": 2,
+            "w": 26,
+            "h": 30
+          },
+          "pixelSha256": "114a2f34bcf803f264e8611f4b3b3de5ce48161d3eedf92246c689cff23bf5ea"
+        },
+        "coconuts_1": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 28,
+            "y": 219,
+            "w": 26,
+            "h": 45
+          },
+          "display": {
+            "w": 22,
+            "h": 37,
+            "ax": 11,
+            "ay": 37
+          },
+          "atlasRect": {
+            "x": 256,
+            "y": 2,
+            "w": 26,
+            "h": 45
+          },
+          "pixelSha256": "b6b4ab47b8d9cd1d27ff5a64d5dd4a9fe80c0e98f16b67f74560b4834de0be1f"
+        },
+        "coconuts_2": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 68,
+            "y": 219,
+            "w": 26,
+            "h": 45
+          },
+          "display": {
+            "w": 22,
+            "h": 37,
+            "ax": 11,
+            "ay": 37
+          },
+          "atlasRect": {
+            "x": 286,
+            "y": 2,
+            "w": 26,
+            "h": 45
+          },
+          "pixelSha256": "64b01588a831efd2ef71054c738f3dd331ffe5ade21ffaa75de22171667660ce"
+        },
+        "coconuts_3": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 108,
+            "y": 219,
+            "w": 26,
+            "h": 45
+          },
+          "display": {
+            "w": 26,
+            "h": 39,
+            "ax": 13,
+            "ay": 39
+          },
+          "atlasRect": {
+            "x": 316,
+            "y": 2,
+            "w": 26,
+            "h": 45
+          },
+          "pixelSha256": "52c53ece17e93dd70a7fa3f1049eaec1635afc4514ae814063029ddeff0188c4"
+        },
+        "coconuts_4": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 188,
+            "y": 219,
+            "w": 26,
+            "h": 45
+          },
+          "display": {
+            "w": 27,
+            "h": 40,
+            "ax": 14,
+            "ay": 40
+          },
+          "atlasRect": {
+            "x": 346,
+            "y": 2,
+            "w": 26,
+            "h": 45
+          },
+          "pixelSha256": "594da32d9f7ef7271843f111fc2717012d13c511f561058d1e359c649fb4343b"
+        },
+        "sping_1": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 24,
+            "y": 459,
+            "w": 48,
+            "h": 23
+          },
+          "display": {
+            "w": 40,
+            "h": 20,
+            "ax": 20,
+            "ay": 20
+          },
+          "atlasRect": {
+            "x": 376,
+            "y": 2,
+            "w": 48,
+            "h": 23
+          },
+          "pixelSha256": "f09a5f1c9226f224b1e25be3b5e25b112d31204ec398b3830d520c7fdd4dbcd7"
+        },
+        "sping_2": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 82,
+            "y": 459,
+            "w": 44,
+            "h": 23
+          },
+          "display": {
+            "w": 36,
+            "h": 19,
+            "ax": 18,
+            "ay": 19
+          },
+          "atlasRect": {
+            "x": 428,
+            "y": 2,
+            "w": 44,
+            "h": 23
+          },
+          "pixelSha256": "8116138765097e791dd93deb18e294081774885bab1c14bab02a6d9d25afb893"
+        },
+        "sping_3": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 24,
+            "y": 491,
+            "w": 48,
+            "h": 23
+          },
+          "display": {
+            "w": 40,
+            "h": 20,
+            "ax": 20,
+            "ay": 20
+          },
+          "atlasRect": {
+            "x": 476,
+            "y": 2,
+            "w": 48,
+            "h": 23
+          },
+          "pixelSha256": "064d94d297e2fa735fb03a9372f83a0c81de0a646a8a8f4e5bf3b6869a0ad662"
+        },
+        "sping_4": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 82,
+            "y": 491,
+            "w": 44,
+            "h": 23
+          },
+          "display": {
+            "w": 39,
+            "h": 20,
+            "ax": 20,
+            "ay": 20
+          },
+          "atlasRect": {
+            "x": 528,
+            "y": 2,
+            "w": 44,
+            "h": 23
+          },
+          "pixelSha256": "37804ea317e31d4e32052b8cbf86ca0680c87183b3437375cb173b32de7ff9dc"
+        },
+        "grounder_1": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 64,
+            "y": 689,
+            "w": 32,
+            "h": 36
+          },
+          "display": {
+            "w": 27,
+            "h": 30,
+            "ax": 14,
+            "ay": 30
+          },
+          "atlasRect": {
+            "x": 576,
+            "y": 2,
+            "w": 32,
+            "h": 36
+          },
+          "pixelSha256": "52f914dd8d51900fcec7cba35848af43653a8a3dcb4b412cc1739fe188bc21e7"
+        },
+        "grounder_2": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 104,
+            "y": 685,
+            "w": 32,
+            "h": 40
+          },
+          "display": {
+            "w": 27,
+            "h": 33,
+            "ax": 14,
+            "ay": 33
+          },
+          "atlasRect": {
+            "x": 612,
+            "y": 2,
+            "w": 32,
+            "h": 40
+          },
+          "pixelSha256": "09ed1dbea45e7b3734d74bab0cf926ad9fec3513bf02afde4fcf98d5066700b0"
+        },
+        "grounder_3": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 144,
+            "y": 685,
+            "w": 32,
+            "h": 40
+          },
+          "display": {
+            "w": 27,
+            "h": 33,
+            "ax": 14,
+            "ay": 33
+          },
+          "atlasRect": {
+            "x": 648,
+            "y": 2,
+            "w": 32,
+            "h": 40
+          },
+          "pixelSha256": "65c2e5536ae4a67a1faa39d649c69b3b169365edee0f308841ef21eab497eb22"
+        },
+        "grounder_4": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 184,
+            "y": 685,
+            "w": 32,
+            "h": 40
+          },
+          "display": {
+            "w": 27,
+            "h": 33,
+            "ax": 14,
+            "ay": 33
+          },
+          "atlasRect": {
+            "x": 684,
+            "y": 2,
+            "w": 32,
+            "h": 40
+          },
+          "pixelSha256": "0f808912fe5a212f191cd006ff501cbe91e133ab4f821456b5674a802b758525"
+        },
+        "crawl_1": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 97,
+            "y": 764,
+            "w": 47,
+            "h": 32
+          },
+          "display": {
+            "w": 39,
+            "h": 27,
+            "ax": 20,
+            "ay": 27
+          },
+          "atlasRect": {
+            "x": 720,
+            "y": 2,
+            "w": 47,
+            "h": 32
+          },
+          "pixelSha256": "0c6bbfb80ec64bbf9a3556ab715180b5b2dbe148b1919d828c637a364a2f5c6b"
+        },
+        "crawl_2": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 159,
+            "y": 763,
+            "w": 59,
+            "h": 32
+          },
+          "display": {
+            "w": 53,
+            "h": 27,
+            "ax": 27,
+            "ay": 27
+          },
+          "atlasRect": {
+            "x": 771,
+            "y": 2,
+            "w": 59,
+            "h": 32
+          },
+          "pixelSha256": "e1110ea957445ff657cf4d2cad470d4bbf9a1e54931db95072a2615caab42bee"
+        },
+        "crawl_3": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 238,
+            "y": 764,
+            "w": 40,
+            "h": 32
+          },
+          "display": {
+            "w": 34,
+            "h": 27,
+            "ax": 17,
+            "ay": 27
+          },
+          "atlasRect": {
+            "x": 834,
+            "y": 2,
+            "w": 40,
+            "h": 32
+          },
+          "pixelSha256": "6a611c303f4bb519e775bcd671bccc26ce3815963f147d84910efc29f662caf8"
+        },
+        "crawl_4": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 292,
+            "y": 762,
+            "w": 48,
+            "h": 32
+          },
+          "display": {
+            "w": 40,
+            "h": 27,
+            "ax": 20,
+            "ay": 27
+          },
+          "atlasRect": {
+            "x": 878,
+            "y": 2,
+            "w": 48,
+            "h": 32
+          },
+          "pixelSha256": "031b8c49d183d0f2ff6cecf474f0ff1e1dd3e57f4a988340a12048dbb2366a70"
+        },
+        "shell_1": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 669,
+            "y": 569,
+            "w": 46,
+            "h": 24
+          },
+          "display": {
+            "w": 39,
+            "h": 20,
+            "ax": 20,
+            "ay": 20
+          },
+          "atlasRect": {
+            "x": 930,
+            "y": 2,
+            "w": 46,
+            "h": 24
+          },
+          "pixelSha256": "fe90ea12001d368621ede90200054d3f1249edf7ac70cfe70afb87f6658a5f00"
+        },
+        "shell_2": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 668,
+            "y": 602,
+            "w": 56,
+            "h": 31
+          },
+          "display": {
+            "w": 47,
+            "h": 26,
+            "ax": 24,
+            "ay": 26
+          },
+          "atlasRect": {
+            "x": 980,
+            "y": 2,
+            "w": 56,
+            "h": 31
+          },
+          "pixelSha256": "819b5d652d00c259b3a67bb1142fa371184553f9373750477c76333d0b5c0eaa"
+        },
+        "shell_3": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 732,
+            "y": 602,
+            "w": 56,
+            "h": 31
+          },
+          "display": {
+            "w": 47,
+            "h": 27,
+            "ax": 24,
+            "ay": 27
+          },
+          "atlasRect": {
+            "x": 1040,
+            "y": 2,
+            "w": 56,
+            "h": 31
+          },
+          "pixelSha256": "b052731000ad89f1fcce07caee2908b5d0acd7401fbd0a1cba1f884db9a6156c"
+        },
+        "shell_4": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 796,
+            "y": 602,
+            "w": 56,
+            "h": 31
+          },
+          "display": {
+            "w": 47,
+            "h": 27,
+            "ax": 24,
+            "ay": 27
+          },
+          "atlasRect": {
+            "x": 1100,
+            "y": 2,
+            "w": 56,
+            "h": 31
+          },
+          "pixelSha256": "35680431e725ce3f097cd661cf30b0e9da8d74dca9f23fa112b48c2c4c0ac86e"
+        },
+        "slicer_1": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 530,
+            "y": 569,
+            "w": 31,
+            "h": 32
+          },
+          "display": {
+            "w": 27,
+            "h": 27,
+            "ax": 14,
+            "ay": 27
+          },
+          "atlasRect": {
+            "x": 1160,
+            "y": 2,
+            "w": 31,
+            "h": 32
+          },
+          "pixelSha256": "66bf914b36297d36ec0b00ee53382bbfb22004e94ec86903b2fa6fb3494d03c6"
+        },
+        "slicer_2": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 570,
+            "y": 569,
+            "w": 31,
+            "h": 32
+          },
+          "display": {
+            "w": 27,
+            "h": 27,
+            "ax": 14,
+            "ay": 27
+          },
+          "atlasRect": {
+            "x": 1195,
+            "y": 2,
+            "w": 31,
+            "h": 32
+          },
+          "pixelSha256": "8701eaba197f493b124e57ec28d891b6b2dcbd7b6fe28bc11ec30d5c04d489ac"
+        },
+        "slicer_3": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 610,
+            "y": 569,
+            "w": 31,
+            "h": 32
+          },
+          "display": {
+            "w": 27,
+            "h": 27,
+            "ax": 14,
+            "ay": 27
+          },
+          "atlasRect": {
+            "x": 1230,
+            "y": 2,
+            "w": 31,
+            "h": 32
+          },
+          "pixelSha256": "66a8f684b8ff487d3bbfd183cdcc1256291f8bb797393af5f1132a7c194186dd"
+        },
+        "slicer_4": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 534,
+            "y": 633,
+            "w": 47,
+            "h": 32
+          },
+          "display": {
+            "w": 40,
+            "h": 27,
+            "ax": 20,
+            "ay": 27
+          },
+          "atlasRect": {
+            "x": 1265,
+            "y": 2,
+            "w": 47,
+            "h": 32
+          },
+          "pixelSha256": "8acae7c2399ca86da145abe0ed9c2f8e3fd3c20511e1172ae766f57ef15f1cf5"
+        },
+        "octus_1": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 703,
+            "y": 307,
+            "w": 42,
+            "h": 25
+          },
+          "display": {
+            "w": 36,
+            "h": 22,
+            "ax": 18,
+            "ay": 22
+          },
+          "atlasRect": {
+            "x": 1316,
+            "y": 2,
+            "w": 42,
+            "h": 25
+          },
+          "pixelSha256": "62fb168bbc6fe9bb024168ecff8584e53fbd0de2128df25daa6cf1a2300965f9"
+        },
+        "octus_2": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 760,
+            "y": 307,
+            "w": 40,
+            "h": 25
+          },
+          "display": {
+            "w": 34,
+            "h": 22,
+            "ax": 17,
+            "ay": 22
+          },
+          "atlasRect": {
+            "x": 1362,
+            "y": 2,
+            "w": 40,
+            "h": 25
+          },
+          "pixelSha256": "d7bca13999e904057cd411f8d107dd603bba05a838638f804cadc253a3c2d2b0"
+        },
+        "octus_3": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 815,
+            "y": 307,
+            "w": 38,
+            "h": 25
+          },
+          "display": {
+            "w": 35,
+            "h": 22,
+            "ax": 18,
+            "ay": 22
+          },
+          "atlasRect": {
+            "x": 1406,
+            "y": 2,
+            "w": 38,
+            "h": 25
+          },
+          "pixelSha256": "d0cdb81f559f0f86a7705d26e0a25b0e34f65f7718080bf611110f3c86f311c6"
+        },
+        "balkiry_1": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 530,
+            "y": 794,
+            "w": 64,
+            "h": 24
+          },
+          "display": {
+            "w": 60,
+            "h": 21,
+            "ax": 30,
+            "ay": 11
+          },
+          "atlasRect": {
+            "x": 1448,
+            "y": 2,
+            "w": 64,
+            "h": 24
+          },
+          "pixelSha256": "e7a1e43f77c0c9a339b8a4b88c0da6e6179cfe05853c96a765904ea415a8b86d"
+        },
+        "balkiry_2": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 530,
+            "y": 826,
+            "w": 69,
+            "h": 34
+          },
+          "display": {
+            "w": 58,
+            "h": 29,
+            "ax": 29,
+            "ay": 15
+          },
+          "atlasRect": {
+            "x": 1516,
+            "y": 2,
+            "w": 69,
+            "h": 34
+          },
+          "pixelSha256": "09d6b23d5b63245a1519f27222c215d7290f72e56482b2b3217483288cebcd79"
+        },
+        "balkiry_3": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 610,
+            "y": 826,
+            "w": 64,
+            "h": 32
+          },
+          "display": {
+            "w": 60,
+            "h": 27,
+            "ax": 30,
+            "ay": 14
+          },
+          "atlasRect": {
+            "x": 1589,
+            "y": 2,
+            "w": 64,
+            "h": 32
+          },
+          "pixelSha256": "b01468a971646520f1255f8ad171f5f8454f9cf4dace98ebfda36c501babd942"
+        },
+        "nebula_1": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 530,
+            "y": 949,
+            "w": 48,
+            "h": 40
+          },
+          "display": {
+            "w": 41,
+            "h": 34,
+            "ax": 21,
+            "ay": 17
+          },
+          "atlasRect": {
+            "x": 1657,
+            "y": 2,
+            "w": 48,
+            "h": 40
+          },
+          "pixelSha256": "19be8b0c02b0342b46d0cee37984ecafc254ad17de2cd74dbb8235816b923e70"
+        },
+        "nebula_2": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 586,
+            "y": 949,
+            "w": 32,
+            "h": 40
+          },
+          "display": {
+            "w": 27,
+            "h": 34,
+            "ax": 14,
+            "ay": 17
+          },
+          "atlasRect": {
+            "x": 1709,
+            "y": 2,
+            "w": 32,
+            "h": 40
+          },
+          "pixelSha256": "edabe9ca48f25497a53d24946ca1ee0c639416a067389281afc78552f8dc1ea4"
+        },
+        "nebula_3": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 626,
+            "y": 949,
+            "w": 32,
+            "h": 40
+          },
+          "display": {
+            "w": 27,
+            "h": 34,
+            "ax": 14,
+            "ay": 17
+          },
+          "atlasRect": {
+            "x": 1745,
+            "y": 2,
+            "w": 32,
+            "h": 40
+          },
+          "pixelSha256": "048ddc19f93b554543161640054325198b2e77d7f3b0e2e1f75d83298206d1ae"
+        },
+        "nebula_4": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 666,
+            "y": 949,
+            "w": 32,
+            "h": 40
+          },
+          "display": {
+            "w": 27,
+            "h": 34,
+            "ax": 14,
+            "ay": 17
+          },
+          "atlasRect": {
+            "x": 1781,
+            "y": 2,
+            "w": 32,
+            "h": 40
+          },
+          "pixelSha256": "0ee3b5e81a993c3159b8f7e120842c83ea8568998de73b2efdfc4ef90ce84854"
+        },
+        "chop_1": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 127,
+            "y": 626,
+            "w": 31,
+            "h": 24
+          },
+          "display": {
+            "w": 26,
+            "h": 20,
+            "ax": 13,
+            "ay": 10
+          },
+          "atlasRect": {
+            "x": 1817,
+            "y": 2,
+            "w": 31,
+            "h": 24
+          },
+          "pixelSha256": "9bacb9a408126ecd40fd581de3c827e503afeb54ec43d09a287af377a617962c"
+        },
+        "chop_2": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 167,
+            "y": 626,
+            "w": 31,
+            "h": 24
+          },
+          "display": {
+            "w": 26,
+            "h": 20,
+            "ax": 13,
+            "ay": 10
+          },
+          "atlasRect": {
+            "x": 1852,
+            "y": 2,
+            "w": 31,
+            "h": 24
+          },
+          "pixelSha256": "faee66fa9238b4190785a447d06d1b7621ec67cc68eb0c7e889d828354b02e28"
+        },
+        "asteron_1": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 668,
+            "y": 708,
+            "w": 32,
+            "h": 28
+          },
+          "display": {
+            "w": 27,
+            "h": 26,
+            "ax": 14,
+            "ay": 13
+          },
+          "atlasRect": {
+            "x": 1887,
+            "y": 2,
+            "w": 32,
+            "h": 28
+          },
+          "pixelSha256": "d1e459ae8baa361aef9296016b559a6c36b0c8b911a65bb37e9bf9b72e8efa0b"
+        },
+        "asteron_2": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 708,
+            "y": 708,
+            "w": 32,
+            "h": 28
+          },
+          "display": {
+            "w": 27,
+            "h": 26,
+            "ax": 14,
+            "ay": 13
+          },
+          "atlasRect": {
+            "x": 1923,
+            "y": 2,
+            "w": 32,
+            "h": 28
+          },
+          "pixelSha256": "a51e7dd95892f647cbc27bf69bac1756319e110b204bf0ac81e9786b61ff96be"
+        },
+        "turtloid_1": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 716,
+            "y": 795,
+            "w": 56,
+            "h": 31
+          },
+          "display": {
+            "w": 47,
+            "h": 26,
+            "ax": 24,
+            "ay": 26
+          },
+          "atlasRect": {
+            "x": 1959,
+            "y": 2,
+            "w": 56,
+            "h": 31
+          },
+          "pixelSha256": "d793d5f397271d387c895cc28e9d9c27babaacad48867582418e8cab3aecb39d"
+        },
+        "turtloid_2": {
+          "source": "sonic2",
+          "sourceRect": {
+            "x": 780,
+            "y": 795,
+            "w": 56,
+            "h": 31
+          },
+          "display": {
+            "w": 47,
+            "h": 26,
+            "ax": 24,
+            "ay": 26
+          },
+          "atlasRect": {
+            "x": 2019,
+            "y": 2,
+            "w": 56,
+            "h": 31
+          },
+          "pixelSha256": "c99bddd31fbf5b1e691d86dffcd43d2639a00f957f01735f3b895b13302b54c7"
+        }
+      },
+      "width": 2077,
+      "height": 49
+    }
+  }
+}

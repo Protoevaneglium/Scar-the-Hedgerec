@@ -181,6 +181,7 @@ const entries = [
     { name: prefix + 'public/assets/palmtree_objects.png', data: fs.readFileSync(path.join(rootDir, 'public', 'assets', 'palmtree_objects.png')) },
     { name: prefix + 'public/assets/palmtree_map.png',     data: fs.readFileSync(path.join(rootDir, 'public', 'assets', 'palmtree_map.png')) },
     { name: prefix + 'public/assets/enemies.png',          data: fs.readFileSync(path.join(rootDir, 'public', 'assets', 'enemies.png')) },
+    { name: prefix + 'public/assets/enemies_act2.png',      data: fs.readFileSync(path.join(rootDir, 'public', 'assets', 'enemies_act2.png')) },
     { name: prefix + 'public/assets/jump.wav',             data: fs.readFileSync(path.join(rootDir, 'public', 'assets', 'jump.wav')) },
     { name: prefix + 'public/assets/rings.wav',            data: fs.readFileSync(path.join(rootDir, 'public', 'assets', 'rings.wav')) },
     { name: prefix + 'public/assets/goalpost.wav',         data: fs.readFileSync(path.join(rootDir, 'public', 'assets', 'goalpost.wav')) },
@@ -197,6 +198,7 @@ function includeAssets(relativeDir) {
 }
 includeAssets('assets/ui');
 includeAssets('assets/sfx');
+includeAssets('assets/enemy_sources');
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
 const zipBuf = buildZipBuffer(entries);

@@ -103,6 +103,8 @@ buildTerrain(b, terrain) {
 ```
 
 ### B. Plugging In Level-Specific Enemies
+Use the owner's supplied enemy sprite sheets. The shared Sonic 1 atlas (`assets/enemies.png`) and Sonic 2 atlas (`assets/enemies_act2.png`) are direct source crops; their source images, crop records and pixel checks are retained under `assets/enemy_sources`. Keep species explicit and use the shared sprite renderer instead of drawing replacement enemy bodies. New sheets must be supplied by the owner and receive the same provenance record before use. Display dimensions and anchors may be configured separately from source crop dimensions, with image smoothing disabled.
+
 ```js
 enemySheet: 'assets/zone2_enemies.png',
 enemyFrames: {

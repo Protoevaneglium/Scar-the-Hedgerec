@@ -91,8 +91,8 @@ const inputs = ['templates/LEVEL_CORE_BLUEPRINT.md', 'templates/level_template.j
     'public/index.html', 'public/sonic-engine.js', 'public/css/game-ui.css', 'public/js/modern-hud.js',
     'public/assets/scar_sheet.png', 'public/assets/common_objects.png', 'public/assets/animals.png',
     'public/assets/animals.txt', 'public/assets/palmtree_objects.png', 'public/assets/palmtree_map.png',
-    'public/assets/enemies.png', 'public/assets/jump.wav', 'public/assets/rings.wav', 'public/assets/goalpost.wav',
-    'public/assets/ui', 'public/assets/sfx'];
+    'public/assets/enemies.png', 'public/assets/enemies_act2.png', 'public/assets/jump.wav', 'public/assets/rings.wav', 'public/assets/goalpost.wav',
+    'public/assets/ui', 'public/assets/sfx', 'public/assets/enemy_sources'];
 const binary = Buffer.from([0, 13, 10, 255, 128, 10, 13, 0]);
 const extras = ['public/assets/ui/eol-fixture.cmd', 'public/assets/ui/eol-fixture.bin'];
 function copyInput(relative, destination, crlf) {
