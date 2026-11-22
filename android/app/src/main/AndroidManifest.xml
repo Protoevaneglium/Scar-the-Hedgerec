@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <uses-feature android:name="android.hardware.gamepad" android:required="false" />
-    <application android:label="Scar the Hedgerec" android:icon="@drawable/ic_scar"
+    <application android:label="Scar the Hedgerec" android:icon="@drawable/ic_scar" android:roundIcon="@drawable/ic_scar"
         android:theme="@android:style/Theme.Material.NoActionBar" android:allowBackup="false"
         android:hardwareAccelerated="true" android:usesCleartextTraffic="false"
         android:enableOnBackInvokedCallback="false" android:supportsRtl="true">

@@ -1,0 +1,16 @@
+{
+  "title": "Scar the Hedgrec",
+  "mode": "Built-in image_gen",
+  "references": [
+    "public/assets/scar_idle.png",
+    "public/assets/scar_run.png"
+  ],
+  "thumbnail": {
+    "file": "public/assets/scar_thumbnail.png",
+    "prompt": "Use case: ads-marketing.\nAsset type: finished square game thumbnail and Android launcher artwork, 1024 by 1024.\nPrimary request: create a striking cyan and vivid green retro 16-bit platform-game cover using Scar from the supplied game sprite images.\nInput images: the first image is Scar's actual idle sprite, an identity reference; the second is Scar's existing running sprite artwork from the game and is the main cutout subject. Use this existing running Scar sprite directly, retaining his blue/purple quills, face, red facial scar, red scarf and gloves, blue boots, pixel edges and running pose. Keep his identity and colors faithful. Do not substitute a generic Sonic.\nComposition: one large Scar, centered in the upper and middle area, with a luminous cyan/green loop or ring behind him and diagonal speed streaks. Cyan sky, deep navy shadows, emerald/lime checker-pattern ground accents. Dynamic, readable and uncluttered. Keep all important character details and text comfortably within the central 76 percent of the square, with generous outside crop-safe space for a rounded app icon.\nTypography: a bold, slanted, arcade platformer title with dimensional beveled block letters, strong dark outlines, white/cyan face and lime-green accents, evoking the energetic classic Sega Sonic title-logo feel without writing Sega or Sonic anywhere. Large SCAR over a smaller THE HEDGREC. Render exactly these words, with this exact spelling: \"Scar the Hedgrec\". HEDGREC is H E D G R E C. Do not correct the spelling to Hedgehog or Hedgerec. No extra captions, no badge, no version number, no watermark.\nFinish: polished vivid game thumbnail, crisp pixel-sprite character against clean graphic art. Opaque full-bleed background."
+  },
+  "androidLauncher": {
+    "file": "android/app/src/main/res/drawable-nodpi/scar_launcher.png",
+    "prompt": "Use case: compositing. Create an Android adaptive launcher icon variant of the supplied finished thumbnail. Preserve the same running Scar sprite, exact cyan/green palette, pixel-art look and the exact title \"SCAR\" / \"THE HEDGREC\". Change only layout to make it safe for circular Android icon masks. All of Scar (including quills, scarf, fists and boots) AND both title lines must fit together inside the central circular area with diameter 58% of the full square. This is very important: make the whole character-and-title group much smaller and centered. Put Scar above the title inside that safe circle. Outside that central safe area, extend only cyan sky, subtle green checker ring and speed accents all the way to the square edges; no hard rectangular panel around the central art. The corners and outermost 20% on every side must contain background only, no words or Scar details. Large readable SCAR, smaller exact THE HEDGREC (H E D G R E C); do not fix spelling. Opaque full-bleed square PNG, 1024x1024. No extra text, no watermark."
+  }
+}

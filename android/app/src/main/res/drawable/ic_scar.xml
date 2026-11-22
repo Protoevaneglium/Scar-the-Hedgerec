@@ -1,6 +1,2 @@
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-    <path android:fillColor="#20173B" android:pathData="M0,0h108v108h-108z" />
-    <path android:fillColor="#8565D6" android:pathData="M17,72L29,43 20,30 43,35 58,18 66,36 92,44 77,58 81,81 57,75 38,91 35,74Z" />
-    <path android:fillColor="#FFCF4A" android:pathData="M60,28L37,60 53,60 46,84 76,48 60,48Z" />
-    <path android:fillColor="#ED3B69" android:pathData="M27,85h54v8h-54z" />
-</vector>
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:src="@drawable/scar_launcher" android:gravity="fill" android:filter="true" />

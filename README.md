@@ -1,8 +1,10 @@
 # Scar the Hedgerec 🦔⚡
 
+<img src="public/assets/scar_thumbnail.png" width="480" alt="Scar the Hedgrec cyan and green thumbnail">
+
 **Scar the Hedgerec** is a high-speed 16-bit retro platformer built on an authentic 360-degree fixed-point physics engine. Designed as a clean, cross-platform (**Windows, Linux, macOS, and Termux / Android**) HTML5 Canvas & JavaScript game with zero external runtime dependencies required.
 
-📱 **[Download Android APK v0.0.2](https://github.com/Protoevaneglium/Scar-the-Hedgerec/releases/download/v0.0.2/scar-the-hedgerec-v0.0.2.apk)** — all six acts, offline, Android 8.0+. [Android build and test details](ANDROID.md).
+📱 **[Download Android APK v0.0.3](https://github.com/Protoevaneglium/Scar-the-Hedgerec/releases/download/v0.0.3/scar-the-hedgerec-v0.0.3.apk)** — all six acts, offline, Android 8.0+. [Android build and test details](ANDROID.md).
 
 📄 **[Read the Full Physics Specification (`SONIC_PHYSICS_SPEC.md`)](SONIC_PHYSICS_SPEC.md)**  
 📐 **[Level Core Foundation Blueprint (`templates/LEVEL_CORE_BLUEPRINT.md`)](templates/LEVEL_CORE_BLUEPRINT.md)** • **[Downloadable Starter Core Kit (`.zip`)](public/downloads/scar-level-core-template.zip)** *(or open `/template.html` when running locally)*
