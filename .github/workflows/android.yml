@@ -19,6 +19,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+      - uses: android-actions/setup-android@v3
       - name: Prepare the pinned Android platform
         run: sdkmanager 'platforms;android-35' 'build-tools;36.0.0'
       - name: Build the release variant and instrumented tests
