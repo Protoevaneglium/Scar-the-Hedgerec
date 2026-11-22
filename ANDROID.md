@@ -1,8 +1,10 @@
-# Android v0.0.1
+# Android v0.0.2
 
-[Download the signed APK](https://github.com/Protoevaneglium/Scar-the-Hedgerec/releases/download/v0.0.1/scar-the-hedgerec-v0.0.1.apk).
+[Download the signed APK](https://github.com/Protoevaneglium/Scar-the-Hedgerec/releases/download/v0.0.2/scar-the-hedgerec-v0.0.2.apk).
 
 The APK includes all six campaign acts, the intro, music, voices and sprite sheets. It runs offline on Android 8.0/API 26 or newer and uses the device's Android System WebView. Touch controls support simultaneous movement and jumping. The existing Xbox/standard Gamepad API controls are retained.
+
+The current act and checkpoint are saved automatically. After a reload, renderer retry or app recreation, pressing Start continues from that safe checkpoint. Score, lives and shield are retained; rings, act time and temporary power-ups restart. Completed acts remain completed even if the app restarts during the sign or results tally. Existing v0.0.1 visited acts migrate on update.
 
 Switching away pauses the game and audio. Returning shows Resume; held inputs cannot skip that screen. Android Back closes Rosie's conversation, then pauses gameplay; pressing Back while paused offers Exit. The host preserves local progress and provides Retry if the WebView renderer stops.
 

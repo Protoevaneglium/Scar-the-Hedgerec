@@ -982,11 +982,13 @@ class Game {
         this.actClear = null;
         this.gameOverTimer = 0;
 
-        const urlStage = new URLSearchParams(window.location.search).get('stage');
+        const params = new URLSearchParams(window.location.search);
+        const urlStage = params.get('stage');
+        const resume = params.has('stage') ? null : this.readProgress();
         const defaultStage = (urlStage && (urlStage === 'palmtree' || urlStage === 'test' || Terrain.LEVELS[urlStage]))
             ? urlStage
-            : (window.DEFAULT_STAGE || 'palmtree');
-        this.loadStage(defaultStage);
+            : (resume?.stage || window.DEFAULT_STAGE || 'palmtree');
+        this.loadStage(defaultStage, { resume });
         this.setupUI();
 
         this.fps = 60; this.fpsFrames = 0; this.fpsTime = 0; this.dt60 = 1;
@@ -995,8 +997,9 @@ class Game {
             if (!document.hidden) {
                 const now = performance.now();
                 if (Number.isFinite(now)) this.last = now;
-            }
+            } else this.saveProgress();
         });
+        window.addEventListener('pagehide', () => this.saveProgress());
         requestAnimationFrame((t) => this.frame(t));
     }
 
@@ -1058,6 +1061,51 @@ class Game {
         } catch (e) {}
     }
 
+    progressKey() { return 'scar_continue_v1:' + (window.DEFAULT_STAGE || 'campaign'); }
+    readProgress() {
+        try {
+            const raw = localStorage.getItem(this.progressKey());
+            if (raw == null && !window.DEFAULT_STAGE) {
+                const old = localStorage.getItem('scar_unlocked_stages');
+                if (typeof old !== 'string' || old.length > 4096) return null;
+                const visited = JSON.parse(old);
+                if (!Array.isArray(visited)) return null;
+                const stage = this.getCampaignStages().filter(id => visited.includes(id)).pop();
+                return stage ? { version: 1, stage, checkpoint: 0, score: 0, lives: 3, shield: false } : null;
+            }
+            if (typeof raw !== 'string' || raw.length > 1024) return null;
+            const p = JSON.parse(raw);
+            if (!p || p.version !== 1 || !this.getCampaignStages().includes(p.stage)
+                || !Number.isInteger(p.checkpoint) || p.checkpoint < 0 || p.checkpoint > 999
+                || !Number.isSafeInteger(p.score) || p.score < 0 || p.score > 1000000000
+                || !Number.isInteger(p.lives) || p.lives < 1 || p.lives > 999
+                || typeof p.shield !== 'boolean') return null;
+            return p;
+        } catch (_) { return null; }
+    }
+    saveProgress() {
+        const p = this.player, t = this.terrain;
+        if (!p || !t || !this.getCampaignStages().includes(this.stageName)) return false;
+        let stage = this.stageName, checkpoint = this.cpIndex || 0, score = p.score, lives = p.lives, shield = !!p.shield;
+        if (p.gameOver || p.state === STATE.DYING && lives <= 1) { checkpoint = 0; score = 0; lives = 3; shield = false; }
+        else {
+            if (p.state === STATE.DYING) { lives--; shield = false; }
+            const finished = t.goalPost?.spinning || t.goalPost?.cleared || t.capsule?.opened || t.capsule?.cleared;
+            const next = this.actClear ? this.actClear.nextStage : this.getNextCampaignStage();
+            if (finished && next && this.getCampaignStages().includes(next)) {
+                stage = next; checkpoint = 0;
+                score += this.actClear ? this.actClear.timeBonus + this.actClear.ringBonus
+                    : this.computeTimeBonus(this.stageTime) + (p.rings || 0) * 100;
+            }
+        }
+        if (!Number.isSafeInteger(score) || score < 0 || score > 1000000000
+            || !Number.isInteger(lives) || lives < 1 || lives > 999) return false;
+        try {
+            localStorage.setItem(this.progressKey(), JSON.stringify({ version: 1, stage, checkpoint, score, lives, shield }));
+            return true;
+        } catch (_) { return false; }
+    }
+
     loadStage(stageName, opts = {}) {
         const prevPlayer = this.player;
         const carryover = !!(opts && opts.carryover && prevPlayer);
@@ -1108,6 +1156,7 @@ class Game {
                 this.cpIndex = this.nearestCheckpointIndex(cp);
                 this.updateCpButton();
                 this.snapCamera();
+                this.saveProgress();
             },
             ring: () => audio.ring(),
             ringLoss: () => audio.ringLoss(),
@@ -1124,7 +1173,7 @@ class Game {
                 p.deathOffscreenY = this.camY + this.H + 64;
             },
             oneUp: () => { audio.oneUp(); audio.scarVoice('yes'); },
-            gameOver: () => { this.gameOverTimer = 0; audio.gameOver(); },
+            gameOver: () => { this.gameOverTimer = 0; audio.gameOver(); this.saveProgress(); },
             bouncePole: (bp, p) => { audio.bouncePole(); this.dust(p, 6, 1, 2.2); },
             spinner: () => audio.spinner(),
             breakWall: () => audio.shatter(),
@@ -1135,9 +1184,9 @@ class Game {
             enemyPop: () => audio.spinner(),
             boost: (sb, p) => { audio.boost(); this.dust(p, 10, -p.facing, 3.8, '#00e5ff'); },
             timePost: () => audio.timePost(),
-            checkpoint: (cp) => { audio.timePost(); this.cpIndex = this.nearestCheckpointIndex(cp); this.updateCpButton(); },
+            checkpoint: (cp) => { audio.timePost(); this.cpIndex = this.nearestCheckpointIndex(cp); this.updateCpButton(); this.saveProgress(); },
             timeWarp: () => { audio.timeWarp(); this.updateEraButton(); },
-            goalPost: () => { audio.goalPost(); audio.scarVoice('alright'); },
+            goalPost: () => { audio.goalPost(); audio.scarVoice('alright'); this.saveProgress(); },
         });
 
         if (carryover) {
@@ -1180,8 +1229,19 @@ class Game {
             ? { timer: 140, max: 140, ...meta }
             : null;
 
+        if (opts.resume && opts.resume.stage === stageName) {
+            const saved = opts.resume;
+            this.cpIndex = saved.checkpoint < this.terrain.checkpoints.length ? saved.checkpoint : 0;
+            const cp = this.terrain.checkpoints[this.cpIndex];
+            this.terrain.activeCheckpoint = cp;
+            this.player.place(cp.x, 0, cp.y);
+            this.player.score = saved.score; this.player.lives = saved.lives; this.player.shield = saved.shield;
+            this.player.invulnTimer = 120;
+        }
+
         this.snapCamera();
         this.updateStageButtons();
+        this.saveProgress();
     }
 
     resetCurrentStage(fullRestart = false) {
@@ -1301,6 +1361,7 @@ class Game {
         const next = !!value;
         if (this.paused === next) return;
         this.paused = next;
+        if (next) this.saveProgress();
         const now = performance.now();
         if (Number.isFinite(now)) this.last = now;
         audio.setSuspended(next);
@@ -1503,6 +1564,7 @@ class Game {
         this.particles.length = 0;
         this.updateCpButton();
         this.snapCamera();
+        this.saveProgress();
     }
     nearestCheckpointIndex(point) {
         let best = 0, distance = Infinity;

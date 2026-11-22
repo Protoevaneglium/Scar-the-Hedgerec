@@ -341,10 +341,11 @@ assert(!game.terrain.boss.active && game.player.x<500,'leaving the arena via a c
 const oldStorage={...sandbox.localStorage};
 try {
     for (const corrupted of ['{broken','{}','null','[5,null,"palmtree"]']) {
-        let stored=corrupted;
-        sandbox.localStorage.getItem=()=>stored;sandbox.localStorage.setItem=(_key,value)=>{stored=value;};
+        const stored=new Map([['scar_unlocked_stages',corrupted]]);
+        sandbox.localStorage.getItem=key=>stored.get(key)??null;
+        sandbox.localStorage.setItem=(key,value)=>{stored.set(key,value);};
         game.loadStage('z2_act1',{skipTitleCard:true,skipFade:true});
-        const progress=JSON.parse(stored);
+        const progress=JSON.parse(stored.get('scar_unlocked_stages'));
         assert(Array.isArray(progress) && progress.includes('z2_act1') && progress.every(id=>typeof id==='string'));
     }
 } finally { Object.assign(sandbox.localStorage,oldStorage); }

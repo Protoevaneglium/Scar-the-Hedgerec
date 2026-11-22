@@ -1,6 +1,6 @@
 {
-  "version": "0.0.1",
-  "versionCode": 1,
+  "version": "0.0.2",
+  "versionCode": 2,
   "applicationId": "com.protoevaneglium.scarthehedgerec",
   "name": "Scar the Hedgerec",
   "minSdk": 26,

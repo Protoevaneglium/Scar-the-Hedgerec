@@ -155,7 +155,7 @@ function createGameHarness(options = {}) {
         Event: class Event { constructor(type) { this.type = type; } },
         Audio: function (src) { const media = makeElement(`audio-${nextTimer++}`, 'audio'); if (src) media.setAttribute('src', src); return media; },
         AudioContext: options.audioContext, document: doc, navigator: { maxTouchPoints: 0 },
-        location: { search: `?nointro&stage=${options.stage || 'palmtree'}` },
+        location: { search: options.search ?? `?nointro&stage=${options.stage || 'palmtree'}` },
         performance: { now: () => now },
         requestAnimationFrame(callback) { const id = nextFrame++; scheduledFrames.set(id, callback); return id; },
         cancelAnimationFrame: id => scheduledFrames.delete(id),

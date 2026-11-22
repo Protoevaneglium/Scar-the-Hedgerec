@@ -20,6 +20,8 @@ Reports are written to `output/qa/baseline.json` or `output/qa/baseline-stress.j
 
 The suites use fixed seeds so failures can be reproduced:
 
+- Progression recovery: fresh-page restoration in every act, real checkpoint activation, restart during the Act 2 sign and tally, pending deaths, corrupt/denied storage and migration from v0.0.1. Starlight Resort also renders every checkpoint/era and every loop with the newer canvas `roundRect` method removed.
+
 - Engine: seven stages, four seeds each, jittered 30/60/144 Hz timing, 67,200 updates; plus targeted physics, damage, death and reward tests. Campaign registrations are read from the shipped page so future acts join these traces.
 - Browser lifecycle: real game callbacks, four action seeds and 3,600 scheduled frames; rapid resets, warps, deaths, results, visibility changes, invalid timestamps, audio failures and delayed assets.
 - NPC: twelve seeds and 72,000 updates; crowding at both boundaries, input edges/cooldowns, real hops, dialogue, lava ignition and death/retry behavior.

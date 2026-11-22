@@ -1462,7 +1462,7 @@
                     ped.addColorStop(1, '#140e46');
                     ctx.fillStyle = ped;
                     ctx.beginPath();
-                    ctx.roundRect(ax - 18, baseY - 10, 36, 14, 4);
+                    SonicEngine.roundRectPath(ctx, ax - 18, baseY - 10, 36, 14, 4);
                     ctx.fill();
                     ctx.strokeStyle = '#00f6ff';
                     ctx.lineWidth = 1.6;

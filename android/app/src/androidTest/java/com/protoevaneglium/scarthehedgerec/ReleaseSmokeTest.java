@@ -130,7 +130,7 @@ public final class ReleaseSmokeTest {
         until("document.querySelector('.intro-title-fallback').naturalWidth>0");
         js("window.__painted=false;requestAnimationFrame(()=>requestAnimationFrame(()=>window.__painted=true));true"); until("window.__painted");
         SystemClock.sleep(500);
-        capture("v0.0.1-android-title.png");
+        capture("v"+BuildConfig.VERSION_NAME+"-android-title.png");
         long startup = SystemClock.uptimeMillis();
         tap(button("#intro"));
         until("window.sonicGame && !window.INTRO_ACTIVE");
@@ -208,6 +208,7 @@ public final class ReleaseSmokeTest {
             pairEvent(down, MotionEvent.ACTION_POINTER_UP | (1 << MotionEvent.ACTION_POINTER_INDEX_SHIFT), right, jump, 2);
             pairEvent(down, MotionEvent.ACTION_UP, right, jump, 1);
             until("!window.sonicGame.input.right && !window.sonicGame.input.jumpHeld");
+            js("CanvasRenderingContext2D.prototype.roundRect=undefined;true");
 
             JSONArray stages = new JSONArray((String)new JSONTokener(js("JSON.stringify(window.sonicGame.getCampaignStages())")).nextValue());
             assertEquals(6, stages.length());
@@ -237,12 +238,15 @@ public final class ReleaseSmokeTest {
             tap(button("#btn-talk"));
             until("window.sonicGame.terrain.boss.ally.assistCount>0", 120000);
             assertEquals("0", js("window.__qaErrors.length"));
-            capture("v0.0.1-android-arena.png");
+            capture("v"+BuildConfig.VERSION_NAME+"-android-arena.png");
+            String savedStage=js("window.sonicGame.stageName"), savedCheckpoint=js("window.sonicGame.cpIndex");
             MainActivity previous=current.get(); onMain(activity -> activity.recreate());
             long recreationDeadline=SystemClock.uptimeMillis()+20000;
             while ((current.get()==previous || nativeStage.get()!=Stage.RESUMED) && SystemClock.uptimeMillis()<recreationDeadline) SystemClock.sleep(50);
             assertNotSame("Activity must really be recreated", previous, current.get());
             untilStage(Stage.RESUMED); startGame(); assertEquals("\"persisted\"", js("localStorage.getItem('scar_apk_qa')"));
+            assertEquals("Recreation must retain the reached act", savedStage, js("window.sonicGame.stageName"));
+            assertEquals("Recreation must retain the checkpoint", savedCheckpoint, js("window.sonicGame.cpIndex"));
             Log.i("ScarQA", "All release smoke checks completed");
         } catch (Throwable failure) { Log.e("ScarQA", "Release check failed", failure); throw failure; }
         finally {
