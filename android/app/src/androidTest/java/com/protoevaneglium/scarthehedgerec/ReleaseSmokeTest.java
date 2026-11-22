@@ -51,7 +51,9 @@ public final class ReleaseSmokeTest {
         fail("Timed out: " + expression + " result=" + result);
     }
     private JSONObject object(String expression) throws Exception {
-        Object json = new JSONTokener(js("JSON.stringify(" + expression + ")")).nextValue();
+        String answer = js("JSON.stringify(" + expression + ")");
+        Object json = new JSONTokener(answer).nextValue();
+        assertTrue("Expected serialized object for "+expression+", received "+answer, json instanceof String);
         return new JSONObject((String)json);
     }
     private float[] button(String selector) throws Exception {
@@ -112,7 +114,7 @@ public final class ReleaseSmokeTest {
     }
     private void mediaRange(String asset, String header, long offset, int length) throws Exception {
         js("window.__mediaCheck=null;fetch("+JSONObject.quote(asset)+",{headers:{Range:"+JSONObject.quote(header)+"}}).then(async r=>window.__mediaCheck={status:r.status,bytes:Array.from(new Uint8Array(await r.arrayBuffer()))}).catch(e=>window.__mediaCheck={error:String(e)});true");
-        until("window.__mediaCheck !== null");
+        until("window.__mediaCheck && typeof window.__mediaCheck==='object'");
         JSONObject response = object("window.__mediaCheck"); assertEquals(206, response.getInt("status"));
         JSONArray actual = response.getJSONArray("bytes"); assertEquals(length, actual.length());
         try (InputStream source = instrumentation.getTargetContext().getAssets().open("game/"+asset)) {
@@ -126,7 +128,7 @@ public final class ReleaseSmokeTest {
         scenario = ActivityScenario.launch(MainActivity.class);
         try {
             Log.i("ScarQA", "Activity resumed; checking offline media");
-            until("window.ScarHost && document.getElementById('intro-video')");
+            until("document.readyState==='complete' && window.ScarHost && document.getElementById('intro-video')");
             mediaRange("assets/sfx/scar_alright.wav", "bytes=4-19", 4, 16);
             mediaRange("assets/sfx/scar_alright.wav", "bytes=0-19", 0, 20);
             long videoSize;
