@@ -3,14 +3,17 @@ package com.protoevaneglium.scarthehedgerec;
 import android.app.Instrumentation;
 import android.graphics.Bitmap;
 import android.os.SystemClock;
+import android.os.ParcelFileDescriptor;
 import android.util.Log;
 import android.view.InputDevice;
 import android.view.MotionEvent;
 import android.webkit.WebView;
-import androidx.lifecycle.Lifecycle;
 import androidx.test.core.app.ActivityScenario;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
+import androidx.test.runner.lifecycle.ActivityLifecycleCallback;
+import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry;
+import androidx.test.runner.lifecycle.Stage;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONTokener;
@@ -19,6 +22,7 @@ import org.junit.runner.RunWith;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.util.function.Consumer;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -29,10 +33,36 @@ import static org.junit.Assert.*;
 public final class ReleaseSmokeTest {
     private ActivityScenario<MainActivity> scenario;
     private final Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
+    private final AtomicReference<MainActivity> current = new AtomicReference<>();
+    private final AtomicReference<Stage> nativeStage = new AtomicReference<>();
+    private final ActivityLifecycleCallback lifecycle = (activity, stage) -> {
+        if (!(activity instanceof MainActivity)) return;
+        if (stage == Stage.RESUMED) current.set((MainActivity)activity);
+        if (current.get() == activity) nativeStage.set(stage);
+    };
+    private void onMain(Consumer<MainActivity> action) {
+        // ActivityScenario.onActivity waits for global UI idle. A continuously
+        // rendered game need not become idle; post directly to the main looper.
+        instrumentation.runOnMainSync(() -> { assertNotNull(current.get()); action.accept(current.get()); });
+    }
+    private void untilStage(Stage wanted) {
+        long deadline=SystemClock.uptimeMillis()+20000;
+        while (nativeStage.get()!=wanted && SystemClock.uptimeMillis()<deadline) SystemClock.sleep(50);
+        assertEquals("Native activity lifecycle", wanted, nativeStage.get());
+    }
+    private void backgroundAndResume() throws Exception {
+        onMain(activity -> assertTrue(activity.moveTaskToBack(true)));
+        untilStage(Stage.STOPPED);
+        try (InputStream command = new ParcelFileDescriptor.AutoCloseInputStream(instrumentation.getUiAutomation().executeShellCommand(
+                "am start -n "+instrumentation.getTargetContext().getPackageName()+"/.MainActivity -f 0x10020000"))) {
+            byte[] buffer=new byte[256]; while(command.read(buffer)!=-1) {}
+        }
+        untilStage(Stage.RESUMED);
+    }
     private String js(String expression) throws Exception {
         AtomicReference<String> value = new AtomicReference<>();
         CountDownLatch latch = new CountDownLatch(1);
-        scenario.onActivity(activity -> {
+        onMain(activity -> {
             WebView view = activity.getGameView();
             if (view == null) { value.set("null"); latch.countDown(); }
             else view.evaluateJavascript(expression, answer -> { value.set(answer); latch.countDown(); });
@@ -59,7 +89,7 @@ public final class ReleaseSmokeTest {
     private float[] button(String selector) throws Exception {
         JSONObject point = object("(()=>{const v=document.querySelector(" + JSONObject.quote(selector) + ").getBoundingClientRect();return{x:v.left+v.width/2,y:v.top+v.height/2,w:innerWidth,h:innerHeight};})()");
         int[] origin = new int[2], dimensions = new int[2];
-        scenario.onActivity(activity -> { WebView view = activity.getGameView(); view.getLocationOnScreen(origin); dimensions[0]=view.getWidth(); dimensions[1]=view.getHeight(); });
+        onMain(activity -> { WebView view = activity.getGameView(); view.getLocationOnScreen(origin); dimensions[0]=view.getWidth(); dimensions[1]=view.getHeight(); });
         float[] target = { (float)(point.getDouble("x") * dimensions[0] / point.getDouble("w")) + origin[0],
             (float)(point.getDouble("y") * dimensions[1] / point.getDouble("h")) + origin[1] };
         Log.i("ScarQA", "Touch " + selector + " at " + target[0] + "," + target[1] + " view=" + dimensions[0] + "x" + dimensions[1]);
@@ -76,7 +106,7 @@ public final class ReleaseSmokeTest {
         // Deliver native MotionEvents through the release WebView. UiAutomation's
         // global display synchronization can hang on continuously drawn emulator
         // surfaces; game predicates below acknowledge actual Chromium input.
-        scenario.onActivity(activity -> {
+        onMain(activity -> {
             WebView view=activity.getGameView(); int[] origin=new int[2]; view.getLocationOnScreen(origin);
             event.offsetLocation(-origin[0], -origin[1]);
             assertTrue("WebView accepts native touch", view.dispatchTouchEvent(event));
@@ -127,6 +157,7 @@ public final class ReleaseSmokeTest {
     }
     @Test public void offlineReleaseSurvivesTouchMediaAllActsAndLifecycleChurn() throws Exception {
         Log.i("ScarQA", "Launching signed release activity");
+        instrumentation.runOnMainSync(() -> ActivityLifecycleMonitorRegistry.getInstance().addLifecycleCallback(lifecycle));
         scenario = ActivityScenario.launch(MainActivity.class);
         try {
             Log.i("ScarQA", "Activity resumed; checking offline media");
@@ -164,8 +195,7 @@ public final class ReleaseSmokeTest {
                 for (int cp=0;cp<count;cp++) for (String era : new String[] {"good_future", "present", "past"}) {
                     assertEquals("true", js("(()=>{let g=window.sonicGame;g.gotoCheckpoint("+cp+");g.player.invincTimer=10000;g.terrain.timeEra="+JSONObject.quote(era)+";g.render();return Number.isFinite(g.player.x)&&Number.isFinite(g.camX);})()"));
                 }
-                scenario.moveToState(Lifecycle.State.CREATED);
-                scenario.moveToState(Lifecycle.State.RESUMED);
+                backgroundAndResume();
                 until("window.sonicGame.paused");
                 String time = js("window.sonicGame.stageTime"); SystemClock.sleep(300);
                 assertEquals(time, js("window.sonicGame.stageTime"));
@@ -174,7 +204,7 @@ public final class ReleaseSmokeTest {
                 double clock = Double.parseDouble(js("window.sonicGame.terrain.clock"));
                 until("window.sonicGame.terrain.clock>" + clock, 10000);
             }
-            for (int i=0;i<8;i++) { scenario.moveToState(Lifecycle.State.CREATED); scenario.moveToState(Lifecycle.State.RESUMED); }
+            for (int i=0;i<8;i++) backgroundAndResume();
             Log.i("ScarQA", "Rapid lifecycle churn complete; checking Rosie assist");
             until("window.sonicGame.paused"); tap(button("#btn-resume")); until("!window.sonicGame.paused");
             js("localStorage.setItem('scar_apk_qa','persisted');window.sonicGame.loadStage('z2_act3',{skipTitleCard:true,skipFade:true});window.sonicGame.gotoCheckpoint(1);window.sonicGame.player.invincTimer=10000;true");
@@ -183,8 +213,17 @@ public final class ReleaseSmokeTest {
             until("window.sonicGame.terrain.boss.ally.assistCount>0", 120000);
             assertEquals("0", js("window.__qaErrors.length"));
             capture("v0.0.1-android-arena.png");
-            scenario.recreate(); startGame(); assertEquals("\"persisted\"", js("localStorage.getItem('scar_apk_qa')"));
+            MainActivity previous=current.get(); onMain(activity -> activity.recreate());
+            long recreationDeadline=SystemClock.uptimeMillis()+20000;
+            while ((current.get()==previous || nativeStage.get()!=Stage.RESUMED) && SystemClock.uptimeMillis()<recreationDeadline) SystemClock.sleep(50);
+            assertNotSame("Activity must really be recreated", previous, current.get());
+            untilStage(Stage.RESUMED); startGame(); assertEquals("\"persisted\"", js("localStorage.getItem('scar_apk_qa')"));
             Log.i("ScarQA", "All release smoke checks completed");
-        } finally { if (scenario != null) scenario.close(); }
+        } catch (Throwable failure) { Log.e("ScarQA", "Release check failed", failure); throw failure; }
+        finally {
+            if (current.get()!=null && nativeStage.get()!=Stage.DESTROYED) { onMain(activity -> activity.finish()); untilStage(Stage.DESTROYED); }
+            if (scenario != null) scenario.close();
+            instrumentation.runOnMainSync(() -> ActivityLifecycleMonitorRegistry.getInstance().removeLifecycleCallback(lifecycle));
+        }
     }
 }

@@ -4,8 +4,6 @@
 
 The APK includes all six campaign acts, the intro, music, voices and sprite sheets. It runs offline on Android 8.0/API 26 or newer and uses the device's Android System WebView. Touch controls support simultaneous movement and jumping. The existing Xbox/standard Gamepad API controls are retained.
 
-The offline WebView uses a software-backed 960×540 gameplay canvas to keep its many small drawing operations from stalling the GPU command pipeline. The browser build retains its normal canvas path.
-
 Switching away pauses the game and audio. Returning shows Resume; held inputs cannot skip that screen. Android Back closes Rosie's conversation, then pauses gameplay; pressing Back while paused offers Exit. The host preserves local progress and provides Retry if the WebView renderer stops.
 
 ## Build and test

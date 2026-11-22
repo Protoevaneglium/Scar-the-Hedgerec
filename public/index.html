@@ -918,11 +918,7 @@ const ANIMAL_ROWS = Object.freeze(Object.fromEntries([
 class Game {
     constructor() {
         this.canvas = document.getElementById('game');
-        // Keep the offline WebView's 960x540 pixel canvas in CPU memory. Its
-        // small raster is cheap to composite; issuing every retro drawing
-        // operation through WebView's GPU pipeline can stall input and paint.
-        const offlineAndroid = window.location.hostname === 'appassets.androidplatform.net';
-        this.ctx = this.canvas.getContext('2d', offlineAndroid ? { alpha: false, willReadFrequently: true } : undefined);
+        this.ctx = this.canvas.getContext('2d');
         this.W = 960; this.H = 540;
         this.canvas.width = this.W; this.canvas.height = this.H;
         this.resize();
