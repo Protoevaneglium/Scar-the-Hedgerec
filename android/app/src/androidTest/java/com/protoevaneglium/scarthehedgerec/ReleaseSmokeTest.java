@@ -138,8 +138,33 @@ public final class ReleaseSmokeTest {
         js("window.__qaErrors=[];window.addEventListener('error',e=>window.__qaErrors.push(String(e.message)));window.addEventListener('unhandledrejection',e=>window.__qaErrors.push(String(e.reason)));window.sonicGame.titleCard=null;window.sonicGame.fadeAlpha=0;true");
     }
     private void capture(String name) throws Exception {
+        CountDownLatch drawn = new CountDownLatch(1);
+        onMain(activity -> {
+            WebView view=activity.getGameView();
+            view.postVisualStateCallback(SystemClock.uptimeMillis(), new WebView.VisualStateCallback() {
+                @Override public void onComplete(long requestId) {
+                    view.getViewTreeObserver().addOnDrawListener(new android.view.ViewTreeObserver.OnDrawListener() {
+                        @Override public void onDraw() { view.post(() -> { view.getViewTreeObserver().removeOnDrawListener(this); drawn.countDown(); }); }
+                    });
+                    view.invalidate();
+                }
+            });
+        });
+        assertTrue("WebView must commit the requested visual state", drawn.await(20, TimeUnit.SECONDS));
         Bitmap shot = instrumentation.getUiAutomation().takeScreenshot();
         assertNotNull("Android screenshot", shot);
+        if (name.contains("title")) {
+            JSONObject rect=object("(()=>{let r=document.getElementById('intro-credit').getBoundingClientRect();return{x:r.x,y:r.y,w:r.width,h:r.height,vw:innerWidth,vh:innerHeight};})()");
+            int[] viewBox=new int[4];
+            onMain(activity -> { WebView view=activity.getGameView(); int[] origin=new int[2]; view.getLocationOnScreen(origin); viewBox[0]=origin[0];viewBox[1]=origin[1];viewBox[2]=view.getWidth();viewBox[3]=view.getHeight(); });
+            int x0=Math.max(0,viewBox[0]+(int)(rect.getDouble("x")*viewBox[2]/rect.getDouble("vw")));
+            int y0=Math.max(0,viewBox[1]+(int)(rect.getDouble("y")*viewBox[3]/rect.getDouble("vh")));
+            int x1=Math.min(shot.getWidth(),viewBox[0]+(int)((rect.getDouble("x")+rect.getDouble("w"))*viewBox[2]/rect.getDouble("vw")));
+            int y1=Math.min(shot.getHeight(),viewBox[1]+(int)((rect.getDouble("y")+rect.getDouble("h"))*viewBox[3]/rect.getDouble("vh")));
+            Bitmap pixels=shot.copy(Bitmap.Config.ARGB_8888,false); int ink=0;
+            for(int y=y0;y<y1;y++) for(int x=x0;x<x1;x++) { int c=pixels.getPixel(x,y); if(Math.abs(android.graphics.Color.red(c)-244)<=3 && Math.abs(android.graphics.Color.green(c)-230)<=3 && Math.abs(android.graphics.Color.blue(c)-201)<=3) ink++; }
+            pixels.recycle(); assertTrue("The author credit must paint visible pixels on the title screen", ink>3);
+        }
         File target = new File(instrumentation.getTargetContext().getExternalFilesDir(null), name);
         try (FileOutputStream stream = new FileOutputStream(target)) { shot.compress(Bitmap.CompressFormat.PNG, 100, stream); }
         shot.recycle();
