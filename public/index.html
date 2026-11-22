@@ -70,6 +70,9 @@
 <script src="levels/rosie_dialogue.js"></script>
 <script src="levels/zone2_act2_art.js"></script>
 <script src="levels/zone2_act2.js"></script>
+<script src="levels/sanctuary_duo_boss.js"></script>
+<script src="levels/zone2_act3_art.js"></script>
+<script src="levels/zone2_act3.js"></script>
 <script>
 'use strict';
 const { PHYS, HITBOX, STATE, Terrain, Player, MODE_FRAMES, PALMTREE_SPRITES, toDeg, TAU } = window.SonicEngine;
@@ -372,6 +375,10 @@ class RetroAudio {
     rosieReunion() { this.playWav('rosieReunion', .5); }
     rosieTalk() { this.tone('triangle', 880, 1174, .07, .07); }
     rosieHop() { this.tone('sine', 440, 660, .1, .06); }
+    bossNote() {
+        this.tone('triangle', 659.25, 659.25, .15, .1);
+        this.tone('square', 987.77, 987.77, .09, .035, .025);
+    }
     ringLoss() {
         for (let i = 0; i < 4; i++) this.tone('square', 900 - i * 140, 600 - i * 100, 0.06, 0.09, i * 0.05);
     }
@@ -938,7 +945,7 @@ class Game {
         this.ui = new window.ScarUI(this);
         this.paused = false;
         this.dialogueSelection = 0;
-        this.input = new InputHandler({ canTalk: () => this.canTalkToRosie(),
+        this.input = new InputHandler({ canTalk: () => this.canCallRosie() || this.canTalkToRosie(),
             isOpen: () => !!this.rosieConversationView()?.open,
             isPaused: () => this.paused,
             revision: () => this.rosieConversationView()?.revision });
@@ -1056,7 +1063,9 @@ class Game {
             jump: () => audio.jump(),
             wallJump: (wall, p) => { audio.jump(); this.dust(p, 9, -p.facing, 3.5, '#ffd95d'); },
             wallSlide: (_wall, p) => { this.dust(p, 2, -p.facing, 0.8, '#ffb76b'); },
-            bossAttack: () => audio.boost(),
+            bossAttack: (attack) => attack?.kind === 'note' ? audio.bossNote() : audio.boost(),
+            duoStart: () => audio.scarVoice('alright', { force: true }),
+            duoAssist: () => audio.shatter(),
             bossHit: (_boss, p) => { audio.shatter(); this.dust(p, 12, -p.facing, 4.2, '#ffd740'); },
             bossDefeat: () => audio.goalPost(),
             missileReflect: () => audio.spinner(),
@@ -1087,7 +1096,7 @@ class Game {
             ring: () => audio.ring(),
             ringLoss: () => audio.ringLoss(),
             deathStart: (d, p) => {
-                const rosie = this.terrain.z2a2?.reunion;
+                const rosie = this.getRosieActor();
                 if (rosie) { window.RosieNPC?.cancelHug(rosie); window.RosieDialogue?.close(rosie.conversation); }
                 audio.death();
                 if (this.scarTrail) this.scarTrail.length = 0;
@@ -1301,7 +1310,8 @@ class Game {
         }
         const talk = document.getElementById('btn-talk');
         if (talk) {
-            const label = connected ? 'Talk to Rosie · X' : 'Talk to Rosie · C';
+            const verb = this.canCallRosie() ? 'Call Rosie' : 'Talk to Rosie';
+            const label = `${verb} · ${connected ? 'X' : 'C'}`;
             if (talk.textContent !== label) talk.textContent = label;
         }
         const hint = document.getElementById('rosie-dialogue-hint');
@@ -1319,29 +1329,47 @@ class Game {
         this.syncRosieConversationUI();
     }
 
+    getRosieActor() {
+        return this.terrain?.z2a2?.reunion || this.terrain?.z2a3?.reunion || null;
+    }
+
+    canCallRosie() {
+        const b = this.terrain?.boss, p = this.player;
+        return !!(b?.kind === 'sanctuaryDuo' && b.active && !b.defeated && p && !this.paused
+            && !p.gameOver && p.state !== STATE.DYING && !this.actClear && !window.INTRO_ACTIVE
+            && !this.terrain.capsule?.opened && !this.terrain.capsule?.cleared);
+    }
+
     rosieConversationView() {
-        const state = this.terrain?.z2a2?.reunion?.conversation;
+        const state = this.getRosieActor()?.conversation;
         return state && window.RosieDialogue ? window.RosieDialogue.view(state) : null;
     }
 
     canTalkToRosie() {
-        const n = this.terrain?.z2a2?.reunion, p = this.player;
+        const n = this.getRosieActor(), p = this.player;
+        const b = this.terrain?.boss;
+        if (b?.kind === 'sanctuaryDuo' && !b.defeated) return false;
         return !!(n?.met && n.grounded && p?.grounded && !p.gameOver && p.state !== STATE.DYING
             && !p.hurtPose && !(p.invulnTimer > 0) && !this.actClear && !window.INTRO_ACTIVE
             && !this.terrain.goalPost?.spinning && !this.terrain.goalPost?.cleared
+            && !this.terrain.capsule?.opened && !this.terrain.capsule?.cleared
             && Math.abs(p.x - n.actorX) <= 105 && Math.abs(p.y + p.radii.height - n.actorY) < 60);
     }
 
     handleRosieConversation(type, index, revision) {
         if (this.paused) return;
-        const n = this.terrain?.z2a2?.reunion, dialogue = window.RosieDialogue;
+        if (type === 'talk' && this.canCallRosie()) {
+            this.terrain.z2a3.assistRequested = true;
+            return;
+        }
+        const n = this.getRosieActor(), dialogue = window.RosieDialogue;
         if (!n?.conversation || !dialogue) return;
         const view = dialogue.view(n.conversation);
         if (type === 'dialogueClose' || (type === 'talk' && view.open) || !this.canTalkToRosie()) {
             dialogue.close(n.conversation);
         } else if (type === 'talk') {
             dialogue.start(n.conversation, { rings: this.player.rings,
-                lavaActive: this.terrain.z2a2.lavaActive, huggedRecently: !!n.hugged });
+                lavaActive: !!this.terrain.z2a2?.lavaActive, huggedRecently: !!n.hugged });
             n.hugged = false;
             this.dialogueSelection = 0;
             n.messageTimer = 0; n.actionTimer = 24;
@@ -1354,11 +1382,11 @@ class Game {
     }
 
     syncRosieConversationUI() {
-        const n = this.terrain?.z2a2?.reunion, dialogue = window.RosieDialogue;
+        const n = this.getRosieActor(), dialogue = window.RosieDialogue;
         const p = this.player;
         if (n?.conversation?.context && p) {
             n.conversation.context.rings = p.rings;
-            n.conversation.context.lavaActive = !!this.terrain.z2a2.lavaActive;
+            n.conversation.context.lavaActive = !!this.terrain.z2a2?.lavaActive;
         }
         if (n?.hugPhase && (!this.canTalkToRosie() || p.state !== STATE.STANDING
             || Math.abs(p.gsp) > .25 || Math.sign(p.x - n.actorX) !== p.facing)) window.RosieNPC?.cancelHug(n);
@@ -1367,7 +1395,7 @@ class Game {
         const open = !!view?.open;
         const panel = document.getElementById('rosie-dialogue');
         const talk = document.getElementById('btn-talk');
-        if (talk) talk.hidden = this.paused || open || !this.canTalkToRosie();
+        if (talk) talk.hidden = this.paused || open || (!this.canTalkToRosie() && !this.canCallRosie());
         if (!panel) return;
         const choiceKey = open ? `${view.session}:${view.revision}` : 'closed';
         if (this.dialogueChoiceKey !== choiceKey) { this.dialogueChoiceKey = choiceKey; this.dialogueSelection = 0; }
@@ -1442,9 +1470,10 @@ class Game {
         // Cancel completion as well as arena locks: otherwise a checkpoint warp
         // leaves controls disabled by the old signpost, rescue or results tally.
         const T = this.terrain;
-        if (T.z2a2?.reunion) {
-            window.RosieNPC?.cancelHug(T.z2a2.reunion);
-            window.RosieDialogue?.close(T.z2a2.reunion.conversation);
+        const rosie = this.getRosieActor();
+        if (rosie) {
+            window.RosieNPC?.cancelHug(rosie);
+            window.RosieDialogue?.close(rosie.conversation);
         }
         if (T.boss || this.actClear || (T.goalPost && (T.goalPost.spinning || T.goalPost.cleared))
             || (T.capsule && (T.capsule.opened || T.capsule.cleared))) T.resetObjects();
@@ -1727,7 +1756,7 @@ class Game {
     /* ---------------- smooth look-ahead camera ---------------- */
     arenaCameraTarget() {
         const b = this.terrain.boss;
-        if (!b || !b.active || !Number.isFinite(b.left) || !Number.isFinite(b.right) || !Number.isFinite(b.floorY)) return null;
+        if (!b || !b.active || b.defeated || !Number.isFinite(b.left) || !Number.isFinite(b.right) || !Number.isFinite(b.floorY)) return null;
         return {
             x: Math.max(b.left, Math.min(Math.max(b.left, b.right - this.W), this.player.x + (this.look || 0) - this.W / 2)),
             y: b.floorY - this.H + 125,

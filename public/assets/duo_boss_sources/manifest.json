@@ -1,0 +1,253 @@
+{
+  "schema": 1,
+  "description": "Native source crops for Sanctuary Duet. Only documented sheet backgrounds become transparent; no generated or recolored character pixels.",
+  "sources": {
+    "crocodile": {
+      "file": "assets/duo_boss_sources/crocodile.png",
+      "originalName": "Custom _ Edited - Sonic the Hedgehog Customs - Vector the Crocodile - Vector.png",
+      "credit": "Vector the Crocodile by Deebs; Mod.Gen Project Team. Original characters belong to their respective owners.",
+      "sha256": "7ca962a5d5eea0344b5a071c2fc725adc6968d92d9b2884097d53b4cf2dc8c59",
+      "width": 747,
+      "height": 454,
+      "transparentColors": [
+        [
+          149,
+          177,
+          200
+        ]
+      ]
+    },
+    "crawfish": {
+      "file": "assets/duo_boss_sources/crawfish.png",
+      "originalName": "SNES - Mega Man X3 - Mavericks - Crush Crawfish.png",
+      "credit": "Ripped by redblueyellow; original sheet states no credit needed. Original characters belong to their respective owners.",
+      "sha256": "54106f515f4e4fe7abe56d75e6c4ec3f2574b9bada332855f4dd8399b964ceba",
+      "width": 331,
+      "height": 549,
+      "transparentColors": [
+        [
+          0,
+          128,
+          128
+        ]
+      ]
+    }
+  },
+  "atlases": {
+    "duo": {
+      "file": "assets/duo_boss.png",
+      "frames": {
+        "croc_idle1": {
+          "source": "crocodile",
+          "sourceRect": {
+            "x": 25,
+            "y": 17,
+            "w": 58,
+            "h": 70
+          },
+          "atlasRect": {
+            "x": 2,
+            "y": 2,
+            "w": 58,
+            "h": 70
+          },
+          "pixelSha256": "6355fda41fbe288dab85326beab4a368c462c1fc18662f369de0b67a123e0bfa"
+        },
+        "croc_idle2": {
+          "source": "crocodile",
+          "sourceRect": {
+            "x": 93,
+            "y": 17,
+            "w": 61,
+            "h": 70
+          },
+          "atlasRect": {
+            "x": 64,
+            "y": 2,
+            "w": 61,
+            "h": 70
+          },
+          "pixelSha256": "5dd375f1b9cdfb044a81dfa502b06bef8d6cb437aa2fef33ff712c3abd561261"
+        },
+        "croc_warn": {
+          "source": "crocodile",
+          "sourceRect": {
+            "x": 170,
+            "y": 98,
+            "w": 59,
+            "h": 69
+          },
+          "atlasRect": {
+            "x": 129,
+            "y": 2,
+            "w": 59,
+            "h": 69
+          },
+          "pixelSha256": "cfb192de12a148d64b0d05e1232e78f6190c3b174762db8848214bde35ad49c2"
+        },
+        "croc_sing1": {
+          "source": "crocodile",
+          "sourceRect": {
+            "x": 238,
+            "y": 93,
+            "w": 57,
+            "h": 74
+          },
+          "atlasRect": {
+            "x": 192,
+            "y": 2,
+            "w": 57,
+            "h": 74
+          },
+          "pixelSha256": "300bfbe7b9acc5f29e91dd6ca03d50ba1df1e1d5fd1c48fa1580d7bb29df3bde"
+        },
+        "croc_sing2": {
+          "source": "crocodile",
+          "sourceRect": {
+            "x": 305,
+            "y": 85,
+            "w": 57,
+            "h": 82
+          },
+          "atlasRect": {
+            "x": 253,
+            "y": 2,
+            "w": 57,
+            "h": 82
+          },
+          "pixelSha256": "85a4b1017220dc53071a223bb81b667cda4e3216419b5c97b88501645d912438"
+        },
+        "note": {
+          "source": "crocodile",
+          "sourceRect": {
+            "x": 326,
+            "y": 88,
+            "w": 8,
+            "h": 7
+          },
+          "atlasRect": {
+            "x": 314,
+            "y": 2,
+            "w": 8,
+            "h": 7
+          },
+          "pixelSha256": "ce32cd45628070f92e94231fdd0091b64a8ad17494ea37ba45883537773c678d"
+        },
+        "craw_idle1": {
+          "source": "crawfish",
+          "sourceRect": {
+            "x": 2,
+            "y": 63,
+            "w": 66,
+            "h": 64
+          },
+          "atlasRect": {
+            "x": 326,
+            "y": 2,
+            "w": 66,
+            "h": 64
+          },
+          "pixelSha256": "87b5c6fb1b8ef0543c06c42b13d8ed30b89536efd275c823a7b4b1c840bf3628"
+        },
+        "craw_idle2": {
+          "source": "crawfish",
+          "sourceRect": {
+            "x": 70,
+            "y": 64,
+            "w": 66,
+            "h": 63
+          },
+          "atlasRect": {
+            "x": 396,
+            "y": 2,
+            "w": 66,
+            "h": 63
+          },
+          "pixelSha256": "a8a7f2566caf55ace29d76a0f41aa18dcedaf51812bf89146fda79cce58e978c"
+        },
+        "craw_warn1": {
+          "source": "crawfish",
+          "sourceRect": {
+            "x": 2,
+            "y": 210,
+            "w": 66,
+            "h": 64
+          },
+          "atlasRect": {
+            "x": 466,
+            "y": 2,
+            "w": 66,
+            "h": 64
+          },
+          "pixelSha256": "8ab2f3768a8bc28cc27f16b5282c69207d8a928a8456319359766469bd6c9e27"
+        },
+        "craw_warn2": {
+          "source": "crawfish",
+          "sourceRect": {
+            "x": 70,
+            "y": 206,
+            "w": 66,
+            "h": 68
+          },
+          "atlasRect": {
+            "x": 536,
+            "y": 2,
+            "w": 66,
+            "h": 68
+          },
+          "pixelSha256": "ba757417b9d5c547b6e07fcbe0b75da7f1655085f5cb698c7649ad8be4a33fab"
+        },
+        "craw_attack": {
+          "source": "crawfish",
+          "sourceRect": {
+            "x": 70,
+            "y": 305,
+            "w": 67,
+            "h": 43
+          },
+          "atlasRect": {
+            "x": 606,
+            "y": 2,
+            "w": 67,
+            "h": 43
+          },
+          "pixelSha256": "248682ddf528ac98dfe0f80ff2dcbdf36adc0b800402e0d912b187b3dc798b1c"
+        },
+        "claw1": {
+          "source": "crawfish",
+          "sourceRect": {
+            "x": 81,
+            "y": 366,
+            "w": 49,
+            "h": 28
+          },
+          "atlasRect": {
+            "x": 677,
+            "y": 2,
+            "w": 49,
+            "h": 28
+          },
+          "pixelSha256": "2013f2f20ff8f1913cd1820d285dfc796f0886d94d73c46435618d00adb39da9"
+        },
+        "claw2": {
+          "source": "crawfish",
+          "sourceRect": {
+            "x": 132,
+            "y": 365,
+            "w": 51,
+            "h": 30
+          },
+          "atlasRect": {
+            "x": 730,
+            "y": 2,
+            "w": 51,
+            "h": 30
+          },
+          "pixelSha256": "1c890e006922c2aa6629673a84e78b863d174c33661adbcb21cef2e01266817d"
+        }
+      },
+      "width": 783,
+      "height": 86
+    }
+  }
+}

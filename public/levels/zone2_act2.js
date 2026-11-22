@@ -12,7 +12,7 @@
     };
     E.Terrain.registerLevel('z2_act2', {
         title: 'Molten Sanctuary Act 2', zone: 2, zoneName: 'MOLTEN SANCTUARY', act: 2,
-        isBossAct: false, nextStage: null, bgm: 'assets/marble_canopy_act1.wav',
+        isBossAct: false, nextStage: 'z2_act3', bgm: 'assets/marble_canopy_act1.wav',
         startX: 0, endX: 14400, deathY: 1500, probeY: -900,
         cameraMinY: -620, cameraMaxY: 700, wallJump: true, smoothPresentation: false,
         animalZone: 'mz', animalTypes: ['locky', 'wocky'],

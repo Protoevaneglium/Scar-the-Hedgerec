@@ -165,10 +165,9 @@ function createGameHarness(options = {}) {
     vm.createContext(sandbox);
     const evaluate = source => vm.runInContext(source, sandbox, { timeout: 10000 });
     const load = file => vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), sandbox, { filename: file, timeout: 10000 });
-    for (const file of ['sonic-engine.js', 'js/modern-hud.js', 'levels/zone1_act2.js', 'levels/kitt_boss.js',
-        'levels/zone1_act3.js', 'levels/zone2_act1.js', 'levels/rosie.js', 'levels/rosie_npc.js', 'levels/rosie_dialogue.js',
-        'levels/zone2_act2_art.js', 'levels/zone2_act2.js']) load('public/' + file);
     const html = options.htmlSource === undefined ? fs.readFileSync(path.join(root, 'public/index.html'), 'utf8') : options.htmlSource;
+    // Test the same modules and registration order as the shipped page, including new acts.
+    for (const match of html.matchAll(/<script src="([^"]+)"/g)) load('public/' + match[1]);
     const script = html.match(/<script>\s*'use strict';([\s\S]*?)<\/script>/)[1];
     evaluate("'use strict';" + script + '\nwindow.harnessGame = new Game(); window.harnessAudio = audio; window.harnessClasses = {Game, InputHandler, RetroAudio};');
     function frame(ms = 1000 / 60) {

@@ -2,7 +2,6 @@
 'use strict';
 const assert = require('assert');
 const { createGameHarness } = require('./helpers/game_harness');
-const stages = ['palmtree', 'z1_act2', 'z1_act3', 'z2_act1', 'z2_act2', 'test'];
 function test(label, fn) { fn(); console.log(`  ✓ ${label}`); }
 function at(h, timestamp) {
     const [id, callback] = h.scheduledFrames.entries().next().value;
@@ -115,7 +114,7 @@ test('zero, backwards and nonfinite frame times preserve taps and never corrupt 
 test('checkpoint controls can recover from game over in every stage and normalize bad indexes', () => {
     const h=createGameHarness();
     try {
-        for(const stage of stages) {
+        for(const stage of h.game.getStageOrder()) {
             h.game.loadStage(stage,{skipTitleCard:true,skipFade:true});
             h.game.player.lives=1; h.game.player.loseLife();
             assert(h.game.player.gameOver);

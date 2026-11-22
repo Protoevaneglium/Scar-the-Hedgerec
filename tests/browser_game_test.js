@@ -32,15 +32,16 @@ function element(id) {
 class ImageStub {
     set src(value) {
         this._src = value;
-        // Exercise the generated boss atlas path as well as the fallback rendering.
-        if (value.includes('kitt_boss_poses')) {
-            this.complete = true; this.naturalWidth = 1536; this.naturalHeight = 1024;
-        }
-        if (value.includes('rosie.png')) {
-            this.complete = true; this.naturalWidth = 524; this.naturalHeight = 474;
-        }
+        // Every shipped atlas takes its actual loaded-image path, including new acts.
+        let bytes;
+        try { bytes = fs.readFileSync(path.join(root, 'public', value)); } catch (_) {}
+        this.complete = true;
+        if (!bytes) { if (this.onerror) this.onerror(new Error('Image failed')); return; }
+        this.naturalWidth = bytes.toString('ascii', 1, 4) === 'PNG' ? bytes.readUInt32BE(16) : 64;
+        this.naturalHeight = bytes.toString('ascii', 1, 4) === 'PNG' ? bytes.readUInt32BE(20) : 64;
         if (this.onload) this.onload();
     }
+    get src() { return this._src; }
 }
 const sandbox = {
     console, URLSearchParams, Math, Image: ImageStub, Audio: function () { return element('audio'); },
@@ -53,18 +54,9 @@ const sandbox = {
 sandbox.window = sandbox;
 vm.createContext(sandbox);
 function load(file) { vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), sandbox, { filename: file }); }
-load('public/sonic-engine.js');
-load('public/js/modern-hud.js');
-load('public/levels/zone1_act2.js');
-load('public/levels/kitt_boss.js');
-load('public/levels/zone1_act3.js');
-load('public/levels/zone2_act1.js');
-load('public/levels/rosie.js');
-load('public/levels/rosie_npc.js');
-load('public/levels/rosie_dialogue.js');
-load('public/levels/zone2_act2_art.js');
-load('public/levels/zone2_act2.js');
 const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
+// Exercise every shipped module in the same dependency order as the browser.
+for (const match of html.matchAll(/<script src="([^"]+)"/g)) load('public/' + match[1]);
 const script = html.match(/<script>\s*'use strict';([\s\S]*?)<\/script>/);
 assert(script, 'main game script exists');
 vm.runInContext("'use strict';" + script[1] + '\nwindow.testGame = new Game();', sandbox, { filename: 'public/index.html' });

@@ -119,7 +119,8 @@
             n.following = false; n.makingRoom = false; n.patrolPhase = null; n.idleAge = 0;
         }
         if (playerMoving) { n.patrolPhase = null; n.idleAge = 0; }
-        if (!dialogueOpen && n.met && onDeck && p.x >= n.x - 450 && p.x <= n.x + 480) {
+        if (!dialogueOpen && n.met && onDeck
+            && (n.followAcrossStage || (p.x >= n.x - 450 && p.x <= n.x + 480))) {
             if (Math.abs(distance) > 100) n.following = true;
             if (Math.abs(distance) <= 48) n.following = false;
         } else n.following = false;

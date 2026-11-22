@@ -1,14 +1,13 @@
 /** Reproducible engine stress cases and seeded gameplay traces. Zero dependencies. */
 'use strict';
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 const { Terrain, Player, STATE, PHYS } = require('../public/sonic-engine.js');
-require('../public/levels/zone1_act2.js');
-require('../public/levels/kitt_boss.js');
-require('../public/levels/zone1_act3.js');
-require('../public/levels/zone2_act1.js');
-require('../public/levels/zone2_act2.js');
+const html = fs.readFileSync(path.join(__dirname, '../public/index.html'), 'utf8');
+for (const match of html.matchAll(/<script src="(levels\/[^"]+)"/g)) require('../public/' + match[1]);
 
-const stages = ['palmtree', 'z1_act2', 'z1_act3', 'z2_act1', 'z2_act2', 'test'];
+const stages = ['palmtree', ...Object.keys(Terrain.LEVELS).filter(id => Terrain.LEVELS[id].inCampaign !== false), 'test'];
 function test(name, fn) { fn(); console.log(`  ✓ ${name}`); }
 function fixture(stage = 'palmtree', events = {}) {
     const terrain = new Terrain(stage), player = new Player(terrain, events);
@@ -186,5 +185,5 @@ test('seeded mixed-input traces stay finite through checkpoints, deaths and jitt
                 `${stage} seed ${seed}: runaway velocity (${player.xsp}, ${player.ysp})`);
         }
     }
-    console.log(`      (${updates} updates, ${(seconds / 60).toFixed(1)} simulated minutes, 24 reproducible traces)`);
+    console.log(`      (${updates} updates, ${(seconds / 60).toFixed(1)} simulated minutes, ${stages.length * 4} reproducible traces)`);
 });

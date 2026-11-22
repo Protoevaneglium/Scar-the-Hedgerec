@@ -146,6 +146,12 @@ and press **Enter** — it starts the local server and opens your Android browse
   - The complete shared object kit includes rescuable badnik animals, rings, monitors, star posts, springs, giant ring, swinging platforms, bumpers, breakable walls/rocks/bridges, trap doors, and sparkling steps.
   - Rosie notices and waves to Scar, paces around the final temple, and follows him with room to move. Tap **Up / ▲** near her to talk; she reacts to his speed and hops along when he jumps. Her movement, planted idle/blink, greetings, and real hops use the supplied Sonic CD Amy Rose/Rosey sprite sheet. The reunion awards its bonus once and opens the final goal; conversations never lock Scar's controls. The supplied sound pack adds ignition, warning, updraft, and reunion cues; original file IDs and credits are retained in `public/assets/sfx/sonic_cd_manifest.json`.
   - Continues after Marble Canopy Act 1, or open `http://localhost:3000/?nointro&stage=z2_act2`.
+- **Zone 2 Act 3 — Sanctuary Duet**:
+  - Scar and Rosie face an armored crocodile and crawfish on a floating island of purple marble, moss and ivory sanctuary columns. A short staging route keeps the shared rings, monitors, loop, spring, moving platform, checkpoint, giant ring and animal rescues.
+  - Scar says **“Alright!”** when the fight begins. The crocodile telegraphs musical-note volleys; the crawfish launches claws that return across the arena. Rosie follows, dodges and physically approaches recovering enemies to crack their shells.
+  - Press **C / controller X** or **Call Rosie** for a tag assist. An opened shell permits one spinning hit before sealing again; holding a bounce or invincibility cannot bypass armor. Rosie also assists automatically. Both enemies must fall before the animal capsule unlocks, and a death retries the encounter at its checkpoint.
+  - Boss animation and projectile crops come from the supplied Vector and Crush Crawfish sheets, with complete source sheets, credit headers and crop records under `public/assets/duo_boss_sources`. After victory Rosie returns to her existing conversation and hug behavior.
+  - Continues after Molten Sanctuary Act 2, or open `http://localhost:3000/?nointro&stage=z2_act3`.
 - **Custom Character Rig & Advanced High-Speed Techniques**:
   - **Scar the Hedgerec**: Full 7-frame sprite rig (`idle`, `walk1`, `walk2`, `run1`, `run2`, `death1`, `death2`) + Spin Dash ball.
   - **Sonic CD Super Peel-Out (`↑ + Jump`)**: Rev Figure-8 legs in place with cyan/magenta vortex particles, launching uncurled at supersonic speed (`12.0`).

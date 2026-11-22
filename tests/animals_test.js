@@ -1,12 +1,11 @@
 'use strict';
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 const { Terrain, Player, STATE } = require('../public/sonic-engine.js');
-require('../public/levels/zone1_act2.js');
-require('../public/levels/kitt_boss.js');
-require('../public/levels/zone1_act3.js');
-require('../public/levels/zone2_act1.js');
-require('../public/levels/zone2_act2.js');
-const CAMPAIGN = ['palmtree', 'z1_act2', 'z1_act3', 'z2_act1', 'z2_act2'];
+const html = fs.readFileSync(path.join(__dirname, '../public/index.html'), 'utf8');
+for (const match of html.matchAll(/<script src="(levels\/[^"]+)"/g)) require('../public/' + match[1]);
+const CAMPAIGN = ['palmtree', ...Object.keys(Terrain.LEVELS).filter(id => Terrain.LEVELS[id].inCampaign !== false)];
 
 function fixture(stage = 'z1_act3') {
     const terrain = new Terrain(stage);
@@ -40,18 +39,17 @@ test('every campaign act includes the core object kit and rescuable badniks', ()
         assert(terrain.spikeClusters.length > 0 || terrain.boss, `${stage} needs floor or boss hazards`);
     }
 });
-test('normal acts use signposts and the boss act uses a locked capsule', () => {
-    for (const stage of ['palmtree', 'z1_act2', 'z2_act1']) {
+test('normal acts use signposts and every boss act uses a locked capsule', () => {
+    for (const stage of CAMPAIGN) {
         const { terrain } = fixture(stage);
-        assert(terrain.goalPost && !terrain.capsule);
+        if (terrain.levelDef?.isBossAct) assert(!terrain.goalPost && terrain.capsule?.lockedUntilBoss, `${stage}: boss capsule`);
+        else assert(terrain.goalPost && !terrain.capsule, `${stage}: normal-act signpost`);
     }
-    const { terrain } = fixture();
-    assert(!terrain.goalPost && terrain.capsule.lockedUntilBoss);
 });
 
 test('every act frees its animal pair from badniks at 30, 60, and 144 Hz; monitors free none', () => {
     const pairs = { palmtree: ['flicky', 'ricky'], z1_act2: ['flicky', 'becky'],
-        z1_act3: ['cucky', 'micky'], z2_act1: ['flicky', 'ricky'], z2_act2: ['locky', 'wocky'] };
+        z1_act3: ['cucky', 'micky'], z2_act1: ['flicky', 'ricky'], z2_act2: ['locky', 'wocky'], z2_act3: ['locky', 'wocky'] };
     for (const stage of CAMPAIGN) for (const hz of [30, 60, 144]) {
         const { terrain, player } = fixture(stage);
         const enemy = terrain.enemies.find(en => en.kind === 'crab');
