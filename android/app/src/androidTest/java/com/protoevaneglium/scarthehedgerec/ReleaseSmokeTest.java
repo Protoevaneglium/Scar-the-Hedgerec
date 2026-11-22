@@ -101,8 +101,10 @@ public final class ReleaseSmokeTest {
         js("window.__painted=false;requestAnimationFrame(()=>requestAnimationFrame(()=>window.__painted=true));true"); until("window.__painted");
         SystemClock.sleep(500);
         capture("v0.0.1-android-title.png");
+        long startup = SystemClock.uptimeMillis();
         tap(button("#intro"));
         until("window.sonicGame && !window.INTRO_ACTIVE");
+        assertTrue("Starting gameplay must not stall the WebView", SystemClock.uptimeMillis()-startup<15000);
         js("window.__qaErrors=[];window.addEventListener('error',e=>window.__qaErrors.push(String(e.message)));window.addEventListener('unhandledrejection',e=>window.__qaErrors.push(String(e.reason)));window.sonicGame.titleCard=null;window.sonicGame.fadeAlpha=0;true");
     }
     private void capture(String name) throws Exception {
