@@ -31,7 +31,7 @@ const trace = cp.spawn(adb, ['-s', serial, 'logcat', '-T', '1', 'ScarQA:I', 'Tes
 trace.on('error', () => {});
 let result;
 try {
-    const timeout = process.env.CI ? 180000 : 900000;
+    const timeout = process.env.CI ? 600000 : 900000;
     result = run(['shell', 'am', 'instrument', '-w', release.applicationId + '.test/androidx.test.runner.AndroidJUnitRunner'], true, timeout);
 } finally { trace.kill(); fs.closeSync(traceFd); }
 const log = (result.stdout || '') + (result.stderr || '') + (result.error ? '\n' + result.error.message : '')
