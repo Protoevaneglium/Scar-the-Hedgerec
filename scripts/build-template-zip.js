@@ -133,6 +133,8 @@ indexHtml = indexHtml.replace(
         '<script src="sonic-engine.js"></script>',
         '<script src="js/modern-hud.js"></script>',
         '<script src="js/android-host.js"></script>',
+        '<script src="js/sprite-model-data.js"></script>',
+        '<script src="js/sprite-models.js"></script>',
         '<script src="levels/level_template.js"></script>',
         '<script src="levels/boss_act_template.js"></script>',
         '<script>window.DEFAULT_STAGE = "template"; window.CAMPAIGN_STAGES = ["template", "boss_template"]; window.STAGE_ORDER = ["template", "boss_template", "test"];</script>',
@@ -174,6 +176,8 @@ const entries = [
     { name: prefix + 'public/css/game-ui.css',  data: fs.readFileSync(path.join(rootDir, 'public', 'css', 'game-ui.css')) },
     { name: prefix + 'public/js/modern-hud.js',  data: fs.readFileSync(path.join(rootDir, 'public', 'js', 'modern-hud.js')) },
     { name: prefix + 'public/js/android-host.js', data: fs.readFileSync(path.join(rootDir, 'public', 'js', 'android-host.js')) },
+    { name: prefix + 'public/js/sprite-model-data.js', data: fs.readFileSync(path.join(rootDir, 'public', 'js', 'sprite-model-data.js')) },
+    { name: prefix + 'public/js/sprite-models.js', data: fs.readFileSync(path.join(rootDir, 'public', 'js', 'sprite-models.js')) },
     { name: prefix + 'public/levels/level_template.js',    data: fs.readFileSync(path.join(rootDir, 'templates', 'level_template.js')) },
     { name: prefix + 'public/levels/boss_act_template.js', data: fs.readFileSync(path.join(rootDir, 'templates', 'boss_act_template.js')) },
     { name: prefix + 'public/assets/scar_sheet.png',       data: fs.readFileSync(path.join(rootDir, 'public', 'assets', 'scar_sheet.png')) },
@@ -201,6 +205,7 @@ function includeAssets(relativeDir) {
 includeAssets('assets/ui');
 includeAssets('assets/sfx');
 includeAssets('assets/enemy_sources');
+includeAssets('assets/models');
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
 const zipBuf = buildZipBuffer(entries);

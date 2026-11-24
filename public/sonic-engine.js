@@ -2800,9 +2800,23 @@
         ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
     }
 
+    // Reusable day/dusk/night/dawn cycle for new acts. Takes gameplay time, never wall time.
+    function skyColors(palettes, progress, clock, era) {
+        const position = Number.isFinite(progress) ? Math.max(0, Math.min(1, progress)) : 0;
+        const age = Number.isFinite(clock) ? Math.max(0, clock) : 0;
+        const offset = era === 'past' ? .18 : era === 'present' ? .08 : 0;
+        const phase = ((position * .68 + age / 19000 + offset) % 1) * palettes.length;
+        const i = Math.floor(phase), f = phase - i, blend = f * f * (3 - 2 * f);
+        return palettes[i].map((color, n) => {
+            const a = parseInt(color.slice(1), 16), b = parseInt(palettes[(i + 1) % palettes.length][n].slice(1), 16);
+            return '#' + [16, 8, 0].map(shift => Math.round(((a >> shift) & 255) * (1-blend)
+                + ((b >> shift) & 255) * blend).toString(16).padStart(2, '0')).join('');
+        });
+    }
+
     return {
         PHYS, HITBOX, STATE, MODE_FRAMES, DEG, TAU, PALMTREE_SPRITES,
-        toDeg, wrapAngle, getQuadrantMode, landingGroundSpeed, normalToAngle, roundRectPath,
+        toDeg, wrapAngle, getQuadrantMode, landingGroundSpeed, normalToAngle, roundRectPath, skyColors,
         LineSurface, HeightFieldSurface, ArcSurface, PathBuilder, Terrain, Player,
     };
 });

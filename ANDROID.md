@@ -1,10 +1,10 @@
-# Android v0.0.3
+# Android v0.0.4
 
-[Download the signed APK](https://github.com/Protoevaneglium/Scar-the-Hedgerec/releases/download/v0.0.3/scar-the-hedgerec-v0.0.3.apk).
+[Download the signed APK](https://github.com/Protoevaneglium/Scar-the-Hedgerec/releases/download/v0.0.4/scar-the-hedgerec-v0.0.4.apk).
 
 The cyan-and-green Android launcher icon uses Scar’s game sprite and the title “Scar the Hedgrec”. The full thumbnail is also available in `public/assets/scar_thumbnail.png`; generation prompts are recorded in `ARTWORK.json`.
 
-The APK includes all six campaign acts, the intro, music, voices and sprite sheets. It runs offline on Android 8.0/API 26 or newer and uses the device's Android System WebView. Touch controls support simultaneous movement and jumping. The existing Xbox/standard Gamepad API controls are retained.
+The APK includes all seven campaign acts, the intro, music, voices and sprite sheets. It runs offline on Android 8.0/API 26 or newer and uses the device's Android System WebView. Touch controls support simultaneous movement and jumping. The existing Xbox/standard Gamepad API controls are retained.
 
 The current act and checkpoint are saved automatically. After a reload, renderer retry or app recreation, pressing Start continues from that safe checkpoint. Score, lives and shield are retained; rings, act time and temporary power-ups restart. Completed acts remain completed even if the app restarts during the sign or results tally. Existing v0.0.1 visited acts migrate on update.
 

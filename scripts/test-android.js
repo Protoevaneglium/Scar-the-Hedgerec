@@ -42,9 +42,10 @@ const report = { schema: 1, version: release.version, serial, passed, startedAt:
     webView: run(['shell', 'dumpsys', 'webviewupdate']).stdout.split(/\r?\n/).find(line => line.includes('Current WebView package'))?.trim(),
     apkSha256,
     checks: ['byte-for-byte offline WAV and MP4 ranges', 'title credit and intro Start', 'simultaneous movement and jump via native WebView MotionEvents',
-        'every campaign checkpoint and era', 'pause/resume and rapid lifecycle churn', 'Rosie tag assist', 'activity recreation and persistent storage'],
+        'every campaign checkpoint and era', 'Mirage Aqueduct sprite models and complete native touch route',
+        'pause/resume and rapid lifecycle churn', 'Rosie tag assist', 'activity recreation and persistent storage'],
     limitations: ['Android 15 emulator; physical phones, OS-level touch routing and Bluetooth controller hardware were not certified.'], log };
 fs.writeFileSync(path.join(root, 'output/qa/android-device.json'), JSON.stringify(report, null, 2) + '\n');
 console.log(log);
-if (passed) for (const image of ['title', 'arena']) run(['pull', '/sdcard/Android/data/' + release.applicationId + '/files/v' + release.version + '-android-' + image + '.png', path.join(root, 'output/qa/android-' + image + '.png')]);
+if (passed) for (const image of ['title', 'arena', 'mirage']) run(['pull', '/sdcard/Android/data/' + release.applicationId + '/files/v' + release.version + '-android-' + image + '.png', path.join(root, 'output/qa/android-' + image + '.png')]);
 process.exitCode = passed ? 0 : 1;

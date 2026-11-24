@@ -20,6 +20,9 @@ Reports are written to `output/qa/baseline.json` or `output/qa/baseline-stress.j
 
 The suites use fixed seeds so failures can be reproduced:
 
+- Mirage Aqueduct: all three upper routes, the lower catch course, every checkpoint, three water-jet landings, the treasury spring, collapsing-bridge recovery and escapable currents at 30/60/144 Hz. The actual Zone 2 capsule/tally leads into Zone 3 with carryover and saved checkpoint recovery. All seven acts join consistency, lifecycle, rendering, progression and Android device checks.
+- Sprite models: original source-file hashes, packed crop bounds, actual projected volume outside Scar's source silhouette, fixed animation anchors, shared character/enemy/object drawing, bounded allocations and missing/delayed-model fallback. Original enemy-source pixel checks still run; model rendering additionally checks the exact inverse mapping to each verified native crop. `npm run build:sprite-models` deterministically rebuilds the derived atlas.
+
 - Progression recovery: fresh-page restoration in every act, real checkpoint activation, restart during the Act 2 sign and tally, pending deaths, corrupt/denied storage and migration from v0.0.1. Starlight Resort also renders every checkpoint/era and every loop with the newer canvas `roundRect` method removed.
 
 - Engine: seven stages, four seeds each, jittered 30/60/144 Hz timing, 67,200 updates; plus targeted physics, damage, death and reward tests. Campaign registrations are read from the shipped page so future acts join these traces.

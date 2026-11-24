@@ -10,6 +10,7 @@ The owner's standing direction is to base every new zone and act on the existing
 - Place common objects through `objects` / `setupObjects`, using their existing sprites, collisions, rewards, durations and sound events. Declare enemy species explicitly when selecting a roster; appearance and movement must agree. Retain animal rescues from defeated badniks.
 - Preserve title cards, checkpoints, death/retry behavior, completion tally, transitions and campaign carryover. Score, lives and shield carry between acts; rings, act time and temporary power-ups reset.
 - Give each zone its own layout, theme, music, enemy roster and optional scenery. Add distinctive mechanics through the existing level hooks while preserving the shared rules. Normal acts finish at a signpost; boss acts use their boss and capsule lifecycle.
+- Use the owner's Hydrocity / Sandopolis reference maps as the layout and visual baseline: connected upper/middle/lower routes, momentum-friendly curves, supported ruins, readable collision edges, rewarding optional detours, and safe recovery below upper routes. Follow the detailed reference rubric in the blueprint. New acts use changing skies and the shared sprite-derived 2.5D presentation while retaining the 2D physics world.
 
 ## Verification
 

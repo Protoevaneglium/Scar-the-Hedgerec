@@ -4,7 +4,9 @@
 
 **Scar the Hedgerec** is a high-speed 16-bit retro platformer built on an authentic 360-degree fixed-point physics engine. Designed as a clean, cross-platform (**Windows, Linux, macOS, and Termux / Android**) HTML5 Canvas & JavaScript game with zero external runtime dependencies required.
 
-📱 **[Download Android APK v0.0.3](https://github.com/Protoevaneglium/Scar-the-Hedgerec/releases/download/v0.0.3/scar-the-hedgerec-v0.0.3.apk)** — all six acts, offline, Android 8.0+. [Android build and test details](ANDROID.md).
+📱 **[Download Android APK v0.0.4](https://github.com/Protoevaneglium/Scar-the-Hedgerec/releases/download/v0.0.4/scar-the-hedgerec-v0.0.4.apk)** — all seven acts, offline, Android 8.0+. [Android build and test details](ANDROID.md).
+
+**Zone 3 Act 1 — Mirage Aqueduct:** Hydrocity / Sandopolis inspired golden ruins and turquoise aqueducts, changing skies, sprite-derived 2.5D characters and objects, water slides, launch jets, three upper routes, a continuous recovery course, and a secret treasury. Unlocks after Sanctuary Duet.
 
 📄 **[Read the Full Physics Specification (`SONIC_PHYSICS_SPEC.md`)](SONIC_PHYSICS_SPEC.md)**  
 📐 **[Level Core Foundation Blueprint (`templates/LEVEL_CORE_BLUEPRINT.md`)](templates/LEVEL_CORE_BLUEPRINT.md)** • **[Downloadable Starter Core Kit (`.zip`)](public/downloads/scar-level-core-template.zip)** *(or open `/template.html` when running locally)*

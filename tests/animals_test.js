@@ -49,11 +49,13 @@ test('normal acts use signposts and every boss act uses a locked capsule', () =>
 
 test('every act frees its animal pair from badniks at 30, 60, and 144 Hz; monitors free none', () => {
     const pairs = { palmtree: ['flicky', 'ricky'], z1_act2: ['flicky', 'becky'],
-        z1_act3: ['cucky', 'micky'], z2_act1: ['flicky', 'ricky'], z2_act2: ['locky', 'wocky'], z2_act3: ['locky', 'wocky'] };
+        z1_act3: ['cucky', 'micky'], z2_act1: ['flicky', 'ricky'], z2_act2: ['locky', 'wocky'],
+        z2_act3: ['locky', 'wocky'], z3_act1: ['flicky', 'pocky'] };
     for (const stage of CAMPAIGN) for (const hz of [30, 60, 144]) {
         const { terrain, player } = fixture(stage);
         const enemy = terrain.enemies.find(en => en.kind === 'crab');
         const pair = pairs[stage];
+        assert(pair, `${stage} must declare its expected rescued animal pair in this regression`);
         assert(enemy, `${stage} needs rescuable enemies along its route`);
         for (let n = 0; n < 2; n++) {
             // Use two real enemies at the same safe encounter point to exercise the zone pair.

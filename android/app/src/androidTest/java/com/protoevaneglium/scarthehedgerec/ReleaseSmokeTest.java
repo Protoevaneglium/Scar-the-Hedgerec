@@ -211,7 +211,8 @@ public final class ReleaseSmokeTest {
             js("CanvasRenderingContext2D.prototype.roundRect=undefined;true");
 
             JSONArray stages = new JSONArray((String)new JSONTokener(js("JSON.stringify(window.sonicGame.getCampaignStages())")).nextValue());
-            assertEquals(6, stages.length());
+            assertEquals(7, stages.length());
+            assertEquals("z3_act1", stages.getString(6));
             for (int i=0;i<stages.length();i++) {
                 String stage = stages.getString(i);
                 Log.i("ScarQA", "Rendering checkpoints and lifecycle test: " + stage);
@@ -229,6 +230,18 @@ public final class ReleaseSmokeTest {
                 until("!window.sonicGame.paused");
                 double clock = Double.parseDouble(js("window.sonicGame.terrain.clock"));
                 until("window.sonicGame.terrain.clock>" + clock, 10000);
+                if (stage.equals("z3_act1")) {
+                    until("window.ScarSpriteModels.loaded");
+                    capture("v"+BuildConfig.VERSION_NAME+"-android-mirage.png");
+                    js("window.sonicGame.loadStage('z3_act1',{skipTitleCard:true,skipFade:true});true");
+                    float[] move = button("[data-key=right]");
+                    long routeDown = SystemClock.uptimeMillis();
+                    pairEvent(routeDown, MotionEvent.ACTION_DOWN, move, move, 1);
+                    until("window.sonicGame.terrain.goalPost.spinning || window.sonicGame.terrain.goalPost.cleared", 120000);
+                    pairEvent(routeDown, MotionEvent.ACTION_UP, move, move, 1);
+                    assertEquals("true", js("window.sonicGame.player.lives>=3"));
+                    Log.i("ScarQA", "Mirage Aqueduct native touch route reached the signpost");
+                }
             }
             for (int i=0;i<8;i++) backgroundAndResume();
             Log.i("ScarQA", "Rapid lifecycle churn complete; checking Rosie assist");

@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { createGameHarness } = require('./helpers/game_harness');
 const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '../public/assets/enemy_sources/manifest.json'), 'utf8'));
+const models = JSON.parse(fs.readFileSync(path.join(__dirname, '../public/assets/models/manifest.json'), 'utf8'));
 let passed = 0;
 function test(name, run) { run(); passed++; console.log(`  PASS ${name}`); }
 function recorder(h) {
@@ -30,8 +31,21 @@ function checkDraw(record, atlas, en) {
     assert.strictEqual(images.length, 1, `${en.type || en.kind} must render exactly one source-sheet sprite`);
     assert.strictEqual(record.calls.filter(call => ['ellipse', 'fillRect', 'strokeRect', 'fillText'].includes(call.method)).length, 0,
         'normally loaded enemy bodies must not be replaced or augmented with invented shapes');
-    const draw = images[0], [image, sx, sy, w, h, dx, dy, dw, dh] = draw.args;
-    assert.strictEqual(image.src, atlas.file);
+    const draw = images[0];
+    let [image, sx, sy, w, h, dx, dy, dw, dh] = draw.args;
+    if (image.src === 'assets/models/sprite_models.png') {
+        // The owner's 2.5D presentation permits verified derivatives, retaining the same
+        // species, animation selection and source-crop anchors. Validate the inverse mapping.
+        const entry = Object.entries(models.frames).find(([, f]) => f.x === sx && f.y === sy && f.w === w && f.h === h);
+        assert(entry, 'the rendered model must have a recorded source crop');
+        const [file, crop] = entry[0].split(':');
+        assert.strictEqual('assets/' + file, atlas.file);
+        [sx, sy, w, h] = crop.split(',').map(Number);
+        const scaleX = dw / (w + 2 * models.padding), scaleY = dh / (h + 2 * models.padding);
+        dx += models.padding * scaleX; dy += models.padding * scaleY;
+        dw = w * scaleX; dh = h * scaleY;
+        [dx,dy,dw,dh] = [dx,dy,dw,dh].map(v => Math.round(v * 1e9) / 1e9);
+    } else assert.strictEqual(image.src, atlas.file);
     assert.strictEqual(draw.smoothing, false, 'native crop pixels must use nearest-neighbor display scaling');
     const entry = Object.entries(atlas.frames).find(([, frame]) => {
         const r = frame.atlasRect;

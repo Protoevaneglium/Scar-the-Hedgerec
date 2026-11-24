@@ -63,6 +63,8 @@
 <script src="sonic-engine.js"></script>
 <script src="js/modern-hud.js"></script>
 <script src="js/android-host.js"></script>
+<script src="js/sprite-model-data.js"></script>
+<script src="js/sprite-models.js"></script>
 <script src="levels/zone1_act2.js"></script>
 <script src="levels/kitt_boss.js"></script>
 <script src="levels/zone1_act3.js"></script>
@@ -75,6 +77,8 @@
 <script src="levels/sanctuary_duo_boss.js"></script>
 <script src="levels/zone2_act3_art.js"></script>
 <script src="levels/zone2_act3.js"></script>
+<script src="levels/zone3_act1_art.js"></script>
+<script src="levels/zone3_act1.js"></script>
 <script>
 'use strict';
 const { PHYS, HITBOX, STATE, Terrain, Player, MODE_FRAMES, PALMTREE_SPRITES, toDeg, TAU } = window.SonicEngine;
@@ -1137,6 +1141,8 @@ class Game {
             heatWarning: () => audio.heatWarning(),
             thermalVent: (_vent, p) => { audio.thermalUpdraft(); this.dust(p, 12, -p.facing, 3.8, '#9fffe0'); },
             marbleSlide: (_data, p) => { audio.roll(); this.dust(p, 6, -p.facing, 3, '#ffd870'); },
+            waterSlide: (_data, p) => { audio.roll(); this.dust(p, 6, -p.facing, 3, '#b5fff0'); },
+            waterJet: (_data, p) => { audio.bouncePole(); this.dust(p, 12, -p.facing, 3.8, '#a9f8f0'); },
             rosieReunion: () => audio.rosieReunion(),
             rosieTalk: () => audio.rosieTalk(),
             rosieHop: () => audio.rosieHop(),
@@ -1864,6 +1870,12 @@ class Game {
     }
 
     /** Helper to draw a sprite rect from `assets/palmtree_objects.png`. */
+    drawModelSprite(ctx, source, sx, sy, w, h, dx, dy, dw, dh) {
+        if (this.terrain.levelDef?.spritePresentation === 'volume'
+            && window.ScarSpriteModels?.draw(ctx, source, sx, sy, w, h, dx, dy, dw, dh)) return;
+        ctx.drawImage(source, sx, sy, w, h, dx, dy, dw, dh);
+    }
+
     drawSprite(ctx, rect, dx, dy, dw = rect.w, dh = rect.h, flipX = false) {
         if (!this.objSheetLoaded || !rect) return false;
         ctx.save();
@@ -1871,9 +1883,9 @@ class Game {
         if (flipX) {
             ctx.translate(dx + dw, dy);
             ctx.scale(-1, 1);
-            ctx.drawImage(this.objSheet, rect.x, rect.y, rect.w, rect.h, 0, 0, dw, dh);
+            this.drawModelSprite(ctx, this.objSheet, rect.x, rect.y, rect.w, rect.h, 0, 0, dw, dh);
         } else {
-            ctx.drawImage(this.objSheet, rect.x, rect.y, rect.w, rect.h, dx, dy, dw, dh);
+            this.drawModelSprite(ctx, this.objSheet, rect.x, rect.y, rect.w, rect.h, dx, dy, dw, dh);
         }
         ctx.restore();
         return true;
@@ -1979,10 +1991,12 @@ class Game {
                 return;
             }
             const th = def.theme || {};
+            let colors = [th.skyTop || '#0d1b3e', th.skyMid || '#1b3b6f', th.skyBottom || '#28588e'];
+            if (def.changingSkies) colors = SonicEngine.skyColors(def.skyPalettes || [colors,
+                ['#6b4fa3', '#f29d87', '#ffdc9b'], ['#142d63', '#517ca3', '#9bd1d1'],
+                ['#276f94', '#66d4d0', '#fff0c5']], this.player.x / this.terrain.endX, this.terrain.clock, this.terrain.timeEra);
             const grad = mainCtx.createLinearGradient(0, 0, 0, this.H);
-            grad.addColorStop(0, th.skyTop || '#0d1b3e');
-            grad.addColorStop(0.65, th.skyMid || '#1b3b6f');
-            grad.addColorStop(1, th.skyBottom || '#28588e');
+            colors.forEach((color, i) => grad.addColorStop([0, .65, 1][i], color));
             mainCtx.fillStyle = grad;
             mainCtx.fillRect(0, 0, this.W, this.H);
             return;
@@ -2821,18 +2835,18 @@ class Game {
                 const prog = 1 - Math.max(0, d.life) / (d.maxLife || 16);
                 const idx = Math.min(3, Math.floor(prog * 4));
                 const f = COMMON_SPRITES.ringSparkles[idx];
-                ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, Math.round(d.x - f.w / 2), Math.round(d.y - f.h / 2), f.w, f.h);
+                this.drawModelSprite(ctx, this.commonSheet, f.x, f.y, f.w, f.h, Math.round(d.x - f.w / 2), Math.round(d.y - f.h / 2), f.w, f.h);
             } else if (d.kind === 'explosion' && this.commonSheetLoaded) {
                 const prog = 1 - Math.max(0, d.life) / (d.maxLife || 20);
                 const idx = Math.min(4, Math.floor(prog * 5));
                 const f = COMMON_SPRITES.explosions[idx];
-                ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, Math.round(d.x - f.w / 2), Math.round(d.y - f.h / 2), f.w, f.h);
+                this.drawModelSprite(ctx, this.commonSheet, f.x, f.y, f.w, f.h, Math.round(d.x - f.w / 2), Math.round(d.y - f.h / 2), f.w, f.h);
             } else if (d.kind === 'monitorIcon' && this.commonSheetLoaded) {
                 if ((d.item === '1up' || d.item === 'oneUp') && this.scarSheetLoaded) {
                     this.drawScarMiniIcon(ctx, Math.round(d.x - 8), Math.round(d.y - 8), 16, 16, true);
                 } else {
                     const f = COMMON_SPRITES.monitorIcons[d.item] || COMMON_SPRITES.monitorIcons.rings;
-                    ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, Math.round(d.x - 8), Math.round(d.y - 8), f.w, f.h);
+                    this.drawModelSprite(ctx, this.commonSheet, f.x, f.y, f.w, f.h, Math.round(d.x - 8), Math.round(d.y - 8), f.w, f.h);
                 }
             } else if (d.kind === 'rockChunk') {
                 ctx.fillStyle = '#9aa4b0';
@@ -2848,8 +2862,7 @@ class Game {
         for (const pp of T.popups) {
             const scoreRect = this.commonSheetLoaded && COMMON_SPRITES.scores[pp.text];
             if (scoreRect) {
-                ctx.drawImage(
-                    this.commonSheet,
+                this.drawModelSprite(ctx, this.commonSheet,
                     scoreRect.x, scoreRect.y, scoreRect.w, scoreRect.h,
                     Math.round(pp.x - scoreRect.w / 2), Math.round(pp.y - scoreRect.h / 2),
                     scoreRect.w, scoreRect.h
@@ -2865,7 +2878,7 @@ class Game {
         if (this.commonSheetLoaded) {
             const idx = Math.floor(clock * 0.16) % 4;
             const f = COMMON_SPRITES.rings[idx];
-            ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, Math.round(x - f.w / 2), Math.round(y - f.h / 2), f.w, f.h);
+            this.drawModelSprite(ctx, this.commonSheet, f.x, f.y, f.w, f.h, Math.round(x - f.w / 2), Math.round(y - f.h / 2), f.w, f.h);
             return;
         }
         const w = Math.max(2.5, Math.abs(Math.cos(clock * 0.1)) * 7);
@@ -2879,14 +2892,14 @@ class Game {
         if (sp.spinTimer > 0) {
             const idx = Math.floor((64 - sp.spinTimer) * 0.5) % COMMON_SPRITES.checkpointSpin.length;
             const f = COMMON_SPRITES.checkpointSpin[idx];
-            ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, x - f.ax, y - f.ay, f.w, f.h);
+            this.drawModelSprite(ctx, this.commonSheet, f.x, f.y, f.w, f.h, x - f.ax, y - f.ay, f.w, f.h);
         } else {
             const base = COMMON_SPRITES.checkpointBase;
-            ctx.drawImage(this.commonSheet, base.x, base.y, base.w, base.h, x - 8, y - 48, base.w, base.h);
+            this.drawModelSprite(ctx, this.commonSheet, base.x, base.y, base.w, base.h, x - 8, y - 48, base.w, base.h);
             const orb = (sp.active && Math.floor(this.terrain.clock * 0.25) % 2 === 0)
                 ? COMMON_SPRITES.checkpointRed
                 : (sp.active ? COMMON_SPRITES.checkpointBlue : COMMON_SPRITES.checkpointBlue);
-            ctx.drawImage(this.commonSheet, orb.x, orb.y, orb.w, orb.h, x - 8, y - 64, orb.w, orb.h);
+            this.drawModelSprite(ctx, this.commonSheet, orb.x, orb.y, orb.w, orb.h, x - 8, y - 64, orb.w, orb.h);
         }
     }
 
@@ -2901,10 +2914,10 @@ class Game {
             ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
         }
         if (this.scarSheetLoaded && this.scarSheet.complete && this.scarSheet.naturalWidth > 0) {
-            ctx.drawImage(this.scarSheet, 10, 8, 28, 24, x, y, w, h);
+            this.drawModelSprite(ctx, this.scarSheet, 10, 8, 28, 24, x, y, w, h);
         } else if (this.commonSheetLoaded) {
             const f = COMMON_SPRITES.monitorIcons.oneUp;
-            ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, x, y, w, h);
+            this.drawModelSprite(ctx, this.commonSheet, f.x, f.y, f.w, f.h, x, y, w, h);
         }
         ctx.restore();
     }
@@ -2914,21 +2927,21 @@ class Game {
         const x = Math.round(m.x), y = Math.round(m.y);
         if (m.broken) {
             const br = COMMON_SPRITES.monitorBroken;
-            ctx.drawImage(this.commonSheet, br.x, br.y, br.w, br.h, x - 16, y - 16, br.w, br.h);
+            this.drawModelSprite(ctx, this.commonSheet, br.x, br.y, br.w, br.h, x - 16, y - 16, br.w, br.h);
             return;
         }
         const box = COMMON_SPRITES.monitorBox;
-        ctx.drawImage(this.commonSheet, box.x, box.y, box.w, box.h, x - 15, y - 30, box.w, box.h);
+        this.drawModelSprite(ctx, this.commonSheet, box.x, box.y, box.w, box.h, x - 15, y - 30, box.w, box.h);
         // Classic Sonic monitor screen: mostly shows the item icon, with brief static flicker
         const tick = Math.floor(this.terrain.clock * 0.25) % 8;
         if (tick === 0) {
             const scr = COMMON_SPRITES.monitorStatic[Math.floor(this.terrain.clock) % 3];
-            ctx.drawImage(this.commonSheet, scr.x, scr.y, scr.w, scr.h, x - 8, y - 25, scr.w, scr.h);
+            this.drawModelSprite(ctx, this.commonSheet, scr.x, scr.y, scr.w, scr.h, x - 8, y - 25, scr.w, scr.h);
         } else if (m.item === '1up' || m.item === 'oneUp') {
             this.drawScarMiniIcon(ctx, x - 8, y - 25, 16, 16, true);
         } else {
             const scr = COMMON_SPRITES.monitorIcons[m.item] || COMMON_SPRITES.monitorIcons.rings;
-            ctx.drawImage(this.commonSheet, scr.x, scr.y, scr.w, scr.h, x - 8, y - 25, scr.w, scr.h);
+            this.drawModelSprite(ctx, this.commonSheet, scr.x, scr.y, scr.w, scr.h, x - 8, y - 25, scr.w, scr.h);
         }
     }
 
@@ -2941,7 +2954,7 @@ class Game {
             const blink = Math.floor(T.clock * 0.2) % 2;
             const f = cap.phase === 'broken' ? COMMON_SPRITES.capsuleBroken
                 : cap.opened ? COMMON_SPRITES.capsuleOpen[blink] : COMMON_SPRITES.capsuleIdle[blink];
-            ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, x - 32, y - f.h, f.w, f.h);
+            this.drawModelSprite(ctx, this.commonSheet, f.x, f.y, f.w, f.h, x - 32, y - f.h, f.w, f.h);
             ctx.restore();
             return;
         }
@@ -2961,7 +2974,7 @@ class Game {
         ctx.translate(Math.round(animal.x), Math.round(animal.y));
         // The source sheet's moving poses face right.
         if ((animal.vx || animal.direction) < 0) ctx.scale(-1, 1);
-        ctx.drawImage(this.animalSheet, Math.max(0, Math.min(2, animal.frame)) * 32,
+        this.drawModelSprite(ctx, this.animalSheet, Math.max(0, Math.min(2, animal.frame)) * 32,
             row * 32, 32, 32, -16, -32, 32, 32);
         ctx.restore();
     }
@@ -2997,13 +3010,13 @@ class Game {
         } else {
             f = isRed ? COMMON_SPRITES.springs.redIdle : COMMON_SPRITES.springs.yellowIdle;
         }
-        ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, x - Math.floor(f.w / 2), y - f.h, f.w, f.h);
+        this.drawModelSprite(ctx, this.commonSheet, f.x, f.y, f.w, f.h, x - Math.floor(f.w / 2), y - f.h, f.w, f.h);
     }
 
     drawSpikesObj(ctx, sc) {
         if (!this.commonSheetLoaded) return;
         const f = COMMON_SPRITES.spikesUp;
-        ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, Math.round(sc.x - f.w / 2), Math.round(sc.y - f.h), f.w, f.h);
+        this.drawModelSprite(ctx, this.commonSheet, f.x, f.y, f.w, f.h, Math.round(sc.x - f.w / 2), Math.round(sc.y - f.h), f.w, f.h);
     }
 
     drawBigRingObj(ctx, br) {
@@ -3012,12 +3025,12 @@ class Game {
         if (br.collected && br.flashTimer > 0) {
             const idx = Math.min(6, Math.floor((1 - br.flashTimer / 28) * 7));
             const f = COMMON_SPRITES.bigRingFlash[idx];
-            ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, x - Math.floor(f.w / 2), y - Math.floor(f.h / 2), f.w, f.h);
+            this.drawModelSprite(ctx, this.commonSheet, f.x, f.y, f.w, f.h, x - Math.floor(f.w / 2), y - Math.floor(f.h / 2), f.w, f.h);
             return;
         }
         const idx = Math.floor(this.terrain.clock * 0.14) % 4;
         const f = COMMON_SPRITES.bigRings[idx];
-        ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, x - Math.floor(f.w / 2), y - Math.floor(f.h / 2), f.w, f.h);
+        this.drawModelSprite(ctx, this.commonSheet, f.x, f.y, f.w, f.h, x - Math.floor(f.w / 2), y - Math.floor(f.h / 2), f.w, f.h);
     }
 
     drawEnemyUnavailable(ctx, en) {
@@ -3132,8 +3145,7 @@ class Game {
         ctx.imageSmoothingEnabled = false;
         ctx.translate(Math.round(en.x), Math.round(en.y));
         ctx.scale(flipX, 1);
-        ctx.drawImage(
-            this.enemySheet,
+        this.drawModelSprite(ctx, this.enemySheet,
             frame.sx, frame.sy, frame.w, frame.h,
             -frame.ax, -frame.ay, frame.dw || frame.w, frame.dh || frame.h
         );
@@ -3161,23 +3173,23 @@ class Game {
             const x = Math.round(gp.x), y = Math.round(gp.y);
             if (!gp.spinning && !gp.cleared) {
                 const f = COMMON_SPRITES.goalRobotnik;
-                ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, x - 24, y - 48, f.w, f.h);
+                this.drawModelSprite(ctx, this.commonSheet, f.x, f.y, f.w, f.h, x - 24, y - 48, f.w, f.h);
             } else if (gp.cleared) {
                 const stub = COMMON_SPRITES.goalPostStub;
                 const top = COMMON_SPRITES.goalSonicTop;
-                ctx.drawImage(this.commonSheet, stub.x, stub.y, stub.w, stub.h, x - 4, y - 16, stub.w, stub.h);
-                ctx.drawImage(this.commonSheet, top.x, top.y, top.w, top.h, x - 24, y - 48, top.w, top.h);
+                this.drawModelSprite(ctx, this.commonSheet, stub.x, stub.y, stub.w, stub.h, x - 4, y - 16, stub.w, stub.h);
+                this.drawModelSprite(ctx, this.commonSheet, top.x, top.y, top.w, top.h, x - 24, y - 48, top.w, top.h);
             } else {
                 // Spinning sequence: Robotnik -> Diag1 -> Edge -> Diag2 -> Sonic -> Diag1 -> Edge -> Diag2
                 const step = Math.floor(gp.angle * 1.4) % 8;
                 if (step === 0) {
                     const f = COMMON_SPRITES.goalRobotnik;
-                    ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, x - 24, y - 48, f.w, f.h);
+                    this.drawModelSprite(ctx, this.commonSheet, f.x, f.y, f.w, f.h, x - 24, y - 48, f.w, f.h);
                 } else if (step === 4) {
                     const stub = COMMON_SPRITES.goalPostStub;
                     const top = COMMON_SPRITES.goalSonicTop;
-                    ctx.drawImage(this.commonSheet, stub.x, stub.y, stub.w, stub.h, x - 4, y - 16, stub.w, stub.h);
-                    ctx.drawImage(this.commonSheet, top.x, top.y, top.w, top.h, x - 24, y - 48, top.w, top.h);
+                    this.drawModelSprite(ctx, this.commonSheet, stub.x, stub.y, stub.w, stub.h, x - 4, y - 16, stub.w, stub.h);
+                    this.drawModelSprite(ctx, this.commonSheet, top.x, top.y, top.w, top.h, x - 24, y - 48, top.w, top.h);
                 } else {
                     const map = {
                         1: COMMON_SPRITES.goalDiag1,
@@ -3188,7 +3200,7 @@ class Game {
                         7: COMMON_SPRITES.goalDiag2
                     };
                     const f = map[step];
-                    ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, x - Math.floor(f.w / 2), y - 48, f.w, f.h);
+                    this.drawModelSprite(ctx, this.commonSheet, f.x, f.y, f.w, f.h, x - Math.floor(f.w / 2), y - 48, f.w, f.h);
                 }
             }
             return;
@@ -3307,7 +3319,7 @@ class Game {
                     const dx = -frame.anchorX;
                     const dy = HITBOX.STAND.height - frame.anchorY;
                     ctx.imageSmoothingEnabled = false;
-                    ctx.drawImage(this.scarSheet, frame.sx, 0, 48, 48, dx, dy, 48, 48);
+                    this.drawModelSprite(ctx, this.scarSheet, frame.sx, 0, 48, 48, dx, dy, 48, 48);
                 }
                 ctx.restore();
             }
@@ -3329,11 +3341,11 @@ class Game {
             const clock = Math.floor(this.terrain.clock);
             if (p.invincTimer && p.invincTimer > 0) {
                 const f = COMMON_SPRITES.invinc[Math.floor(clock * 0.35) % COMMON_SPRITES.invinc.length];
-                ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, -24, -24, f.w, f.h);
+                this.drawModelSprite(ctx, this.commonSheet, f.x, f.y, f.w, f.h, -24, -24, f.w, f.h);
             } else if (p.shield && clock % 2 === 0) {
                 // Classic Sonic 1 flickering shield effect (empty frame between each noted frame)
                 const f = COMMON_SPRITES.shield[Math.floor(clock / 2) % COMMON_SPRITES.shield.length];
-                ctx.drawImage(this.commonSheet, f.x, f.y, f.w, f.h, -Math.floor(f.w / 2), -Math.floor(f.h / 2), f.w, f.h);
+                this.drawModelSprite(ctx, this.commonSheet, f.x, f.y, f.w, f.h, -Math.floor(f.w / 2), -Math.floor(f.h / 2), f.w, f.h);
             }
         }
         ctx.restore();
@@ -3373,6 +3385,13 @@ class Game {
         ctx.fillStyle = PEACH; ctx.beginPath(); ctx.ellipse(3, 3, 4.5, 3, 0.6, 0, TAU); ctx.fill();
         ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.arc(0, 0, R - 1, -0.3, 0.9); ctx.stroke();
+        if (this.terrain.levelDef?.spritePresentation === 'volume') {
+            const light = ctx.createRadialGradient(-5, -6, 1, 2, 3, R + 3);
+            light.addColorStop(0, 'rgba(190,240,255,.62)');
+            light.addColorStop(.48, 'rgba(170,210,255,0)');
+            light.addColorStop(1, 'rgba(12,14,65,.70)');
+            ctx.fillStyle = light; ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.fill();
+        }
     }
 
     /**
@@ -3530,11 +3549,11 @@ class Game {
                 ctx.save();
                 ctx.globalAlpha = 0.28;
                 const altFrame = SCAR_FRAMES[frameIdx === 3 ? 4 : 3];
-                ctx.drawImage(this.scarSheet, altFrame.sx, 0, 48, 48, dx - 6, dy, 48, 48);
+                this.drawModelSprite(ctx, this.scarSheet, altFrame.sx, 0, 48, 48, dx - 6, dy, 48, 48);
                 ctx.restore();
             }
 
-            ctx.drawImage(this.scarSheet, frame.sx, 0, 48, 48, dx, dy, 48, 48);
+            this.drawModelSprite(ctx, this.scarSheet, frame.sx, 0, 48, 48, dx, dy, 48, 48);
             ctx.restore();
             return;
         }
@@ -3665,7 +3684,7 @@ class Game {
             ctx.translate(Math.round(px), Math.round(py));
             ctx.rotate(angle);
             ctx.scale(S, S);
-            ctx.drawImage(this.scarSheet, fr.sx, 0, 48, 48, -fr.anchorX, -fr.anchorY, 48, 48);
+            this.drawModelSprite(ctx, this.scarSheet, fr.sx, 0, 48, 48, -fr.anchorX, -fr.anchorY, 48, 48);
             ctx.restore();
         }
 

@@ -13,7 +13,7 @@
 
     E.Terrain.registerLevel('z2_act3', {
         title: 'Sanctuary Duet Act 3', zone: 2, zoneName: 'SANCTUARY DUET', act: 3,
-        isBossAct: true, nextStage: null, bgm: 'assets/marble_canopy_act1.wav',
+        isBossAct: true, nextStage: 'z3_act1', bgm: 'assets/marble_canopy_act1.wav',
         startX: 0, endX: 2800, deathY: 1180, probeY: -380,
         cameraMinY: -120, cameraMaxY: 420, wallJump: true, smoothPresentation: false,
         animalZone: 'mz', animalTypes: ['locky', 'wocky'],

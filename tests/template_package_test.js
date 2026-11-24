@@ -89,6 +89,7 @@ const inputs = ['templates/LEVEL_CORE_BLUEPRINT.md', 'templates/level_template.j
     'server.js', 'install-windows.bat', 'install-windows.ps1', 'scar.bat', 'start-windows.bat',
     'install-linux.sh', 'scar.sh', 'start-linux-mac.sh', 'install-termux.sh', 'start-termux.sh',
     'public/index.html', 'public/sonic-engine.js', 'public/css/game-ui.css', 'public/js/modern-hud.js', 'public/js/android-host.js',
+    'public/js/sprite-model-data.js', 'public/js/sprite-models.js', 'public/assets/models',
     'public/assets/scar_sheet.png', 'public/assets/common_objects.png', 'public/assets/animals.png',
     'public/assets/animals.txt', 'public/assets/palmtree_objects.png', 'public/assets/palmtree_map.png',
     'public/assets/enemies.png', 'public/assets/enemies_act2.png', 'public/assets/jump.wav', 'public/assets/rings.wav', 'public/assets/goalpost.wav',

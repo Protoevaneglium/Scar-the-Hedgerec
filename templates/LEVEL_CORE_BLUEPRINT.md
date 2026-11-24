@@ -22,6 +22,22 @@ All campaign acts, including Palmtree Panic, use the same object initialization,
 - The shared runtime saves the current act and safe checkpoint for reload/app recovery, and commits the next act when a goal is reached. Resumes keep score, lives and shield; rings, act time and temporary power-ups restart. Use `SonicEngine.roundRectPath` for rounded canvas paths so older WebViews can render them.
 - Layouts, palettes, music, enemy rosters and optional object placements remain creative choices. Marked wall-kick routes, Kitt's locked boss capsule, and Molten Sanctuary's lava and Rosie gate are intentional extensions of the foundation.
 
+### Owner's Reference Baseline: Layered Routes and 2.5D Presentation
+
+The supplied Hydrocity Act 2 (Dry, 1/3) and Sandopolis Act 1 (2/3) maps and browser screenshots establish how future levels should look and play. Use their design principles to create original layouts:
+
+- Build connected upper, middle, and lower routes with meaningful differences: speed, platforming, secrets, or a safe catch course. Upper routes must reconnect; test missed jumps and low-speed retries as well as the ideal run.
+- Shape slopes and chutes with continuous tangents. Give loops visible approach runways, speed support, and an escape/retry route. Ring trails teach the path, and hazards must be visible before contact.
+- Use substantial textured ruins, turquoise channels, arches, inset masonry, columns, and foreground/background separation where appropriate to the zone. Decorative supports are visibly behind the playable plane. Draw the front collision lip directly from the registered surface, so depth cannot mislead the player.
+- Change sky colors with both position and gameplay time, with distinct past/present/future palettes. Templates enable `changingSkies: true`; the shared `SonicEngine.skyColors` helper also supports custom backgrounds and `skyPalettes`. Layer distant scenery with restrained parallax and preserve clear contrast around Scar and hazards.
+- New acts opt into `spritePresentation: 'volume'`. The shared `Game.drawModelSprite` uses pre-rendered, shaded relief models built from the actual character/enemy/object sprite pixels. The projection gives silhouettes shallow 3D depth while movement, hitboxes, floor contact and animation remain 2D. It is not a free-camera 3D game or a new character design.
+- Preserve supplied sprite provenance. `npm run build:sprite-models` produces the model atlas and its source hashes, crop mappings, depth metadata and padding; original atlases are unchanged. Model drawing uses one cached atlas draw and falls back to the original sprite if its derivative is missing or delayed. Never create a new enemy species by changing a sprite's appearance alone.
+- Include the shared object kit, rescued animals, title/tally, checkpoint recovery, controls and sound events. Distinctive mechanics may add water currents, launch jets, slides, lifts, or similar features through level hooks without altering the core movement constants.
+
+Mirage Aqueduct (`z3_act1`) is the first implementation: three aqueducts over a continuous lower course, three real loops, escapable shallow currents, three launch jets, lift alternatives, marked wall climbs, a crumbling bridge and a reachable treasury. The reference maps inspire route layering and architecture; they are not pasted in as a flat background or traced as collision geometry.
+
+For acceptance, run the registered campaign consistency suite, full route and checkpoint regressions at 30/60/144 Hz, render every checkpoint/era with missing and delayed assets, and play the incoming campaign transition in a real browser. Update the starter whenever this shared baseline changes.
+
 Run `npm run test:consistency` after changing an act or the core. It discovers campaign registrations from the shipped page and checks movement at 30/60/144 Hz, rewards, damage/recovery, sounds, title cards, carryover, and repeated resets. `npm test` and `npm run verify:baseline` include this check. Rebuild the starter with `npm run build:template` after changing shared code or templates.
 
 ### A. Classic 3-Act Zone Progression & 16-Bit Title Cards

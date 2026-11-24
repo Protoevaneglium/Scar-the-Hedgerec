@@ -41,6 +41,8 @@
         zoneName: 'NEW ZONE',
         act: 3,
         isBossAct: true,
+        spritePresentation: 'volume', // Shared sprite-derived 2.5D, with the same 2D collisions.
+        changingSkies: true,
         bgm: null, // e.g. 'assets/boss_theme.mp3'
         startX: 0,
         endX: 1440,

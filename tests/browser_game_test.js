@@ -288,6 +288,12 @@ for (const stage of game.getCampaignStages()) {
     const calls = [];
     ctx.drawImage = (source, ...args) => {
         if (source === game.animalSheet) calls.push(args);
+        else if (source.src === 'assets/models/sprite_models.png') {
+            const entry = Object.entries(sandbox.ScarSpriteModelData.frames).find(([key, frame]) =>
+                key.startsWith('animals.png:') && frame.x === args[0] && frame.y === args[1]
+                && frame.w === args[2] && frame.h === args[3]);
+            if (entry) calls.push([...entry[0].split(':')[1].split(',').map(Number), ...args.slice(4)]);
+        }
         return canvasDrawImage(source, ...args);
     };
     for (let i = 0; i < 120; i++) {
@@ -296,7 +302,7 @@ for (const stage of game.getCampaignStages()) {
     }
     ctx.drawImage = canvasDrawImage;
     assert(calls.length > 0 && calls.every(args => args[2] === 32 && args[3] === 32),
-        `${stage} must draw the animal atlas in the real renderer`);
+        `${stage} must draw the source animal crop or its verified 2.5D derivative in the real renderer`);
     assert(calls.some(args => args[0] === 32) && calls.some(args => args[0] === 64),
         `${stage} must animate both moving animal poses`);
 }
