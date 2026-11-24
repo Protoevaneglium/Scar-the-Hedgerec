@@ -3,9 +3,30 @@
     'use strict';
     let resumeIntro = false;
     let suspended = false;
+    let controllers = [];
     const game = () => root.sonicGame || null;
     const event = name => root.dispatchEvent(new root.Event(name));
     const api = {
+        controllerState(states) {
+            if (!Array.isArray(states)) return false;
+            const previous = controllers;
+            controllers = states.slice(0, 16).filter(p => p && Number.isSafeInteger(p.index) && p.index >= 0)
+                .map(p => ({ index: p.index, id: String(p.id), connected: true, mapping: 'standard', ready: p.ready !== false,
+                    axes: [0, 1].map(i => Number.isFinite(p.axes?.[i]) ? Math.max(-1, Math.min(1, p.axes[i])) : 0),
+                    buttons: Array.from({ length: 17 }, (_, i) => ({ pressed: p.buttons?.[i] === 1, value: p.buttons?.[i] === 1 ? 1 : 0 })) }));
+            for (const old of previous) if (!controllers.some(p => p.index === old.index && p.id === old.id)) {
+                const removed = new root.Event('gamepaddisconnected');
+                Object.defineProperty(removed, 'gamepad', { value: old, enumerable: true }); root.dispatchEvent(removed);
+            }
+            return true;
+        },
+        getGamepads() {
+            // Native Android events own the device when available, preventing
+            // WebView from processing a second copy of the same A/Menu press.
+            if (controllers.length) return controllers;
+            try { return typeof root.navigator?.getGamepads === 'function' ? root.navigator.getGamepads() : []; }
+            catch (_) { return []; }
+        },
         pause() {
             if (suspended) return true;
             suspended = true;

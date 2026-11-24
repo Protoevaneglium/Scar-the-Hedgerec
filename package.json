@@ -1,6 +1,6 @@
 {
   "name": "scar-the-hedgerec",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Scar the Hedgerec — A high-speed 16-bit retro platformer with 360-degree loop and slope physics (Windows, Linux, macOS, Termux/Android)",
   "main": "server.js",
   "bin": {
@@ -21,6 +21,7 @@
     "build:android": "node scripts/build-android.js",
     "verify:apk": "node scripts/verify-android-apk.js",
     "test:android": "node scripts/test-android.js",
+    "test:gamepad-browser": "node tests/gamepad-browser.e2e.js",
     "build:sprite-models": "node scripts/build-sprite-models.js",
     "build:zone3-music": "node scripts/compose-zone3-music.js"
   },
@@ -40,6 +41,7 @@
     "express": "^5.2.1"
   },
   "devDependencies": {
+    "playwright": "1.65.1",
     "sharp": "^0.35.5"
   }
 }

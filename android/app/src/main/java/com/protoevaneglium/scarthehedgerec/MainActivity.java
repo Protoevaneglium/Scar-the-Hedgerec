@@ -4,10 +4,13 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.res.AssetFileDescriptor;
 import android.graphics.Color;
+import android.hardware.input.InputManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.Gravity;
+import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
@@ -38,6 +41,7 @@ public final class MainActivity extends Activity {
     private boolean destroyed;
     private boolean backgrounded;
     private int lifecycleEpoch;
+    private ControllerInput controllers;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -53,9 +57,13 @@ public final class MainActivity extends Activity {
             android.graphics.Insets cutout = insets.getInsets(WindowInsets.Type.displayCutout());
             view.setPadding(cutout.left, cutout.top, cutout.right, cutout.bottom); return insets;
         });
+        controllers = new ControllerInput((InputManager)getSystemService(INPUT_SERVICE), controllerState -> {
+            if (gameView != null && !destroyed) gameView.evaluateJavascript("window.ScarHost && window.ScarHost.controllerState("+controllerState+")", null);
+        });
         createGame(); hideBars();
     }
     public WebView getGameView() { return gameView; }
+    ControllerInput getControllerInput() { return controllers; }
     private void createGame() {
         root.removeAllViews();
         WebView view = new WebView(this); gameView = view;
@@ -72,6 +80,9 @@ public final class MainActivity extends Activity {
                 .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this)).build();
         view.setWebChromeClient(new WebChromeClient());
         view.setWebViewClient(new WebViewClient() {
+            @Override public void onPageFinished(WebView web, String url) {
+                if (gameView == web && controllers != null) controllers.send();
+            }
             @Override public boolean shouldOverrideUrlLoading(WebView web, WebResourceRequest request) {
                 return AssetRequest.assetPath(request.getUrl().toString()) == null;
             }
@@ -140,10 +151,20 @@ public final class MainActivity extends Activity {
     @Override public void onWindowFocusChanged(boolean focused) {
         super.onWindowFocusChanged(focused);
         if (focused) hideBars();
+        else if (controllers != null) controllers.suspend();
         if (gameView != null) gameView.evaluateJavascript("window.ScarHost && window.ScarHost." + (focused ? "resume()" : "pause()"), null);
+    }
+    @Override public boolean dispatchKeyEvent(KeyEvent event) {
+        if (controllers != null && controllers.key(event)) return true;
+        return super.dispatchKeyEvent(event);
+    }
+    @Override public boolean dispatchGenericMotionEvent(MotionEvent event) {
+        if (controllers != null && controllers.motion(event)) return true;
+        return super.dispatchGenericMotionEvent(event);
     }
     @Override protected void onPause() {
         backgrounded = true;
+        if (controllers != null) controllers.suspend();
         final int epoch = ++lifecycleEpoch;
         WebView view = gameView;
         if (view != null) view.evaluateJavascript("window.ScarHost && window.ScarHost.pause()", ignored -> {
@@ -165,6 +186,7 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onDestroy() {
         destroyed = true;
+        if (controllers != null) controllers.close();
         if (gameView != null) { gameView.resumeTimers(); root.removeView(gameView); gameView.destroy(); gameView = null; }
         super.onDestroy();
     }

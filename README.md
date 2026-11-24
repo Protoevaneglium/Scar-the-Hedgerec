@@ -4,7 +4,7 @@
 
 **Scar the Hedgerec** is a high-speed 16-bit retro platformer built on an authentic 360-degree fixed-point physics engine. Designed as a clean, cross-platform (**Windows, Linux, macOS, and Termux / Android**) HTML5 Canvas & JavaScript game with zero external runtime dependencies required.
 
-📱 **[Download Android APK v0.0.4](https://github.com/Protoevaneglium/Scar-the-Hedgerec/releases/download/v0.0.4/scar-the-hedgerec-v0.0.4.apk)** — all seven acts, offline, Android 8.0+. [Android build and test details](ANDROID.md).
+📱 **[Download Android APK v0.0.5](https://github.com/Protoevaneglium/Scar-the-Hedgerec/releases/download/v0.0.5/scar-the-hedgerec-v0.0.5.apk)** — all seven acts, offline, Android 8.0+. [Android build and test details](ANDROID.md).
 
 **Zone 3 Act 1 — Mirage Aqueduct:** Hydrocity / Sandopolis inspired golden ruins and turquoise aqueducts, changing skies, sprite-derived 2.5D characters and objects, water slides, launch jets, three upper routes, a continuous recovery course, and a secret treasury. Unlocks after Sanctuary Duet.
 
@@ -218,6 +218,8 @@ Design research: [SEGA's Superstars manual](https://manual.sega.jp/sonicsupersta
 
 Xbox controllers work through the browser's [standard Gamepad API mapping](https://w3c.github.io/gamepad/#remapping). Connect by USB or Bluetooth, focus the game and press a controller button to let the browser detect it. Release the controls once, then use A or Menu to start. The game shows “Controller ready” when armed. Reconnecting or returning to the game requires a neutral stick and released buttons before a new action.
 
+On Windows and macOS, run `scar` and use the local `http://localhost:3000` game page. The browser needs a secure context for its Gamepad API; localhost qualifies, while a plain HTTP LAN address may not. Chrome/Edge, Firefox, and Safari expose standard-mapped controllers through the same controls below. The Android APK also handles native Android/Xbox button, stick, and D-pad events, so it can work when WebView does not expose a browser gamepad. Native and browser copies of the same controller input are combined into one source.
+
 | Xbox input | Action |
 | :--- | :--- |
 | **Left stick / D-pad** | Move, look up, crouch / roll |
@@ -230,6 +232,8 @@ Xbox controllers work through the browser's [standard Gamepad API mapping](https
 | **Menu** | Pause / resume; A or B also resumes from pause |
 
 Keyboard, touch and controller inputs can be mixed. Controller disconnects release controller input without releasing a held keyboard or touch control. Pause freezes gameplay, deaths, results and Rosie animations; releasing the resume button prevents it from becoming a jump. The downloadable starter includes the same controller support.
+
+CI runs real Chromium local-server controller flows on Windows, macOS and Linux, plus WebKit on macOS. Android emulator checks dispatch native controller keys and joystick/hat events through the release Activity into the real WebView. These automated checks simulate controller states; USB/Bluetooth pairing and physical controller models still need a hardware check.
 
 In Molten Sanctuary, Rosie can approach and briefly hug Scar when he stands nearby facing away. Hearts rise from her head, and moving, turning or jumping ends the hug. Her local conversation library contains 35 branching exchanges about the ruins, routes, rings and future adventures. She remembers choices during the act, including whether Scar welcomes hugs, prefers to be asked, or wants space. Death closes the conversation while preserving those preferences; restarting the act begins fresh.
 

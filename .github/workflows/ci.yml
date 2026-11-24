@@ -30,3 +30,19 @@ jobs:
         run: |
           npm ci --ignore-scripts
           npm test
+      - name: Install browser for local-server controller checks
+        run: npx playwright install --with-deps chromium
+      - name: Exercise controllers in the real local-server browser
+        run: npm run test:gamepad-browser -- chromium
+      - name: Install WebKit on macOS
+        if: runner.os == 'macOS'
+        run: npx playwright install webkit
+      - name: Exercise controllers in WebKit on macOS
+        if: runner.os == 'macOS'
+        run: npm run test:gamepad-browser -- webkit
+      - name: Preserve browser controller reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: controller-${{ runner.os }}
+          path: output/qa/controller-*

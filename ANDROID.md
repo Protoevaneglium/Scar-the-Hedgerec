@@ -1,10 +1,10 @@
-# Android v0.0.4
+# Android v0.0.5
 
-[Download the signed APK](https://github.com/Protoevaneglium/Scar-the-Hedgerec/releases/download/v0.0.4/scar-the-hedgerec-v0.0.4.apk).
+[Download the signed APK](https://github.com/Protoevaneglium/Scar-the-Hedgerec/releases/download/v0.0.5/scar-the-hedgerec-v0.0.5.apk).
 
 The cyan-and-green Android launcher icon uses Scar’s game sprite and the title “Scar the Hedgrec”. The full thumbnail is also available in `public/assets/scar_thumbnail.png`; generation prompts are recorded in `ARTWORK.json`.
 
-The APK includes all seven campaign acts, the intro, music, voices and sprite sheets. It runs offline on Android 8.0/API 26 or newer and uses the device's Android System WebView. Touch controls support simultaneous movement and jumping. The existing Xbox/standard Gamepad API controls are retained.
+The APK includes all seven campaign acts, the intro, music, voices and sprite sheets. It runs offline on Android 8.0/API 26 or newer and uses the device's Android System WebView. Touch controls support simultaneous movement and jumping. Xbox/gamepad input accepts native Android button keys, left-stick axes and both D-pad key/hat forms, then feeds the same standard controller controls as the browser version. Native events take precedence over duplicate WebView input. Device removal releases held controls, and returning with held controls requires release before rearming. This follows Android's [controller input guidance](https://developer.android.com/games/sdk/game-controller/controller-input).
 
 The current act and checkpoint are saved automatically. After a reload, renderer retry or app recreation, pressing Start continues from that safe checkpoint. Score, lives and shield are retained; rings, act time and temporary power-ups restart. Completed acts remain completed even if the app restarts during the sign or results tally. Existing v0.0.1 visited acts migrate on update.
 
@@ -30,7 +30,7 @@ npm run build:android -- assembleRelease assembleReleaseAndroidTest lintRelease
 npm run test:android -- emulator-5580
 ```
 
-The test runner targets the named emulator only. It tests the signed release build, dispatches native MotionEvents through its actual WebView, compares media ranges byte for byte, and writes results to `output/qa/android-device.json`. Physical devices, OS-level touch routing and Bluetooth controller hardware require separate checks. Web/core adversarial checks run with `npm run verify:baseline -- --stress`. APK signatures are additionally checked with the SDK's `apksigner verify --verbose --print-certs` before publication. GitHub Actions separately compiles the Android shell and runs lint without receiving the private release key.
+The test runner targets the named emulator only. It tests the signed release build, dispatches native touch MotionEvents and controller KeyEvents/joystick/hat MotionEvents through the actual Activity and WebView, compares media ranges byte for byte, and writes results to `output/qa/android-device.json`. Controller checks include title Start, movement, jump, drift, pause/resume without a jump, Rosie dialogue, disconnects, repeats and focus recovery. Physical devices, OS-level touch routing and USB/Bluetooth controller hardware require separate checks. Web/core adversarial checks run with `npm run verify:baseline -- --stress`. APK signatures are additionally checked with the SDK's `apksigner verify --verbose --print-certs` before publication. GitHub Actions separately compiles the Android shell and runs lint without receiving the private release key.
 
 GitHub Actions also runs these device checks on a Linux Android 15 emulator and retains the QA reports and screenshots. CI generates a disposable signing key for its own test build; the downloadable APK uses the private local release key.
 

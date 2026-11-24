@@ -653,7 +653,8 @@ class InputHandler {
     pollGamepad() {
         if (!this.gamepadFocused || document.hidden) { this.resetGamepad(); return false; }
         try {
-            const pads = typeof navigator.getGamepads === 'function' ? navigator.getGamepads() : [];
+            const pads = window.ScarHost?.getGamepads ? window.ScarHost.getGamepads()
+                : typeof navigator.getGamepads === 'function' ? navigator.getGamepads() : [];
             const available = [];
             for (let i = 0; pads && i < Math.min(16, pads.length); i++) {
                 const pad = pads[i];
@@ -669,6 +670,7 @@ class InputHandler {
             if (pad.index !== this.gamepadIndex || pad.id !== this.gamepadId) {
                 this.resetGamepad(); this.gamepadIndex = pad.index; this.gamepadId = pad.id;
             }
+            if (pad.ready === false) { this.resetGamepad(); return false; }
             const button = index => {
                 const value = pad.buttons && pad.buttons[index];
                 return typeof value === 'number' ? Number.isFinite(value) && value >= .5
@@ -3907,13 +3909,14 @@ function runIntro(onDone) {
         let startPressed = false;
         let controllerSeen = false, controllerReady = false;
         try {
-            const pads = typeof navigator !== 'undefined' && typeof navigator.getGamepads === 'function'
-                ? navigator.getGamepads() : [];
+            const pads = window.ScarHost?.getGamepads ? window.ScarHost.getGamepads()
+                : typeof navigator !== 'undefined' && typeof navigator.getGamepads === 'function' ? navigator.getGamepads() : [];
             const connected = new Set();
             for (let index = 0; pads && index < Math.min(16, pads.length); index++) {
                 const pad = pads[index];
                 if (!pad || pad.connected !== true || pad.mapping !== 'standard') continue;
                 controllerSeen = true;
+                if (pad.ready === false) { controllerStates.delete(index); continue; }
                 connected.add(index);
                 let state = controllerStates.get(index);
                 if (!state || state.id !== pad.id) {

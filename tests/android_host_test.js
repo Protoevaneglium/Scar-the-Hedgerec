@@ -6,6 +6,32 @@ function snapshot(g) { return JSON.stringify({ stage: g.stageName, time: g.stage
     player: [g.player.x, g.player.y, g.player.state, g.player.deathTimer, g.player.score, g.player.rings, g.player.lives],
     boss: g.terrain.boss, clear: g.actClear }); }
 console.log('\nAndroid host lifecycle adversarial checks');
+test('native controllers share browser controls, avoid duplicate input and release on unplug', () => {
+    const h=createGameHarness(),g=h.game,host=h.sandbox.ScarHost;
+    const native={index:42,id:'Android Xbox',axes:[0,0],buttons:Array(17).fill(0)};
+    const send=()=>host.controllerState([native]);
+    try {
+        h.sandbox.sonicGame=g;g.titleCard=null;g.fadeAlpha=0;
+        const browser={index:0,id:'duplicate browser Xbox',connected:true,mapping:'standard',axes:[1,0],buttons:[]};
+        h.sandbox.navigator.getGamepads=()=>[browser];
+        send();h.frame();assert(g.input.gamepadActive&&!g.input.right);
+        native.buttons[15]=1;send();h.frame();assert(g.input.right);
+        const x=g.player.x;for(let n=0;n<30;n++)h.frame();assert(g.player.x>x+10);
+        native.buttons[15]=0;send();h.frame();native.buttons[0]=1;send();h.frame();
+        assert(g.input.jumpHeld&&!g.player.grounded);
+        g.input.press('left',true,'key:ArrowLeft');
+        host.controllerState([]);assert(!g.input.jumpHeld&&g.input.left);
+        h.sandbox.navigator.getGamepads=()=>[];h.frame();assert(!g.input.gamepadConnected);
+        send();h.frame();assert(!g.input.gamepadActive,'held reconnect needs release');
+        native.buttons[0]=0;send();h.frame();assert(g.input.gamepadActive);
+        native.ready=false;native.axes[0]=1;send();h.frame();assert(!g.input.gamepadActive&&!g.input.right);
+        native.ready=true;native.axes[0]=0;send();h.frame();assert(g.input.gamepadActive);
+        assert.strictEqual(host.controllerState(null),false);
+        host.controllerState([{index:-1},{index:NaN},null]);assert.strictEqual(host.getGamepads().length,0);
+        const bad={...native,axes:[NaN,Infinity],buttons:[1]};host.controllerState([bad]);
+        assert.deepStrictEqual(Array.from(host.getGamepads()[0].axes),[0,0]);
+    } finally {h.dispose();}
+});
 test('repeated native pause/resume freezes every act and requires an explicit fresh resume', () => {
     const h = createGameHarness();
     try {

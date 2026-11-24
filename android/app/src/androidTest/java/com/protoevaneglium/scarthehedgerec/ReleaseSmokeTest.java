@@ -8,6 +8,7 @@ import android.os.Looper;
 import android.os.ParcelFileDescriptor;
 import android.util.Log;
 import android.view.InputDevice;
+import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.webkit.WebView;
 import androidx.test.core.app.ActivityScenario;
@@ -135,6 +136,49 @@ public final class ReleaseSmokeTest {
         MotionEvent event = MotionEvent.obtain(down, SystemClock.uptimeMillis(), action, count, properties, coords, 0, 0, 1, 1, 0, 0, InputDevice.SOURCE_TOUCHSCREEN, 0);
         sendTouch(event); event.recycle();
     }
+    private void controllerKey(int code, boolean down) {
+        long now=SystemClock.uptimeMillis();
+        KeyEvent event=new KeyEvent(now,now,down?KeyEvent.ACTION_DOWN:KeyEvent.ACTION_UP,code,0,0,9001,0,0,InputDevice.SOURCE_GAMEPAD);
+        onMain(activity -> assertTrue("Native controller key accepted",activity.dispatchKeyEvent(event)));
+    }
+    private void controllerAxes(float x,float y,float hatX,float hatY) {
+        MotionEvent.PointerProperties p=new MotionEvent.PointerProperties();p.id=0;
+        MotionEvent.PointerCoords c=new MotionEvent.PointerCoords();
+        c.setAxisValue(MotionEvent.AXIS_X,x);c.setAxisValue(MotionEvent.AXIS_Y,y);
+        c.setAxisValue(MotionEvent.AXIS_HAT_X,hatX);c.setAxisValue(MotionEvent.AXIS_HAT_Y,hatY);
+        long now=SystemClock.uptimeMillis();
+        MotionEvent event=MotionEvent.obtain(now,now,MotionEvent.ACTION_MOVE,1,new MotionEvent.PointerProperties[]{p},new MotionEvent.PointerCoords[]{c},0,0,1,1,9001,0,InputDevice.SOURCE_JOYSTICK,0);
+        try {onMain(activity -> assertTrue("Native joystick accepted",activity.dispatchGenericMotionEvent(event)));}
+        finally {event.recycle();}
+    }
+    private void checkNativeController() throws Exception {
+        Log.i("ScarQA","Testing native Xbox buttons, stick, hat, pause and Rosie dialogue");
+        js("window.sonicGame.loadStage('palmtree',{skipTitleCard:true,skipFade:true});true");
+        controllerAxes(0,0,0,0);until("window.sonicGame.input.gamepadActive");
+        double start=Double.parseDouble(js("window.sonicGame.player.x"));
+        controllerAxes(.04f,0,0,0);SystemClock.sleep(250);assertEquals("false",js("window.sonicGame.input.right"));
+        controllerAxes(1,0,0,0);until("window.sonicGame.player.x>"+(start+20));controllerAxes(0,0,0,0);
+        js("window.sonicGame.gotoCheckpoint(0);true");until("window.sonicGame.input.gamepadActive");
+        controllerAxes(0,0,1,0);until("window.sonicGame.player.x>160");controllerAxes(0,0,0,0);
+        controllerKey(KeyEvent.KEYCODE_BUTTON_A,true);until("!window.sonicGame.player.grounded && window.sonicGame.player.ysp<0");
+        controllerKey(KeyEvent.KEYCODE_BUTTON_A,false);until("window.sonicGame.player.grounded");
+        controllerKey(KeyEvent.KEYCODE_BUTTON_START,true);until("window.sonicGame.paused");
+        controllerKey(KeyEvent.KEYCODE_BUTTON_START,false);until("window.sonicGame.input.gamepadActive && window.sonicGame.input.gamepadMode==='pause'");
+        controllerKey(KeyEvent.KEYCODE_BUTTON_A,true);until("!window.sonicGame.paused");
+        assertEquals("false",js("window.sonicGame.input.jumpHeld"));controllerKey(KeyEvent.KEYCODE_BUTTON_A,false);
+        js("(()=>{let g=window.sonicGame;g.loadStage('z2_act2',{skipTitleCard:true,skipFade:true});let n=g.terrain.z2a2.reunion;Object.assign(n,{met:true,noticed:true,actorX:n.x,actorY:n.y,actionTimer:0,reactionTimer:0});g.player.place(n.x+60,0,n.y);g.player.facing=1;g.player.invulnTimer=0;return true;})()");
+        until("window.sonicGame.input.gamepadActive && window.sonicGame.canTalkToRosie()");
+        controllerKey(KeyEvent.KEYCODE_BUTTON_X,true);until("window.sonicGame.rosieConversationView().open");
+        controllerKey(KeyEvent.KEYCODE_BUTTON_X,false);until("window.sonicGame.input.gamepadActive && window.sonicGame.input.gamepadMode==='dialogue'");
+        controllerAxes(0,0,0,1);until("window.sonicGame.dialogueSelection===1");controllerAxes(0,0,0,0);
+        String revision=js("window.sonicGame.rosieConversationView().revision");
+        controllerKey(KeyEvent.KEYCODE_BUTTON_A,true);until("window.sonicGame.rosieConversationView().revision!=="+revision);
+        controllerKey(KeyEvent.KEYCODE_BUTTON_A,false);until("window.sonicGame.input.gamepadActive");
+        controllerKey(KeyEvent.KEYCODE_BUTTON_B,true);until("!window.sonicGame.rosieConversationView().open");controllerKey(KeyEvent.KEYCODE_BUTTON_B,false);
+        controllerAxes(1,0,0,0);until("window.sonicGame.input.right");
+        onMain(activity -> activity.getControllerInput().onInputDeviceRemoved(9001));until("!window.sonicGame.input.right && !window.sonicGame.input.gamepadConnected");
+        Log.i("ScarQA","Native Xbox/controller checks passed");
+    }
     private void startGame() throws Exception {
         until("window.ScarHost && document.getElementById('intro-video')");
         js("document.getElementById('intro-video').dispatchEvent(new Event('error'));true");
@@ -145,8 +189,11 @@ public final class ReleaseSmokeTest {
         SystemClock.sleep(500);
         capture("v"+BuildConfig.VERSION_NAME+"-android-title.png");
         long startup = SystemClock.uptimeMillis();
-        tap(button("#intro"));
+        controllerKey(KeyEvent.KEYCODE_BUTTON_A,false);
+        until("!document.getElementById('intro-controller-hint').hidden");
+        controllerKey(KeyEvent.KEYCODE_BUTTON_A,true);
         until("window.sonicGame && !window.INTRO_ACTIVE");
+        controllerKey(KeyEvent.KEYCODE_BUTTON_A,false);
         assertTrue("Starting gameplay must not stall the WebView", SystemClock.uptimeMillis()-startup<15000);
         js("window.__qaErrors=[];window.addEventListener('error',e=>window.__qaErrors.push(String(e.message)));window.addEventListener('unhandledrejection',e=>window.__qaErrors.push(String(e.reason)));window.sonicGame.titleCard=null;window.sonicGame.fadeAlpha=0;true");
     }
@@ -222,6 +269,7 @@ public final class ReleaseSmokeTest {
             pairEvent(down, MotionEvent.ACTION_UP, right, jump, 1);
             until("!window.sonicGame.input.right && !window.sonicGame.input.jumpHeld");
             js("CanvasRenderingContext2D.prototype.roundRect=undefined;true");
+            checkNativeController();
 
             JSONArray stages = new JSONArray((String)new JSONTokener(js("JSON.stringify(window.sonicGame.getCampaignStages())")).nextValue());
             assertEquals(7, stages.length());
