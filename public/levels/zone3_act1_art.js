@@ -16,6 +16,34 @@
     function skyColors(progress, clock, era) {
         return root.SonicEngine.skyColors(skies, progress, clock, era);
     }
+    const masonry = new WeakMap();
+    function bricks(c, x0, x1, y0, y1) {
+        const shades=['#e8b45e','#d69a4b','#eac67b','#c58b46','#f1c36e'];
+        for(let row=Math.floor(y0/20);row*20<y1;row++){
+            for(let x=Math.floor(x0/40)*40-mod(row,2)*20;x<x1;x+=40){
+                const y=row*20, n=mod(Math.floor(x/40)*11+row*7,5);
+                c.fillStyle=shades[n];c.fillRect(x+1,y+1,38,18);
+                c.fillStyle='#ffe0a0';c.fillRect(x+2,y+2,36,2);c.fillRect(x+2,y+4,2,12);
+                c.fillStyle='#9a693d';c.fillRect(x+3,y+17,35,2);c.fillRect(x+37,y+4,2,14);
+                if(mod(row,4)===0&&n===1){
+                    c.fillStyle='#398e91';c.fillRect(x+13,y+4,14,12);
+                    line(c,[[x+15,y+6],[x+25,y+6],[x+25,y+12],[x+19,y+12],[x+19,y+9]],'#a3e0cc',1);
+                }else if(n===3)line(c,[[x+11,y+5],[x+16,y+10],[x+13,y+15]],'#b47b40',1);
+            }
+        }
+    }
+    function brickPattern(c) {
+        if(masonry.has(c))return masonry.get(c);
+        if(!root.document?.createElement||!c.createPattern)return null;
+        // Exact 5-column / 20-row period, including staggered joints and inlays.
+        // The 80,000-pixel tile avoids thousands of per-frame drawing commands.
+        const tile=root.document.createElement('canvas');tile.width=200;tile.height=400;
+        const tc=tile.getContext('2d');if(!tc)return null;
+        tc.fillStyle='#79523c';tc.fillRect(0,0,200,400);bricks(tc,0,200,0,400);
+        const pattern=c.createPattern(tile,'repeat');
+        if(pattern)masonry.set(c,pattern);
+        return pattern;
+    }
     function column(c, x, y, bottom, w = 52) {
         if (bottom <= y) return;
         const grad = c.createLinearGradient(x, 0, x+w, 0);
@@ -72,19 +100,10 @@
         poly(c,pts.concat(pts.slice().reverse().map(p=>[p[0]+18,p[1]-14])), '#fcdf9c');
         const face=pts.concat(bottom);poly(c,face,'#79523c');
         c.save();c.beginPath();c.moveTo(...face[0]);for(let i=1;i<face.length;i++)c.lineTo(...face[i]);c.closePath();c.clip();
-        const shades=['#e8b45e','#d69a4b','#eac67b','#c58b46','#f1c36e'];
-        for(let row=Math.floor(Math.max(v.y0,low)/20);row*20<Math.min(v.y1+20,high+thickness);row++){
-            for(let x=Math.floor(x0/40)*40-mod(row,2)*20;x<x1;x+=40){
-                const y=row*20, n=mod(Math.floor(x/40)*11+row*7,5);
-                c.fillStyle=shades[n];c.fillRect(x+1,y+1,38,18);
-                c.fillStyle='#ffe0a0';c.fillRect(x+2,y+2,36,2);c.fillRect(x+2,y+4,2,12);
-                c.fillStyle='#9a693d';c.fillRect(x+3,y+17,35,2);c.fillRect(x+37,y+4,2,14);
-                if(mod(row,4)===0&&n===1){
-                    c.fillStyle='#398e91';c.fillRect(x+13,y+4,14,12);
-                    line(c,[[x+15,y+6],[x+25,y+6],[x+25,y+12],[x+19,y+12],[x+19,y+9]],'#a3e0cc',1);
-                }else if(n===3)line(c,[[x+11,y+5],[x+16,y+10],[x+13,y+15]],'#b47b40',1);
-            }
-        }
+        const pattern=brickPattern(c), y0=Math.floor(Math.max(v.y0,low)/20)*20,
+            y1=Math.min(v.y1+20,high+thickness);
+        if(pattern){c.fillStyle=pattern;c.fillRect(x0,y0,x1-x0,y1-y0);}
+        else bricks(c,x0,x1,y0,y1);
         // Decorative frieze follows each walkable contour, never resembles a new floor.
         for(let x=Math.ceil(x0/64)*64;x<x1;x+=64){const y=s.f(x)+25;
             poly(c,[[x-9,y],[x,y-9],[x+9,y],[x,y+9]],'#a5763f');

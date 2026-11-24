@@ -85,6 +85,27 @@ test('sky palettes vary with progress, gameplay time and time era; repeated rese
         assert.deepStrictEqual([t.surfaces.length,t.rings.length],counts);
         assert(t.z3a1.jets.every(j=>j.cooldown===0)&&!t.z3a1.current);}
 });
+test('masonry uses one bounded texture across every checkpoint and repeated act loads',()=>{
+    const h=createGameHarness({stage:'z3_act1'}),g=h.game;
+    try{
+        g.render();
+        const tiles=()=>h.canvases.filter(({canvas})=>canvas.width===200&&canvas.height===400);
+        assert.strictEqual(tiles().length,1);
+        for(let pass=0;pass<3;pass++){
+            g.loadStage('z3_act1',{skipTitleCard:true,skipFade:true});
+            const allocated=h.canvases.length;
+            for(let cp=0;cp<g.terrain.checkpoints.length;cp++){
+                g.gotoCheckpoint(cp);g.render();let fills=0;const original=h.ctx.fillRect;
+                h.ctx.fillRect=(...args)=>{fills++;original(...args);};
+                try{h.sandbox.MirageAqueductArt.drawTerrain(h.ctx,g);}finally{h.ctx.fillRect=original;}
+                assert(fills<=g.terrain.floors.length,'visible masonry must use one cached fill per road');
+            }
+            assert.strictEqual(h.canvases.length,allocated);
+        }
+        assert.strictEqual(tiles().length,1);
+        assert.strictEqual(h.canvasStats().invalid,0);
+    }finally{h.dispose();}
+});
 test('Zone 2 capsule completion leads to the new act, with carryover and a recoverable saved checkpoint',()=>{
     const data=new Map(),storage={getItem:k=>data.get(k)||null,setItem:(k,v)=>data.set(k,String(v))};
     const h=createGameHarness({stage:'z2_act3',storage}),g=h.game;

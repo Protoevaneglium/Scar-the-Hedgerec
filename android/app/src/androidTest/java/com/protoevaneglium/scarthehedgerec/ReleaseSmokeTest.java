@@ -253,8 +253,19 @@ public final class ReleaseSmokeTest {
                     float[] move = button("[data-key=right]");
                     long routeDown = SystemClock.uptimeMillis();
                     pairEvent(routeDown, MotionEvent.ACTION_DOWN, move, move, 1);
-                    until("window.sonicGame.terrain.goalPost.spinning || window.sonicGame.terrain.goalPost.cleared", 120000);
-                    pairEvent(routeDown, MotionEvent.ACTION_UP, move, move, 1);
+                    JSONObject route = null;
+                    long routeDeadline=SystemClock.uptimeMillis()+120000, nextLog=0;
+                    try {
+                        until("window.sonicGame.input.right");
+                        do {
+                            route=object("(()=>{let g=window.sonicGame;return{x:g.player.x,y:g.player.y,time:g.stageTime,lives:g.player.lives,paused:g.paused,right:g.input.right,done:!!(g.terrain.goalPost.spinning||g.terrain.goalPost.cleared)};})()");
+                            if(SystemClock.uptimeMillis()>=nextLog){Log.i("ScarQA","Mirage touch route: "+route);nextLog=SystemClock.uptimeMillis()+10000;}
+                            if(route.getBoolean("done"))break;
+                            assertFalse("Native route must remain unpaused",route.getBoolean("paused"));
+                            SystemClock.sleep(250);
+                        } while(SystemClock.uptimeMillis()<routeDeadline);
+                        assertTrue("Native route did not reach the signpost: "+route,route!=null&&route.getBoolean("done"));
+                    } finally { pairEvent(routeDown, MotionEvent.ACTION_UP, move, move, 1); }
                     assertEquals("true", js("window.sonicGame.player.lives>=3"));
                     Log.i("ScarQA", "Mirage Aqueduct native touch route reached the signpost");
                 }
