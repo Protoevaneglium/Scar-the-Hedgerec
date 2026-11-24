@@ -3,6 +3,8 @@ package com.protoevaneglium.scarthehedgerec;
 import android.app.Instrumentation;
 import android.graphics.Bitmap;
 import android.os.SystemClock;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.ParcelFileDescriptor;
 import android.util.Log;
 import android.view.InputDevice;
@@ -35,6 +37,7 @@ public final class ReleaseSmokeTest {
     private final Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
     private final AtomicReference<MainActivity> current = new AtomicReference<>();
     private final AtomicReference<Stage> nativeStage = new AtomicReference<>();
+    private boolean mainResponsive = true;
     private final ActivityLifecycleCallback lifecycle = (activity, stage) -> {
         if (!(activity instanceof MainActivity)) return;
         if (stage == Stage.RESUMED) current.set((MainActivity)activity);
@@ -43,7 +46,17 @@ public final class ReleaseSmokeTest {
     private void onMain(Consumer<MainActivity> action) {
         // ActivityScenario.onActivity waits for global UI idle. A continuously
         // rendered game need not become idle; post directly to the main looper.
-        instrumentation.runOnMainSync(() -> { assertNotNull(current.get()); action.accept(current.get()); });
+        CountDownLatch done = new CountDownLatch(1);
+        AtomicReference<Throwable> error = new AtomicReference<>();
+        new Handler(Looper.getMainLooper()).post(() -> {
+            try { assertNotNull(current.get()); action.accept(current.get()); }
+            catch (Throwable failure) { error.set(failure); }
+            finally { done.countDown(); }
+        });
+        try { mainResponsive = done.await(20, TimeUnit.SECONDS); }
+        catch (InterruptedException failure) { Thread.currentThread().interrupt(); throw new AssertionError(failure); }
+        assertTrue("Android main looper must respond within 20 seconds", mainResponsive);
+        if (error.get() != null) throw new AssertionError("Android main-looper action failed", error.get());
     }
     private void untilStage(Stage wanted) {
         long deadline=SystemClock.uptimeMillis()+20000;
@@ -67,7 +80,7 @@ public final class ReleaseSmokeTest {
             if (view == null) { value.set("null"); latch.countDown(); }
             else view.evaluateJavascript(expression, answer -> { value.set(answer); latch.countDown(); });
         });
-        assertTrue("WebView callback must not freeze", latch.await(20, TimeUnit.SECONDS));
+        assertTrue("WebView callback must not freeze: " + expression, latch.await(20, TimeUnit.SECONDS));
         return value.get();
     }
     private void until(String expression) throws Exception {
@@ -217,11 +230,14 @@ public final class ReleaseSmokeTest {
                 String stage = stages.getString(i);
                 Log.i("ScarQA", "Rendering checkpoints and lifecycle test: " + stage);
                 js("window.sonicGame.loadStage(" + JSONObject.quote(stage) + ",{skipTitleCard:true,skipFade:true});window.sonicGame.player.invincTimer=10000;true");
+                Log.i("ScarQA", "Loaded " + stage);
                 until("window.sonicGame.enemySheetLoaded");
                 int count = Integer.parseInt(js("window.sonicGame.terrain.checkpoints.length"));
                 for (int cp=0;cp<count;cp++) for (String era : new String[] {"good_future", "present", "past"}) {
+                    Log.i("ScarQA", "Rendering " + stage + " checkpoint=" + cp + " era=" + era);
                     assertEquals("true", js("(()=>{let g=window.sonicGame;g.gotoCheckpoint("+cp+");g.player.invincTimer=10000;g.terrain.timeEra="+JSONObject.quote(era)+";g.render();return Number.isFinite(g.player.x)&&Number.isFinite(g.camX);})()"));
                 }
+                Log.i("ScarQA", "Checkpoint renders complete; backgrounding " + stage);
                 backgroundAndResume();
                 until("window.sonicGame.paused");
                 String time = js("window.sonicGame.stageTime"); SystemClock.sleep(300);
@@ -263,9 +279,13 @@ public final class ReleaseSmokeTest {
             Log.i("ScarQA", "All release smoke checks completed");
         } catch (Throwable failure) { Log.e("ScarQA", "Release check failed", failure); throw failure; }
         finally {
-            if (current.get()!=null && nativeStage.get()!=Stage.DESTROYED) { onMain(activity -> activity.finish()); untilStage(Stage.DESTROYED); }
-            if (scenario != null) scenario.close();
-            instrumentation.runOnMainSync(() -> ActivityLifecycleMonitorRegistry.getInstance().removeLifecycleCallback(lifecycle));
+            // Preserve the actual failure if the app main thread is wedged; synchronous
+            // teardown would otherwise hide it behind the outer adb timeout.
+            if (mainResponsive) {
+                if (current.get()!=null && nativeStage.get()!=Stage.DESTROYED) { onMain(activity -> activity.finish()); untilStage(Stage.DESTROYED); }
+                if (scenario != null) scenario.close();
+                new Handler(Looper.getMainLooper()).post(() -> ActivityLifecycleMonitorRegistry.getInstance().removeLifecycleCallback(lifecycle));
+            }
         }
     }
 }
