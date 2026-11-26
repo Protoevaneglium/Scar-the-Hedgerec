@@ -197,6 +197,51 @@ public final class ReleaseSmokeTest {
         assertTrue("Starting gameplay must not stall the WebView", SystemClock.uptimeMillis()-startup<15000);
         js("window.__qaErrors=[];window.addEventListener('error',e=>window.__qaErrors.push(String(e.message)));window.addEventListener('unhandledrejection',e=>window.__qaErrors.push(String(e.reason)));window.sonicGame.titleCard=null;window.sonicGame.fadeAlpha=0;true");
     }
+    private void checkNeonPartyAndWater() throws Exception {
+        Log.i("ScarQA", "Testing Neon Labyrinth native character swaps and repeat swim jumps");
+        js("window.sonicGame.loadStage('z3_act2',{skipTitleCard:true,skipFade:true});true");
+        until("window.RosieArt.loaded && window.sonicGame.player.companion.character==='rosie'");
+        tap(button("#btn-swap"));
+        until("window.sonicGame.player.character==='rosie' && window.sonicGame.player.companion.character==='scar'");
+        float[] jump=button("[data-key=jump]"), down=button("[data-key=down]");
+        js("(()=>{let g=window.sonicGame,p=g.player;p.place(3200,0,920);p.y=820;p.state='AIRBORNE';p.invincTimer=10000;window.__qaSwim=0;let stroke=p.events.swimStroke;p.events.swimStroke=(...args)=>{window.__qaSwim++;stroke(...args);};g.snapCamera();return true;})()");
+        for(int i=0;i<3;i++) {
+            long press=SystemClock.uptimeMillis();
+            pairEvent(press,MotionEvent.ACTION_DOWN,jump,jump,1);
+            until("window.__qaSwim>="+(i+1));
+            pairEvent(press,MotionEvent.ACTION_UP,jump,jump,1);
+            until("!window.sonicGame.input.jumpHeld");
+        }
+        assertEquals("3",js("window.__qaSwim"));
+        assertEquals("true",js("window.sonicGame.player.inWater && window.sonicGame.player.character==='rosie'"));
+        js("(()=>{let g=window.sonicGame,p=g.player;p.place(3200,0,920);p.y=570;p.state='AIRBORNE';p.ysp=0;p.inWater=false;g.snapCamera();return true;})()");
+        long floatDown=SystemClock.uptimeMillis();
+        pairEvent(floatDown,MotionEvent.ACTION_DOWN,down,down,1);
+        until("window.sonicGame.player.surfaceSwimming && window.sonicGame.player.airRemaining===1800");
+        capture("v"+BuildConfig.VERSION_NAME+"-android-neon.png");
+        pairEvent(floatDown,MotionEvent.ACTION_UP,down,down,1);
+        until("!window.sonicGame.input.down");
+        tap(button("#btn-swap"));
+        until("window.sonicGame.player.character==='scar' && window.sonicGame.player.companion.character==='rosie'");
+        js("window.sonicGame.loadStage('z3_act2',{skipTitleCard:true,skipFade:true});window.sonicGame.player.invincTimer=10000;true");
+        tap(button("#btn-swap"));until("window.sonicGame.player.character==='rosie'");
+        float[] right=button("[data-key=right]");long runDown=SystemClock.uptimeMillis();
+        pairEvent(runDown,MotionEvent.ACTION_DOWN,right,right,1);
+        JSONObject route=null;long deadline=SystemClock.uptimeMillis()+180000,nextLog=0;
+        try {
+            until("window.sonicGame.input.right");
+            do {
+                route=object("(()=>{let g=window.sonicGame;return{x:g.player.x,y:g.player.y,lives:g.player.lives,character:g.player.character,npc:g.player.companion.character,done:!!(g.terrain.goalPost.spinning||g.terrain.goalPost.cleared)};})()");
+                if(SystemClock.uptimeMillis()>=nextLog){Log.i("ScarQA","Neon Rosie touch route: "+route);nextLog=SystemClock.uptimeMillis()+10000;}
+                if(route.getBoolean("done"))break;
+                SystemClock.sleep(250);
+            }while(SystemClock.uptimeMillis()<deadline);
+            assertTrue("Neon Labyrinth native route must finish: "+route,route!=null&&route.getBoolean("done"));
+            assertEquals("rosie",route.getString("character"));assertEquals("scar",route.getString("npc"));
+            assertTrue(route.getInt("lives")>=3);
+        }finally{pairEvent(runDown,MotionEvent.ACTION_UP,right,right,1);}
+        Log.i("ScarQA","Neon Labyrinth native water, party and complete Rosie route passed");
+    }
     private void capture(String name) throws Exception {
         CountDownLatch drawn = new CountDownLatch(1);
         onMain(activity -> {
@@ -272,8 +317,9 @@ public final class ReleaseSmokeTest {
             checkNativeController();
 
             JSONArray stages = new JSONArray((String)new JSONTokener(js("JSON.stringify(window.sonicGame.getCampaignStages())")).nextValue());
-            assertEquals(7, stages.length());
+            assertEquals(8, stages.length());
             assertEquals("z3_act1", stages.getString(6));
+            assertEquals("z3_act2", stages.getString(7));
             for (int i=0;i<stages.length();i++) {
                 String stage = stages.getString(i);
                 Log.i("ScarQA", "Rendering checkpoints and lifecycle test: " + stage);
@@ -317,6 +363,7 @@ public final class ReleaseSmokeTest {
                     assertEquals("true", js("window.sonicGame.player.lives>=3"));
                     Log.i("ScarQA", "Mirage Aqueduct native touch route reached the signpost");
                 }
+                if(stage.equals("z3_act2"))checkNeonPartyAndWater();
             }
             for (int i=0;i<8;i++) backgroundAndResume();
             Log.i("ScarQA", "Rapid lifecycle churn complete; checking Rosie assist");

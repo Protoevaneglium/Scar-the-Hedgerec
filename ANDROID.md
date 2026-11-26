@@ -1,14 +1,20 @@
-# Android v0.0.5
+# Android v0.0.6
 
-[Download the signed APK](https://github.com/Protoevaneglium/Scar-the-Hedgerec/releases/download/v0.0.5/scar-the-hedgerec-v0.0.5.apk).
+[Download the signed APK](https://github.com/Protoevaneglium/Scar-the-Hedgerec/releases/download/v0.0.6/scar-the-hedgerec-v0.0.6.apk).
 
 The cyan-and-green Android launcher icon uses Scar’s game sprite and the title “Scar the Hedgrec”. The full thumbnail is also available in `public/assets/scar_thumbnail.png`; generation prompts are recorded in `ARTWORK.json`.
 
-The APK includes all seven campaign acts, the intro, music, voices and sprite sheets. It runs offline on Android 8.0/API 26 or newer and uses the device's Android System WebView. Touch controls support simultaneous movement and jumping. Xbox/gamepad input accepts native Android button keys, left-stick axes and both D-pad key/hat forms, then feeds the same standard controller controls as the browser version. Native events take precedence over duplicate WebView input. Device removal releases held controls, and returning with held controls requires release before rearming. This follows Android's [controller input guidance](https://developer.android.com/games/sdk/game-controller/controller-input).
+The APK includes all eight campaign acts, the intro, music, voices and sprite sheets. It runs offline on Android 8.0/API 26 or newer and uses the device's Android System WebView. Touch controls support simultaneous movement and jumping. Xbox/gamepad input accepts native Android button keys, left-stick axes and both D-pad key/hat forms, then feeds the same standard controller controls as the browser version. Native events take precedence over duplicate WebView input. Device removal releases held controls, and returning with held controls requires release before rearming. This follows Android's [controller input guidance](https://developer.android.com/games/sdk/game-controller/controller-input).
 
 The current act and checkpoint are saved automatically. After a reload, renderer retry or app recreation, pressing Start continues from that safe checkpoint. Score, lives and shield are retained; rings, act time and temporary power-ups restart. Completed acts remain completed even if the app restarts during the sign or results tally. Existing v0.0.1 visited acts migrate on update.
 
 Switching away pauses the game and audio. Returning shows Resume; held inputs cannot skip that screen. Android Back closes Rosie's conversation, then pauses gameplay; pressing Back while paused offers Exit. The host preserves local progress and provides Retry if the WebView renderer stops.
+
+## New in v0.0.6
+
+Neon Labyrinth adds Zone 3 Act 2 with four reservoirs, dry speed routes, shared Sonic water movement, repeated swim jumps, surface back-swimming, air bubbles and drowning recovery. Rosie follows throughout the act. Tap **Play Rosie / Play Scar** in the top bar (or press E on a keyboard) to switch characters; the other character follows. Swapping preserves momentum, inventory and remaining air.
+
+The native smoke test covers all eight acts and adds real WebView touch tests for the swap button, Rosie's repeated swim jumps, surface swimming and a complete Act 2 route with Scar following.
 
 ## Build and test
 

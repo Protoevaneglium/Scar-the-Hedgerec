@@ -89,6 +89,17 @@ When airborne sensors detect ground and the player lands at surface angle `angle
 
 ## 8. Engine Architecture & Implementation Notes (`public/sonic-engine.js`)
 
+### Shared Underwater Movement (Neon Labyrinth and Future Water Acts)
+
+Deep water opts in with `objects.waterZones: [{x0, x1, y, physics: true}]` (optional `bottom` and `current`). Existing shallow splash basins retain their established movement. All deep-water behavior lives in the shared Player/runtime, including touch and controller input.
+
+- Submerged acceleration/friction `6/256`, braking `64/256`, top running speed `3`, air acceleration `12/256`, gravity `16/256`, jump/stroke impulse `3.5`, release clamp `-2`. Momentum above top speed is retained. Entry halves horizontal speed and quarters vertical speed; an upward water exit doubles vertical speed up to the shared hard cap.
+- Every fresh Jump press underwater supplies another upward stroke. Holding Jump supplies one stroke; dry-air presses use the normal Drop Dash. This is Scar's requested swimming extension to classic water movement.
+- Hold S/Down while airborne near the surface to float on Scar's back. Left/Right steers up to `4.5`; releasing Down sinks, Jump exits, and shallow banks return to ground collision. A short re-entry lock lets a surface jump clear the water while Down remains held.
+- Breath lasts 1,800 gameplay frames (30 seconds) while the head is submerged. Surface air and collectible vent bubbles refill it; warning sounds start at 12 seconds and the final six seconds display a countdown. Shields and invincibility do not prevent drowning. Pause/hidden-tab behavior freezes the shared update clock. Death, stage changes and checkpoint placement reset swimming and breath.
+
+The `WATER_PHYS` table, entry/exit transitions, repeated stroke edges, breath, bubbles and surface controls are covered at 30/60/144 Hz by `tests/zone3_act2_test.js`.
+
 ### Analytical One-Sided Surface Primitives
 Rather than discrete 16x16 pixel heightmasks, [`public/sonic-engine.js`](public/sonic-engine.js) uses analytical C1-continuous surface primitives with exact mathematical tangents and one-sided normal filtering (`dot(rayDir, normal) < -0.15`):
 * **`LineSurface(x1, y1, x2, y2, layer)`**: Directed line segment where the outward surface normal points to the left of the vector `(x1, y1) -> (x2, y2)`.

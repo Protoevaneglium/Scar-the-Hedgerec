@@ -31,7 +31,7 @@ const trace = cp.spawn(adb, ['-s', serial, 'logcat', '-T', '1', 'ScarQA:I', 'Tes
 trace.on('error', () => {});
 let result;
 try {
-    // Seven-act rendering/lifecycle coverage plus native controller integration.
+    // Every campaign act, native controller integration, and Neon party/water.
     // Individual UI callbacks and the complete route retain their strict deadlines.
     const timeout = 900000;
     result = run(['shell', 'am', 'instrument', '-w', release.applicationId + '.test/androidx.test.runner.AndroidJUnitRunner'], true, timeout);
@@ -46,9 +46,10 @@ const report = { schema: 1, version: release.version, serial, passed, startedAt:
     checks: ['byte-for-byte offline WAV and MP4 ranges', 'title credit and intro Start', 'simultaneous movement and jump via native WebView MotionEvents',
         'native Xbox/controller title Start, buttons, left stick, D-pad hat, pause/resume, Rosie dialogue and unplug',
         'every campaign checkpoint and era', 'Mirage Aqueduct sprite models and complete native touch route',
+        'Neon Labyrinth native swap button, repeated swim jumps, surface swimming and complete Rosie route with Scar following',
         'pause/resume and rapid lifecycle churn', 'Rosie tag assist', 'activity recreation and persistent storage'],
     limitations: ['Android 15 emulator; physical phones, OS-level touch routing and Bluetooth controller hardware were not certified.'], log };
 fs.writeFileSync(path.join(root, 'output/qa/android-device.json'), JSON.stringify(report, null, 2) + '\n');
 console.log(log);
-if (passed) for (const image of ['title', 'arena', 'mirage']) run(['pull', '/sdcard/Android/data/' + release.applicationId + '/files/v' + release.version + '-android-' + image + '.png', path.join(root, 'output/qa/android-' + image + '.png')]);
+if (passed) for (const image of ['title', 'arena', 'mirage', 'neon']) run(['pull', '/sdcard/Android/data/' + release.applicationId + '/files/v' + release.version + '-android-' + image + '.png', path.join(root, 'output/qa/android-' + image + '.png')]);
 process.exitCode = passed ? 0 : 1;

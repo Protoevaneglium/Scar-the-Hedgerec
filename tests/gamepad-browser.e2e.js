@@ -42,7 +42,7 @@ async function run(){
                     await page.evaluate(()=>qaButton(0,true));await page.waitForFunction(()=>!sonicGame.player.grounded&&sonicGame.player.ysp<0);
                     await neutral();
                 }
-                report.checks.push(`${nativeOnly?'native HTTP':'Express HTTP'}: title Menu, held-button handoff, stick movement and A jump in all seven acts`);
+                report.checks.push(`${nativeOnly?'native HTTP':'Express HTTP'}: title Menu, held-button handoff, stick movement and A jump in all registered acts`);
                 await page.evaluate(()=>sonicGame.loadStage('palmtree',{skipTitleCard:true,skipFade:true}));await neutral();
                 await page.evaluate(()=>qaButton(9,true));await page.waitForFunction(()=>sonicGame.paused);await neutral();
                 const pausedX=await page.evaluate(()=>sonicGame.player.x);await page.waitForTimeout(150);assert.strictEqual(await page.evaluate(()=>sonicGame.player.x),pausedX);

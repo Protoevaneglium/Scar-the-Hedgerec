@@ -63,6 +63,7 @@
         isBossAct: false,         // true on Act 3 Boss Acts (adds ★ BOSS ACT ★ badge & Capsule finish)
         spritePresentation: 'volume', // Shared 2.5D sprite relief; keep movement and hitboxes in the 2D core.
         changingSkies: true,      // Shared day/dusk/night/dawn cycle; optional four-color-triple skyPalettes.
+        companion: null,         // Set 'rosie' for a following partner and E / on-screen character swapping.
         animalZone: 'ehz',        // Sonic 2 pair; alternatively animalTypes: ['flicky', 'ricky'].
         bgm: null,                // e.g. 'assets/zone2.mp3' (null = silent until track is chosen)
         startX: 0,
@@ -143,6 +144,12 @@
             platforms: [
                 // { x: 820, y: 430, w: 64, ampX: 60, ampY: 0, speed: 0.035 },
             ],
+
+            // Deep water uses the shared Sonic water movement, repeat Jump
+            // strokes, S/Down surface back-swimming and 30-second air supply.
+            // Leave physics unset for decorative ankle-deep splash basins.
+            waterZones: [ /* { x0: 700, x1: 1300, y: 420, physics: true } */ ],
+            airVents: [ /* { x: 1000, y: 530 } — place below the waterline */ ],
 
             // Original object kit — uses the same sprites, collision, sounds and reset as Act 1.
             swingPlatforms: [

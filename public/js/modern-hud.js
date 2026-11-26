@@ -104,7 +104,7 @@
 
             this.plate(ctx, 164, 104, 101, 37, 'rgba(4,23,51,.8)', 7);
             ctx.fillStyle = BLUE; ctx.beginPath(); ctx.arc(186,122,17,0,Math.PI*2); ctx.fill();
-            g.drawScarMiniIcon(ctx, 171, 108, 29, 27, true);
+            g.drawPlayerMiniIcon(ctx, 171, 108, 29, 27, true);
             this.text(ctx, '×', 204, 128, 17, CYAN);
             this.number(ctx, String(Math.max(0, p.lives === undefined ? 3 : p.lives)).padStart(2, '0'), 223, 112, 21);
 
@@ -119,6 +119,7 @@
             this.text(ctx, `ZONE ${String(meta.zone).padStart(2, '0')}  /  ${era}`, g.W - 34, 84, 10, CYAN, 'right');
 
             const badges = [];
+            if (p.companion) badges.push([`${p.character === 'rosie' ? 'ROSIE' : 'SCAR'}  ·  E TO SWAP`, '#ff97df']);
             if (p.shoesTimer > 0) badges.push([`SPEED UP  ${Math.ceil(p.shoesTimer / 60)}s`, '#ff7dac']);
             if (p.invincTimer > 0) badges.push([`INVINCIBLE  ${Math.ceil(p.invincTimer / 60)}s`, GOLD]);
             if (p.shield) badges.push(['SHIELD', CYAN]);
@@ -215,7 +216,7 @@
                 if (!this.sprite(ctx, 'praise', crop, 480 - width / 2, 204, width, height)) {
                     this.text(ctx, praise.toUpperCase() + '!', 480, 235, 28, GOLD, 'center');
                 }
-            } else this.text(ctx, 'SCAR GOT THROUGH!', 480, 232, 23, GOLD, 'center');
+            } else this.text(ctx, `${g.player.character === 'rosie' ? 'ROSIE' : 'SCAR'} GOT THROUGH!`, 480, 232, 23, GOLD, 'center');
             const row = (label, value, y, color, total) => {
                 this.plate(ctx, 200, y - 26, 558, total ? 43 : 35, total ? '#124b87' : '#0d2b50', 6);
                 ctx.fillStyle = color; ctx.fillRect(207,y-20,4,total ? 31 : 23);

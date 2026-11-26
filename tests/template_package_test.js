@@ -50,7 +50,8 @@ function assertCanonical(name, data) {
 const entries = readEntries(fs.readFileSync(path.join(root, 'public/downloads/scar-level-core-template.zip')));
 console.log('\nDownloadable starter integrity');
 for (const required of ['server.js', 'public/sonic-engine.js', 'public/css/game-ui.css', 'public/js/modern-hud.js',
-    'public/assets/palmtree_objects.png', 'public/assets/animals.png', 'public/assets/enemies.png']) {
+    'public/assets/palmtree_objects.png', 'public/assets/animals.png', 'public/assets/enemies.png',
+    'public/js/rosie-art.js', 'public/assets/rosie.png']) {
     assert(entries.has(required), `starter must include ${required}`);
 }
 // Compare every copied payload to current source, allowing only its intended EOL
@@ -61,6 +62,7 @@ for (const [name, file] of entries) {
     let source = name;
     if (name === 'README.md' || name === 'LEVEL_CORE_BLUEPRINT.md') source = 'templates/LEVEL_CORE_BLUEPRINT.md';
     if (name.startsWith('public/levels/')) source = 'templates/' + path.basename(name);
+    if (name === 'public/js/rosie-art.js') source = 'public/levels/rosie.js';
     assert(file.data.equals(sourceBytes(name, fs.readFileSync(path.join(root, source)))),
         `rebuild the starter after changing ${source}`);
 }
@@ -92,6 +94,7 @@ const inputs = ['templates/LEVEL_CORE_BLUEPRINT.md', 'templates/level_template.j
     'public/js/sprite-model-data.js', 'public/js/sprite-models.js', 'public/assets/models',
     'public/assets/scar_sheet.png', 'public/assets/common_objects.png', 'public/assets/animals.png',
     'public/assets/animals.txt', 'public/assets/palmtree_objects.png', 'public/assets/palmtree_map.png',
+    'public/levels/rosie.js', 'public/assets/rosie.png',
     'public/assets/enemies.png', 'public/assets/enemies_act2.png', 'public/assets/jump.wav', 'public/assets/rings.wav', 'public/assets/goalpost.wav',
     'public/assets/ui', 'public/assets/sfx', 'public/assets/enemy_sources'];
 const binary = Buffer.from([0, 13, 10, 255, 128, 10, 13, 0]);

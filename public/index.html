@@ -12,6 +12,7 @@
     <canvas id="game" tabindex="0" aria-label="Scar the Hedgerec gameplay"></canvas>
     <nav id="top-bar" aria-label="Stage controls">
         <button class="chip gold" id="btn-stage" title="Switch Stage (M)">Stage: Act 1</button>
+        <button class="chip" id="btn-swap" title="Swap Scar and Rosie (E)" hidden>Play Rosie · E</button>
         <button class="chip on" id="btn-era" title="Cycle Time Era (T)">Time: Good Future</button>
         <button class="chip" id="btn-hud" aria-pressed="false" title="Tab / G">Debug Sensors: OFF</button>
         <button class="chip on" id="btn-audio" aria-pressed="true">Audio: ON</button>
@@ -79,6 +80,8 @@
 <script src="levels/zone2_act3.js"></script>
 <script src="levels/zone3_act1_art.js"></script>
 <script src="levels/zone3_act1.js"></script>
+<script src="levels/zone3_act2_art.js"></script>
+<script src="levels/zone3_act2.js"></script>
 <script>
 'use strict';
 const { PHYS, HITBOX, STATE, Terrain, Player, MODE_FRAMES, PALMTREE_SPRITES, toDeg, TAU } = window.SonicEngine;
@@ -371,6 +374,10 @@ class RetroAudio {
         if (!this.playWav('jump', 0.5)) this.tone('square', 320, 760, 0.16, 0.12);
     }
     roll() { this.noise(0.12, 900, 0.1); }
+    waterSplash() { this.noise(.22, 1400, .13); this.tone('sine', 260, 90, .18, .06); }
+    swimStroke() { this.tone('sine', 240, 480, .13, .09); }
+    airBubble() { this.tone('sine', 390, 1040, .18, .12); this.tone('sine', 620, 1450, .14, .08, .08); }
+    drowningWarning() { this.tone('square', 740, 740, .10, .075); this.tone('square', 590, 590, .12, .075, .13); }
     rev(r) { this.tone('sawtooth', 240 + r * 50, 380 + r * 60, 0.1, 0.12); }
     release() { this.tone('triangle', 700, 200, 0.25, 0.2); this.noise(0.2, 600, 0.12); }
     land() { this.tone('sine', 150, 50, 0.08, 0.14); }
@@ -509,7 +516,7 @@ class InputHandler {
             ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down',
             Space: 'jump', KeyZ: 'jump', KeyX: 'jump', Enter: 'jump',
         };
-        const SWALLOW = new Set([...Object.keys(KEY), 'KeyC', 'KeyP', 'Escape', 'Tab']);
+        const SWALLOW = new Set([...Object.keys(KEY), 'KeyC', 'KeyE', 'KeyP', 'Escape', 'Tab']);
         window.addEventListener('keydown', (e) => {
             audio.unlock();
             if (SWALLOW.has(e.code)) e.preventDefault();
@@ -544,6 +551,10 @@ class InputHandler {
             }
             if (!talking && (e.code === 'KeyP' || e.code === 'Escape')) {
                 if (!e.repeat) this.actions.push({ type: 'pause' });
+                return;
+            }
+            if (e.code === 'KeyE') {
+                if (!talking && !e.repeat) this.actions.push({ type: 'swapCharacter' });
                 return;
             }
             const k = KEY[e.code];
@@ -1107,7 +1118,8 @@ class Game {
         if (!Number.isSafeInteger(score) || score < 0 || score > 1000000000
             || !Number.isInteger(lives) || lives < 1 || lives > 999) return false;
         try {
-            localStorage.setItem(this.progressKey(), JSON.stringify({ version: 1, stage, checkpoint, score, lives, shield }));
+            const character = stage === this.stageName && p.companion ? p.character : 'scar';
+            localStorage.setItem(this.progressKey(), JSON.stringify({ version: 1, stage, checkpoint, score, lives, shield, character }));
             return true;
         } catch (_) { return false; }
     }
@@ -1145,6 +1157,11 @@ class Game {
             marbleSlide: (_data, p) => { audio.roll(); this.dust(p, 6, -p.facing, 3, '#ffd870'); },
             waterSlide: (_data, p) => { audio.roll(); this.dust(p, 6, -p.facing, 3, '#b5fff0'); },
             waterJet: (_data, p) => { audio.bouncePole(); this.dust(p, 12, -p.facing, 3.8, '#a9f8f0'); },
+            waterSplash: () => audio.waterSplash(),
+            swimStroke: () => audio.swimStroke(),
+            airBubble: () => audio.airBubble(),
+            drowningWarning: () => audio.drowningWarning(),
+            characterSwap: () => { this.scarTrail.length = 0; audio.rosieHop(); this.saveProgress(); },
             rosieReunion: () => audio.rosieReunion(),
             rosieTalk: () => audio.rosieTalk(),
             rosieHop: () => audio.rosieHop(),
@@ -1154,7 +1171,7 @@ class Game {
             spindashRev: (rev, p) => { audio.rev(rev); this.dust(p, 5, -p.facing, 2.5); },
             spindashRelease: (v, p) => { audio.release(); this.dust(p, 8, -p.facing, 3.5); },
             peeloutRev: (charge, p) => { audio.peeloutRev(charge); this.dust(p, 2, -p.facing, 2.2, '#00e5ff'); },
-            peeloutRelease: (v, p) => { audio.peeloutRelease(); audio.scarVoice('outtaHere'); this.dust(p, 12, -p.facing, 4.4, '#ff2a85'); },
+            peeloutRelease: (v, p) => { audio.peeloutRelease(); if (p.character !== 'rosie') audio.scarVoice('outtaHere'); this.dust(p, 12, -p.facing, 4.4, '#ff2a85'); },
             dropDashReady: (_data, p) => { audio.dropDashReady(); this.dust(p, 6, -p.facing, 2.5, '#00e5ff'); },
             dropDash: (v, p) => { audio.dropDashRelease(); this.dust(p, 11, -p.facing, 4.2, '#00e5ff'); },
             dashRing: (dr, p) => { audio.dashRing(); this.dust(p, 12, -p.facing, 4.6, '#ff2a85'); },
@@ -1180,7 +1197,7 @@ class Game {
                 // edge of this frozen view (sprite is ~48px tall above his origin) before the life is lost.
                 p.deathOffscreenY = this.camY + this.H + 64;
             },
-            oneUp: () => { audio.oneUp(); audio.scarVoice('yes'); },
+            oneUp: (_data, p) => { audio.oneUp(); if (p.character !== 'rosie') audio.scarVoice('yes'); },
             gameOver: () => { this.gameOverTimer = 0; audio.gameOver(); this.saveProgress(); },
             bouncePole: (bp, p) => { audio.bouncePole(); this.dust(p, 6, 1, 2.2); },
             spinner: () => audio.spinner(),
@@ -1194,7 +1211,7 @@ class Game {
             timePost: () => audio.timePost(),
             checkpoint: (cp) => { audio.timePost(); this.cpIndex = this.nearestCheckpointIndex(cp); this.updateCpButton(); this.saveProgress(); },
             timeWarp: () => { audio.timeWarp(); this.updateEraButton(); },
-            goalPost: () => { audio.goalPost(); audio.scarVoice('alright'); this.saveProgress(); },
+            goalPost: (_data, p) => { audio.goalPost(); if (p.character !== 'rosie') audio.scarVoice('alright'); this.saveProgress(); },
         });
 
         if (carryover) {
@@ -1245,6 +1262,9 @@ class Game {
             this.player.place(cp.x, 0, cp.y);
             this.player.score = saved.score; this.player.lives = saved.lives; this.player.shield = saved.shield;
             this.player.invulnTimer = 120;
+            if (this.player.companion && saved.character === 'rosie') {
+                this.player.character = 'rosie'; this.player.companion.character = 'scar';
+            }
         }
 
         this.snapCamera();
@@ -1348,6 +1368,10 @@ class Game {
         blurAfter(rst, () => this.resetCurrentStage());
         document.getElementById('btn-pause')?.addEventListener('click', () => this.setPaused(!this.paused));
         document.getElementById('btn-resume')?.addEventListener('click', () => this.setPaused(false));
+        document.getElementById('btn-swap')?.addEventListener('click', () => {
+            audio.unlock(); this.input.actions.push({ type: 'swapCharacter' });
+            document.getElementById('btn-swap').blur();
+        });
         document.getElementById('btn-talk')?.addEventListener('click', () => {
             audio.unlock(); this.input.actions.push({ type: 'talk' });
         });
@@ -1701,6 +1725,8 @@ class Game {
         for (const a of actions) {
             if (a.type === 'pause') this.setPaused(!this.paused);
             if (a.type === 'resume') this.setPaused(false);
+            if (a.type === 'swapCharacter' && !this.paused && !beganPaused && !this.titleCard && !this.actClear
+                && !this.rosieConversationView()?.open) this.player.swapCharacter();
             if (a.type === 'reset') this.resetCurrentStage();
             if (a.type === 'stage') this.toggleStage();
             if (a.type === 'era') this.cycleEra();
@@ -1953,7 +1979,9 @@ class Game {
 
         if (this.showDebug) this.drawLoopDebug(ctx);
         this.drawParticles(ctx);
+        if (this.player.companion) this.drawPlayer(ctx, this.player.companion);
         this.drawPlayer(ctx);
+        this.drawDeepWater(ctx);
         if (this.terrain.levelDef && typeof this.terrain.levelDef.drawForeground === 'function') {
             this.terrain.levelDef.drawForeground(ctx, this);
         }
@@ -1966,6 +1994,7 @@ class Game {
         }
 
         this.drawSonicCDHUD(ctx);
+        this.drawWaterHUD(ctx);
         if (this.terrain.levelDef && typeof this.terrain.levelDef.drawHUD === 'function') {
             this.terrain.levelDef.drawHUD(ctx, this);
         }
@@ -2489,6 +2518,7 @@ class Game {
     drawWaterSurface(ctx) {
         const t = performance.now() * 0.004;
         for (const wz of this.terrain.waterZones) {
+            if (wz.physics || this.terrain.levelDef?.waterPhysics) continue;
             if (wz.x1 < this.view.x0 || wz.x0 > this.view.x1) continue;
             ctx.fillStyle = 'rgba(120, 160, 255, 0.45)';
             ctx.fillRect(wz.x0, wz.y - 6, wz.x1 - wz.x0, 14);
@@ -2506,6 +2536,49 @@ class Game {
                 this.drawSprite(ctx, rect, sp.x - rect.w / 2, sp.y - rect.h);
             }
         }
+    }
+
+    drawDeepWater(ctx) {
+        const v = this.view, t = this.terrain;
+        for (const w of t.waterZones) {
+            if (!(w.physics || t.levelDef?.waterPhysics) || w.x1 < v.x0 || w.x0 > v.x1 || w.y > v.y1) continue;
+            const x0 = Math.max(w.x0, v.x0), x1 = Math.min(w.x1, v.x1);
+            ctx.save(); ctx.beginPath(); ctx.moveTo(x0, w.y); ctx.lineTo(x1, w.y);
+            for (let x = x1; x > x0; x -= 12) ctx.lineTo(x, Math.max(w.y, Math.min(w.bottom ?? t.deathY, t.mainFloor?.f(x) ?? t.deathY)));
+            ctx.lineTo(x0, Math.max(w.y, t.mainFloor?.f(x0) ?? t.deathY)); ctx.closePath(); ctx.clip();
+            const gradient = ctx.createLinearGradient(0, w.y, 0, w.y + 600);
+            gradient.addColorStop(0, 'rgba(27,218,255,.13)'); gradient.addColorStop(1, 'rgba(26,54,184,.30)');
+            ctx.fillStyle = gradient; ctx.fillRect(x0, w.y, x1-x0, Math.max(0, v.y1-w.y));
+            ctx.strokeStyle = '#b5ffff'; ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let x = x0; x <= x1; x += 8) {
+                const y = w.y + Math.sin(x*.04+t.clock*.065)*2;
+                if (x === x0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+            } ctx.stroke();
+            for (let x = Math.floor(x0/140)*140; x < x1; x += 140) {
+                const y = w.y+20+((x*7-t.clock*.45)%380+380)%380;
+                ctx.strokeStyle = 'rgba(170,255,255,.4)'; ctx.beginPath(); ctx.arc(x,y,2,0,TAU); ctx.stroke();
+            }
+            ctx.restore();
+        }
+        for (const b of t.airVents || []) {
+            if (b.cooldown || b.x < v.x0-20 || b.x > v.x1+20) continue;
+            ctx.save(); ctx.strokeStyle='#d4ffff'; ctx.lineWidth=2;
+            ctx.fillStyle='rgba(110,246,255,.24)'; ctx.beginPath(); ctx.arc(b.x,b.bubbleY,11,0,TAU); ctx.fill(); ctx.stroke();
+            ctx.beginPath(); ctx.arc(b.x-3,b.bubbleY-3,4,Math.PI,Math.PI*1.6); ctx.stroke(); ctx.restore();
+        }
+    }
+
+    drawWaterHUD(ctx) {
+        const p=this.player;
+        if (!p.inWater || p.state===STATE.DYING || this.actClear || this.titleCard?.timer>0) return;
+        const seconds=Math.ceil(p.airRemaining/60), width=Math.min(220,this.W*.32), x=this.W/2-width/2, y=this.H-52;
+        ctx.save(); ctx.fillStyle='rgba(7,15,49,.88)';ctx.fillRect(x-10,y-18,width+20,32);
+        ctx.font='11px monospace';ctx.textAlign='left';ctx.fillStyle=seconds<=12?'#ffce63':'#bcffff';
+        ctx.fillText('AIR '+seconds+'s',x,y-5);ctx.fillRect(x,y+2,width*(p.airRemaining/SonicEngine.AIR_FRAMES),4);
+        if(seconds<=6){ctx.textAlign='center';ctx.font='bold 28px monospace';ctx.fillStyle='#fff4be';ctx.strokeStyle='#16204c';ctx.lineWidth=4;
+            ctx.strokeText(String(Math.max(0,seconds-1)),this.W/2,this.H/2-48);ctx.fillText(String(Math.max(0,seconds-1)),this.W/2,this.H/2-48);}
+        ctx.restore();
     }
 
     drawTunnelsBack(ctx) {
@@ -3300,10 +3373,9 @@ class Game {
     }
 
     /* ---------------- Scar the Hedgerec sprite & animation machine ---------------- */
-    drawPlayer(ctx) {
-        const p = this.player;
+    drawPlayer(ctx, p = this.player) {
         // Render multi-echo high-speed afterimage trail behind Scar
-        if (this.scarTrail && this.scarTrail.length && this.scarSheetLoaded) {
+        if (p === this.player && this.scarTrail && this.scarTrail.length && this.scarSheetLoaded) {
             for (const tr of this.scarTrail) {
                 const alpha = Math.max(0, (tr.life / tr.max) * 0.34);
                 if (alpha <= 0.02) continue;
@@ -3317,11 +3389,16 @@ class Game {
                 } else {
                     ctx.rotate(-tr.visualAngle);
                     ctx.scale(tr.facing, 1);
-                    const frame = SCAR_FRAMES[tr.frameIdx] || SCAR_FRAMES[3];
-                    const dx = -frame.anchorX;
-                    const dy = HITBOX.STAND.height - frame.anchorY;
-                    ctx.imageSmoothingEnabled = false;
-                    this.drawModelSprite(ctx, this.scarSheet, frame.sx, 0, 48, 48, dx, dy, 48, 48);
+                    if (p.character === 'rosie' && window.RosieArt) {
+                        window.RosieArt.draw(ctx, 0, HITBOX.STAND.height, this.terrain.clock,
+                            { state:'walk', facing:1, animationClock:(p.runPhase || 0)*2.5 });
+                    } else {
+                        const frame = SCAR_FRAMES[tr.frameIdx] || SCAR_FRAMES[3];
+                        const dx = -frame.anchorX;
+                        const dy = HITBOX.STAND.height - frame.anchorY;
+                        ctx.imageSmoothingEnabled = false;
+                        this.drawModelSprite(ctx, this.scarSheet, frame.sx, 0, 48, 48, dx, dy, 48, 48);
+                    }
                 }
                 ctx.restore();
             }
@@ -3330,6 +3407,10 @@ class Game {
         ctx.save();
         ctx.translate(Math.round(p.x), Math.round(p.y));
         if (p.state === STATE.DYING) {
+            this.drawBody(ctx, p);
+        } else if (p.surfaceSwimming) {
+            ctx.scale(p.facing, 1);
+            ctx.rotate(-Math.PI/2 + Math.sin(this.terrain.clock*.12)*.07);
             this.drawBody(ctx, p);
         } else if (p.curled) {
             this.drawBall(ctx, p);
@@ -3368,8 +3449,8 @@ class Game {
             ctx.restore();
         }
         ctx.rotate(p.ballSpin);
-        ctx.fillStyle = BLUE_D; ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.fill();
-        ctx.fillStyle = BLUE;
+        ctx.fillStyle = p.character === 'rosie' ? '#8c2d78' : BLUE_D; ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.fill();
+        ctx.fillStyle = p.character === 'rosie' ? '#f474bf' : BLUE;
         for (let i = 0; i < 5; i++) {
             const a = i * TAU / 5;
             ctx.beginPath();
@@ -3401,6 +3482,7 @@ class Game {
      * and transition cadence to use based on player state and ground/air speed.
      */
     selectScarFrame(p, speed) {
+        if (p.isCompanion) return speed < .1 ? 0 : (speed < 4.2 ? 1 : 3) + Math.floor(p.runPhase || 0) % 2;
         // Classic Sonic Death Animation: shocked wide-eyed hands-up pose (5) on initial leap,
         // transitioning into head-back screaming fall pose (6) alternating with (5) on descent!
         if (p.state === STATE.DYING) {
@@ -3479,6 +3561,12 @@ class Game {
 
     drawBody(ctx, p) {
         const speed = Math.abs(p.grounded ? p.gsp : p.xsp);
+        if (p.character === 'rosie' && window.RosieArt) {
+            window.RosieArt.draw(ctx, 0, HITBOX.STAND.height, this.terrain.clock, {
+                state: !p.grounded || p.state === STATE.DYING ? 'hop' : speed > .1 || p.state === STATE.PEELOUT ? 'walk' : 'idle',
+                facing: 1, animationClock: speed > .1 ? (p.runPhase || 0) * 2.5 : this.terrain.clock });
+            return;
+        }
         const frameIdx = this.selectScarFrame(p, speed);
         const frame = SCAR_FRAMES[frameIdx] || SCAR_FRAMES[0];
 
@@ -3605,7 +3693,20 @@ class Game {
     }
 
     /* ---------------- Unleashed / Colors canvas interface ---------------- */
+    drawPlayerMiniIcon(ctx, x, y, w, h, withBg) {
+        if (this.player.character !== 'rosie' || !window.RosieArt) return this.drawScarMiniIcon(ctx,x,y,w,h,withBg);
+        ctx.save();ctx.translate(x+w/2,y+h);ctx.scale(w/36,h/46);
+        window.RosieArt.draw(ctx,0,0,0,{state:'idle',facing:1,animationClock:0});ctx.restore();
+    }
+
     drawSonicCDHUD(ctx) {
+        const swap = document.getElementById('btn-swap');
+        if (swap) {
+            swap.hidden = !this.player.companion;
+            swap.disabled = this.paused || !!this.titleCard || !!this.actClear || this.player.gameOver || this.player.state === STATE.DYING
+                || !!this.terrain.goalPost?.spinning || !!this.terrain.goalPost?.cleared;
+            swap.textContent = this.player.character === 'rosie' ? 'Play Scar · E' : 'Play Rosie · E';
+        }
         this.ui.drawHUD(ctx);
     }
 
@@ -3679,7 +3780,10 @@ class Game {
         ctx.fill();
 
         // Scar sprite (pivot at feet)
-        if (this.scarSheetLoaded && this.scarSheet.naturalWidth > 0) {
+        if (this.player.character === 'rosie' && window.RosieArt) {
+            ctx.save();ctx.translate(Math.round(px),Math.round(py));ctx.rotate(angle);ctx.scale(S,S);
+            window.RosieArt.draw(ctx,0,0,T,{state:T<FAINT.toppleStart?'idle':'hop',facing:1});ctx.restore();
+        } else if (this.scarSheetLoaded && this.scarSheet.naturalWidth > 0) {
             const fr = SCAR_FRAMES[frameIdx] || SCAR_FRAMES[0];
             ctx.save();
             ctx.imageSmoothingEnabled = false;

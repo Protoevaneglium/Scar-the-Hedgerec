@@ -413,6 +413,13 @@
         blockThing:       { x: 477, y: 535, w: 32,  h: 16 },
     });
 
+    // Classic submerged movement is opt-in per water region. Legacy ankle-deep
+    // splash basins keep their existing dry movement rules.
+    const WATER_PHYS = Object.freeze({ ...PHYS, ACC: 6 / 256, DEC: 64 / 256,
+        FRC: 6 / 256, TOP: 3, AIR_ACC: 12 / 256, GRV: 16 / 256,
+        JMP: 3.5, JMP_RELEASE_CAP: -2, ROLL_FRC: 3 / 256, ROLL_DEC: 16 / 256 });
+    const AIR_FRAMES = 30 * 60;
+
     /* ======================================================================
        PART 2/5 — TERRAIN + COURSES (GREEN HILL TEST & PALMTREE PANIC ACT 1)
        ====================================================================== */
@@ -428,6 +435,7 @@
             this.tunnels = [];
             this.waterfalls = [];
             this.waterZones = [];
+            this.airVents = [];
             this.palmTrees = [];
             this.plants = [];
             this.flowers = [];
@@ -591,7 +599,8 @@
                 cooldown: 0,
                 flash: 0,
             }));
-            this.waterZones = (src.waterZones || []).map((d) => ({ x0: d.x0, x1: d.x1, y: d.y }));
+            this.waterZones = (src.waterZones || []).map((d) => ({ ...d }));
+            this.airVents = (src.airVents || []).map(d => ({ ...d, bubbleY: d.y, cooldown: 0 }));
             this.timePosts = (src.timePosts || []).map((d) => ({ spin: 0, active: false, ...d }));
 
             // Common Sonic Foundation Objects (TV Monitors, Checkpoint Star Posts, Springs, Spikes, Big Ring, Goal Post)
@@ -1459,6 +1468,19 @@
             if (this.stage !== 'palmtree' && !this.hasObjects) return;
             this.clock += h;
 
+            // One reusable air bubble per vent; no growing particle collection.
+            for (const vent of this.airVents) {
+                vent.cooldown = Math.max(0, vent.cooldown - h);
+                const water = this.waterZones.find(w => vent.x >= w.x0 && vent.x <= w.x1);
+                if (!water) continue;
+                vent.bubbleY -= .7 * h;
+                if (vent.bubbleY < water.y + 10) vent.bubbleY = vent.y;
+                if (!vent.cooldown && player.inWater && Math.hypot(player.x - vent.x, player.y - vent.bubbleY) < 26) {
+                    player.breathe(); player.emit('airBubble');
+                    vent.cooldown = 100; vent.bubbleY = vent.y;
+                }
+            }
+
             // 1. Moving Platforms
             for (const p of this.platforms) {
                 const nx = p.baseX + Math.sin(this.clock * p.speed + p.phase) * p.ampX;
@@ -2029,6 +2051,81 @@
     /* ======================================================================
        PART 3/4 — PLAYER: 6-SENSOR RIG + STATE MACHINE
        ====================================================================== */
+    // The partner retraces the leader's actual collision-resolved route. It
+    // never advances the world clock, collects objects or spends shared lives.
+    class FollowCompanion {
+        constructor(player) { this.reset(player); }
+        snapshot(p) {
+            const pose = {};
+            for (const key of ['x','y','xsp','ysp','gsp','angle','visualAngle','state','curled','facing','layer',
+                'surfaceSwimming','inWater','ballSpin','runPhase','springTwirl','springTwirlPhase','wallSlide','wallKickTimer']) pose[key] = p[key];
+            pose.grounded = p.grounded; pose.radii = p.radii;
+            return pose;
+        }
+        reset(p) {
+            this.character = p.character === 'rosie' ? 'scar' : 'rosie';
+            this.isCompanion = true; this.invulnTimer = this.invincTimer = this.shoesTimer = 0;
+            this.shield = this.hurtPose = this.dropDashReady = false;
+            const start = this.snapshot(p), x = Math.max(p.terrain.startX + 24, p.x - p.facing * 60);
+            const floor = p.terrain.getSurfaceAt(x, p.y - p.radii.height, p.layer);
+            if (floor && Math.abs(floor.y - (p.y + p.radii.height)) < 80) {
+                start.x = x; start.y = floor.y - p.radii.height; start.angle = start.visualAngle = floor.angle;
+            }
+            Object.assign(this, start);
+            this.history = [start, this.snapshot(p)];
+            this.leaderX = p.x; this.leaderY = p.y; this.idleFrames = 0;
+        }
+        update(p, h) {
+            if (p.gameOver || p.state === STATE.DYING) return;
+            const current = this.snapshot(p), tail = this.history[this.history.length - 1];
+            if (Math.hypot(current.x-tail.x, current.y-tail.y) >= 2) {
+                this.history.push(current);
+                if (this.history.length > 128) this.history.shift();
+            }
+            const still = Math.hypot(p.x-this.leaderX, p.y-this.leaderY) < .001 && p.grounded && Math.abs(p.gsp) < .1;
+            this.idleFrames = still ? this.idleFrames + h : 0;
+            this.leaderX = p.x; this.leaderY = p.y;
+            const platform = p.grounded && p.groundSurface?.ownerPlatform;
+            if (platform && Math.abs(p.gsp) < .1 && Math.hypot(p.x-this.x,p.y-this.y) < 180) {
+                Object.assign(this, current);
+                const half = (platform.w || 48) / 2;
+                this.x = clamp(p.x-p.facing*Math.min(32,half*.6),platform.x-half+10,platform.x+half-10);
+                return;
+            }
+            // A stopped partner finishes its fall instead of hanging at a
+            // mid-jump trail point. The real floor probe also settles ledges.
+            if (this.idleFrames > 2) {
+                const floor = p.terrain.getSurfaceAt(this.x, this.y-this.radii.height-3, this.layer);
+                if (floor && floor.y >= this.y-this.radii.height && floor.y-this.y < 500) {
+                    this.ysp = Math.max(0, this.ysp) + (this.inWater ? WATER_PHYS.GRV : PHYS.GRV) * h;
+                    this.y += this.ysp * h;
+                    if (this.y + this.radii.height >= floor.y) {
+                        this.curled = false; this.radii = HITBOX.STAND;
+                        this.y = floor.y-this.radii.height; this.ysp = 0;
+                        this.grounded = true; this.state = STATE.STANDING;
+                        this.angle = this.visualAngle = floor.angle;
+                    }
+                }
+                this.xsp = this.gsp = 0;
+                if (Math.abs(p.x-this.x) > 3) this.facing = sign(p.x-this.x);
+                return;
+            }
+            let ahead = current, remaining = 60, target = this.history[0];
+            for (let i = this.history.length-1; i >= 0; i--) {
+                const behind = this.history[i], length = Math.hypot(ahead.x-behind.x, ahead.y-behind.y);
+                if (length > 0 && remaining <= length) {
+                    const f = remaining/length;
+                    target = { ...(f < .5 ? ahead : behind), x:ahead.x+(behind.x-ahead.x)*f,
+                        y:ahead.y+(behind.y-ahead.y)*f,
+                        visualAngle:wrapAngle(ahead.visualAngle+wrapSigned(behind.visualAngle-ahead.visualAngle)*f) };
+                    break;
+                }
+                remaining -= length; ahead = behind;
+            }
+            Object.assign(this, target);
+        }
+    }
+
     class Player {
         constructor(terrain, events) {
             this.terrain = terrain;
@@ -2101,6 +2198,7 @@
             this.hurtPose = false;
             this.onCoasterRail = false;
             this.onMarbleSlide = false;
+            this.inWater = false; this.surfaceSwimming = false; this.waterZone = null;
             this.dropDashCharging = false;
             this.dropDashCharge = 0;
             this.dropDashReady = false;
@@ -2191,8 +2289,17 @@
             this.ballSpin = 0;
             this.runPhase = 0;
             this.airMotion = 'down';
+            this.inWater = false; this.surfaceSwimming = false; this.waterZone = null;
+            this.airRemaining = AIR_FRAMES; this.drownTick = -1;
+            this.surfaceSwimLock = 0;
             this.groundSurface = hit ? hit.surface : null;
             if (hit) this.groundSensors();
+            this.syncWater({}, 0, false, false, true);
+            this.character = this.character || 'scar';
+            if (this.terrain.levelDef?.companion === 'rosie') {
+                if (this.companion) this.companion.reset(this);
+                else this.companion = new FollowCompanion(this);
+            } else this.companion = null;
         }
 
         respawn() {
@@ -2237,6 +2344,8 @@
                 this.stepDying(h);
                 return;
             }
+            this.syncWater(inp, h, jumpPressed);
+            if (this.state === STATE.DYING) return;
             if (this.boostTrailTimer > 0) this.boostTrailTimer = Math.max(0, this.boostTrailTimer - h);
             if (this.terrain.updateObjects) this.terrain.updateObjects(this, h, { ...inp, jumpPressed, upPressed });
             if (this.state === STATE.DYING) return;
@@ -2248,13 +2357,83 @@
                 this.uncurl();
                 if (this.grounded) { this.state = STATE.STANDING; this.ysp = 0; }
             }
-            if (this.state === STATE.SPINDASH) this.stepSpindash(inp, h, jumpPressed);
+            if (this.surfaceSwimming) this.stepSurfaceSwim(inp, h, jumpPressed);
+            else if (this.state === STATE.SPINDASH) this.stepSpindash(inp, h, jumpPressed);
             else if (this.state === STATE.PEELOUT) this.stepPeelout(inp, h, jumpPressed);
             else if (this.state === STATE.AIRBORNE) this.stepAirborne(inp, h, jumpPressed);
             else this.stepGrounded(inp, h, jumpPressed);
+            this.syncWater(inp, 0, jumpPressed, false);
             this.checkGates();
             this.updateCosmetics(h);
+            if (this.companion) this.companion.update(this, h);
             if (this.y > this.terrain.deathY) { this.die('GAME OVER', true); }
+        }
+
+        swapCharacter() {
+            if (!this.companion || this.gameOver || this.state === STATE.DYING
+                || this.terrain.goalPost?.spinning || this.terrain.goalPost?.cleared) return false;
+            this.character = this.character === 'rosie' ? 'scar' : 'rosie';
+            this.companion.character = this.character === 'rosie' ? 'scar' : 'rosie';
+            this.emit('characterSwap', this.character);
+            return true;
+        }
+
+        breathe() { this.airRemaining = AIR_FRAMES; this.drownTick = -1; }
+
+        syncWater(inp, h, jumpPressed, allowSwim = true, initializing = false) {
+            this.surfaceSwimLock = Math.max(0, (this.surfaceSwimLock || 0) - h);
+            const zones = this.terrain.waterZones || [];
+            const zone = zones.find(w => (w.physics || this.terrain.levelDef?.waterPhysics)
+                && this.x >= w.x0 && this.x <= w.x1 && this.y < (w.bottom ?? Infinity));
+            const wasWet = this.inWater;
+            if (this.surfaceSwimming && (!zone || !inp.down || this.grounded || this.hurtPose)) this.surfaceSwimming = false;
+            if (allowSwim && !this.surfaceSwimLock && zone && inp.down && !jumpPressed && !this.grounded && !this.hurtPose
+                && Math.abs(this.y - zone.y) < 36 && this.y - this.radii.height <= zone.y) {
+                this.surfaceSwimming = true; this.uncurl();
+                this.jumped = this.springTwirl = false;
+                this.dropDashReady = this.dropDashCharging = false; this.dropDashCharge = 0;
+            }
+            this.waterZone = zone || null;
+            this.inWater = !!(zone && this.y > zone.y && !this.surfaceSwimming);
+            if (!initializing && wasWet !== this.inWater) {
+                if (this.inWater) {
+                    this.gsp *= .5; this.xsp *= .5; this.ysp *= .25;
+                    this.dropDashReady = this.dropDashCharging = false; this.dropDashCharge = 0;
+                }
+                else if (this.ysp < 0 && !this.surfaceSwimming) this.ysp = Math.max(-PHYS.MAX_SPEED, this.ysp * 2);
+                this.terrain.spawnWaterSplash(this.x, zone?.y ?? this.prevY, 'burst');
+                this.emit('waterSplash');
+            }
+            const finished = this.terrain.goalPost?.spinning || this.terrain.goalPost?.cleared;
+            if (!zone || this.y - this.radii.height <= zone.y || this.surfaceSwimming || finished) this.breathe();
+            else if (h > 0) {
+                this.airRemaining = Math.max(0, this.airRemaining - h);
+                const tick = Math.ceil(this.airRemaining / 60);
+                if (tick <= 12 && tick !== this.drownTick) { this.drownTick = tick; this.emit('drowningWarning', tick); }
+                if (this.airRemaining <= 0) this.die('DROWNED');
+            }
+        }
+
+        stepSurfaceSwim(inp, h, jumpPressed) {
+            if (jumpPressed) {
+                this.surfaceSwimLock = 20;
+                this.surfaceSwimming = false; this.ysp = -PHYS.JMP;
+                this.curl(); this.jumped = true; this.emit('jump');
+                this.stepAirborne(inp, h, false); return;
+            }
+            const dir = inp.left ? -1 : inp.right ? 1 : 0;
+            if (dir) { this.facing = dir; this.xsp += dir * WATER_PHYS.AIR_ACC * h; }
+            else this.xsp *= Math.pow(.98, h);
+            this.xsp = clamp(this.xsp, -4.5, 4.5);
+            this.ysp = clamp((this.waterZone.y - 6 - this.y) * .18, -1.8, 1.8);
+            if (Math.abs(this.ysp) < .001) this.ysp = 0;
+            const shore = this.terrain.getSurfaceAt(this.x, this.y - this.radii.height, this.layer);
+            if (shore && shore.y <= this.waterZone.y + this.radii.height + 12) {
+                this.surfaceSwimming = false; this.ysp = Math.max(.1, this.ysp);
+            }
+            this.angle = this.visualAngle = 0; this.mode = 0;
+            this.x += this.xsp * h; this.y += this.ysp * h;
+            this.airSensors();
         }
 
         /* ---------- curl / uncurl (spec §2: ±5px toward the floor normal) ---------- */
@@ -2274,7 +2453,7 @@
 
         /* ---------- GROUNDED: STANDING / RUNNING / ROLLING ---------- */
         stepGrounded(inp, h, jumpPressed) {
-            const P = PHYS;
+            const P = this.inWater ? WATER_PHYS : PHYS;
             const hasShoes = !!(this.shoesTimer && this.shoesTimer > 0);
             const top = hasShoes ? P.TOP * 2 : P.TOP;
             const acc = hasShoes ? P.ACC * 2 : P.ACC;
@@ -2410,14 +2589,15 @@
         }
 
         jump() {
+            const P = this.inWater ? WATER_PHYS : PHYS;
             const a = this.angle;
             // Inherit any moving/swinging platform velocity
             const plat = this.groundSurface && this.groundSurface.ownerPlatform;
             const pvx = plat ? (Number.isFinite(plat.velocityX) ? plat.velocityX : plat.dx || 0) : 0;
             const pvy = plat ? (Number.isFinite(plat.velocityY) ? plat.velocityY : plat.dy || 0) : 0;
             // Xsp/Ysp from gsp (§3.3), then the perpendicular impulse (§5)
-            this.xsp = this.gsp * Math.cos(a) - PHYS.JMP * Math.sin(a) + pvx;
-            this.ysp = -this.gsp * Math.sin(a) - PHYS.JMP * Math.cos(a) + pvy;
+            this.xsp = this.gsp * Math.cos(a) - P.JMP * Math.sin(a) + pvx;
+            this.ysp = -this.gsp * Math.sin(a) - P.JMP * Math.cos(a) + pvy;
             this.curl(); // AIRBORNE + ROLLING hitbox (same +5px rule so the ball starts on the ground)
             this.jumped = true;
             this.crouching = false;
@@ -2497,13 +2677,20 @@
 
         /* ---------- AIRBORNE (§5 + Mid-Air Drop Dash) ---------- */
         stepAirborne(inp, h, jumpPressed = false) {
-            const P = PHYS;
+            const P = this.inWater ? WATER_PHYS : PHYS;
+            // Each fresh Jump press is a stroke, including while rising. Holding
+            // Jump never auto-swims. The dry-air Drop Dash remains unchanged.
+            if (this.inWater && jumpPressed && !this.hurtPose) {
+                this.ysp = -P.JMP; this.curl(); this.jumped = true;
+                this.springTwirl = false; this.dropDashCharging = this.dropDashReady = false;
+                this.dropDashCharge = 0; this.emit('swimStroke');
+            }
             // Wall kicks are enabled only by the act and its marked climb walls.
             // Probe independently of E/F: a stopped player still needs wall contact.
             this.wallSlide = 0;
             this.wallKickTimer = Math.max(0, (this.wallKickTimer || 0) - h);
             this.wallKickLock = Math.max(0, (this.wallKickLock || 0) - h);
-            if (this.terrain.levelDef && this.terrain.levelDef.wallJump && !this.hurtPose) {
+            if (!this.inWater && this.terrain.levelDef && this.terrain.levelDef.wallJump && !this.hurtPose) {
                 let contact = null;
                 for (const dir of [-1, 1]) {
                     const hit = this.terrain.raycast(this.x, this.y, dir, 0, this.radii.push + 8, this.layer, 0, true);
@@ -2542,7 +2729,7 @@
             if (this.jumped && !inp.jumpHeld && this.ysp < P.JMP_RELEASE_CAP) this.ysp = P.JMP_RELEASE_CAP;
 
             // Mid-Air Drop Dash: press & hold Jump again while curled in mid-air to charge instant landing roll!
-            if (this.curled && !this.hurtPose) {
+            if (this.curled && !this.hurtPose && !this.inWater) {
                 if (jumpPressed && !this.dropDashCharging) {
                     this.dropDashCharging = true;
                     this.dropDashCharge = 0;
@@ -2815,8 +3002,8 @@
     }
 
     return {
-        PHYS, HITBOX, STATE, MODE_FRAMES, DEG, TAU, PALMTREE_SPRITES,
+        PHYS, WATER_PHYS, AIR_FRAMES, HITBOX, STATE, MODE_FRAMES, DEG, TAU, PALMTREE_SPRITES,
         toDeg, wrapAngle, getQuadrantMode, landingGroundSpeed, normalToAngle, roundRectPath, skyColors,
-        LineSurface, HeightFieldSurface, ArcSurface, PathBuilder, Terrain, Player,
+        LineSurface, HeightFieldSurface, ArcSurface, PathBuilder, Terrain, Player, FollowCompanion,
     };
 });

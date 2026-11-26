@@ -59,7 +59,7 @@ test('the real Act 2 sign, tally and fade carry the campaign into the boss act',
         assert.deepStrictEqual([g.player.score, g.player.lives, g.player.shield], [carriedScore, 6, true]);
         assert.strictEqual(g.player.rings, 0); assert.strictEqual(g.stageTime, 0);
         assert(g.titleCard && g.getStageMeta().act === 3 && g.terrain.levelDef.isBossAct);
-        assert.strictEqual(g.getCampaignStages().length, 7);
+        assert.strictEqual(g.getCampaignStages().length, 8);
         assert.strictEqual(g.getNextCampaignStage(), 'z3_act1');
         assert(g.terrain.boss && !g.terrain.boss.active && g.terrain.capsule.lockedUntilBoss && !g.terrain.goalPost);
         healthy(h);

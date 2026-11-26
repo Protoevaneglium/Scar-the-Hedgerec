@@ -4,9 +4,15 @@
 
 **Scar the Hedgerec** is a high-speed 16-bit retro platformer built on an authentic 360-degree fixed-point physics engine. Designed as a clean, cross-platform (**Windows, Linux, macOS, and Termux / Android**) HTML5 Canvas & JavaScript game with zero external runtime dependencies required.
 
-📱 **[Download Android APK v0.0.5](https://github.com/Protoevaneglium/Scar-the-Hedgerec/releases/download/v0.0.5/scar-the-hedgerec-v0.0.5.apk)** — all seven acts, offline, Android 8.0+. [Android build and test details](ANDROID.md).
+📱 **[Download Android APK v0.0.6](https://github.com/Protoevaneglium/Scar-the-Hedgerec/releases/download/v0.0.6/scar-the-hedgerec-v0.0.6.apk)** — all eight acts, offline, Android 8.0+. [Android build and test details](ANDROID.md).
 
 **Zone 3 Act 1 — Mirage Aqueduct:** Hydrocity / Sandopolis inspired golden ruins and turquoise aqueducts, changing skies, sprite-derived 2.5D characters and objects, water slides, launch jets, three upper routes, a continuous recovery course, and a secret treasury. Unlocks after Sanctuary Duet.
+
+**Zone 3 Act 2 — Neon Labyrinth:** A 19,200-pixel neon crystal labyrinth, about 25% longer than Act 1. Four reservoirs alternate with dry speed routes; crown shortcuts, submerged galleries, open ascent wells and lifts reconnect above a continuous recovery course. Layout inspiration: the supplied Hydrocity Act 1 and Carnival Night Act 2 underwater maps. Visual inspiration: Collision Chaos Present and Quartz Quadrant Good Future, with a multicolor Sonic Colors twist. Includes an original synth-house soundtrack and shared Sonic water physics. Play directly at `/?stage=z3_act2&nointro` or continue from Act 1.
+
+Underwater, **tap Jump repeatedly to rise**; holding Jump supplies one stroke. **Hold S / Down near the surface to swim on your back**, steer with Left/Right, release to sink or Jump to leave the water. Air lasts 30 seconds; surface or collect a large vent bubble to refill it. Dry checkpoints sit between reservoirs.
+
+Rosie follows you throughout Neon Labyrinth. Press **E** or click **Play Rosie** to control her while Scar follows as the NPC; press E again to return to Scar. Both use the same running, jumping, rolling and swimming controls. Switching keeps your position, momentum, rings, lives, shield, power-ups and remaining air. The pair reunites at checkpoints, and your selected character is remembered when resuming the act.
 
 📄 **[Read the Full Physics Specification (`SONIC_PHYSICS_SPEC.md`)](SONIC_PHYSICS_SPEC.md)**  
 📐 **[Level Core Foundation Blueprint (`templates/LEVEL_CORE_BLUEPRINT.md`)](templates/LEVEL_CORE_BLUEPRINT.md)** • **[Downloadable Starter Core Kit (`.zip`)](public/downloads/scar-level-core-template.zip)** *(or open `/template.html` when running locally)*

@@ -7,7 +7,7 @@
     const art = (name, ...args) => root.MirageAqueductArt?.[name]?.(...args);
     E.Terrain.registerLevel('z3_act1', {
         title: 'Mirage Aqueduct Act 1', zone: 3, zoneName: 'MIRAGE AQUEDUCT', act: 1,
-        isBossAct: false, nextStage: null, bgm: 'assets/mirage_aqueduct.wav',
+        isBossAct: false, nextStage: 'z3_act2', bgm: 'assets/mirage_aqueduct.wav',
         startX: 0, endX: 15400, deathY: 1320, probeY: -650,
         cameraMinY: -450, cameraMaxY: 800, wallJump: true,
         spritePresentation: 'volume', changingSkies: true, animalZone: 'mz', animalTypes: ['flicky', 'pocky'],
